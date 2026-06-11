@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CERAF Bafoussam — Consistance des Travaux</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f0f4ff;--surface:#fff;--surface2:#f8faff;
+  --border:#dde5f4;--border2:#c7d4f0;
+  --blue:#1d4ed8;--blue-mid:#2563eb;--blue-lt:#eff6ff;--blue-glow:#dbeafe;
+  --navy:#0f2057;--text:#1e293b;--muted:#64748b;--muted2:#94a3b8;
+  --green:#16a34a;--green-lt:#dcfce7;
+  --red:#dc2626;--red-lt:#fee2e2;
+  --yellow:#ca8a04;--yellow-lt:#fef9c3;
+  --purple:#7c3aed;--purple-lt:#ede9fe;
+  --teal:#0891b2;--teal-lt:#cffafe;
+  --radius:12px;
+  --shadow:0 1px 3px rgba(30,58,138,.08),0 4px 16px rgba(30,58,138,.06);
+  --shadow-md:0 4px 24px rgba(30,58,138,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── SETUP SCREEN ── */
+#setup-screen{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff);}
+.setup-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 28px;max-width:500px;width:100%;box-shadow:var(--shadow-md);}
+.setup-title{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--navy);margin-bottom:6px;}
+.setup-sub{color:var(--muted);font-size:.82rem;margin-bottom:20px;line-height:1.6;}
+.setup-step{display:flex;gap:12px;margin-bottom:14px;}
+.snum{min-width:26px;height:26px;border-radius:50%;background:var(--blue-mid);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:2px;}
+.stext{font-size:.83rem;color:var(--text);line-height:1.55;}
+.stext strong{color:var(--blue-mid);}
+.stext code{background:var(--blue-lt);color:var(--blue);padding:1px 5px;border-radius:4px;font-size:.8rem;}
+
+/* ── ROLE SCREEN ── */
+#role-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff,#f5f3ff);}
+.role-logo{font-family:'Fraunces',serif;font-size:2rem;font-weight:800;color:var(--navy);margin-bottom:4px;text-align:center;}
+.role-logo span{color:var(--blue-mid);}
+.role-tagline{color:var(--muted);font-size:.85rem;margin-bottom:40px;text-align:center;}
+.role-cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;max-width:460px;}
+.role-card{background:var(--surface);border:2px solid var(--border);border-radius:16px;padding:28px 20px;cursor:pointer;flex:1;min-width:170px;text-align:center;transition:all .25s;box-shadow:var(--shadow);}
+.role-card:hover{border-color:var(--blue-mid);transform:translateY(-3px);box-shadow:var(--shadow-md);}
+.role-card.chef{border-color:var(--blue-glow);}
+.r-icon{font-size:2.4rem;margin-bottom:12px;}
+.r-title{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:6px;}
+.r-desc{font-size:.78rem;color:var(--muted);line-height:1.5;}
+
+/* ── APP ── */
+#app{display:none;flex-direction:column;flex:1;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(30,58,138,.08);}
+.logo-text{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);}
+.logo-text span{color:var(--blue-mid);}
+.role-badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700;background:var(--blue-lt);color:var(--blue-mid);border:1px solid var(--blue-glow);}
+.sync-row{display:flex;align-items:center;gap:5px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);transition:background .3s;}
+.sync-dot.ok{background:var(--green);}
+.sync-dot.loading{background:var(--yellow);animation:pulse .9s infinite;}
+.sync-dot.err{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-lbl{font-size:.7rem;color:var(--muted);}
+.btn-switch{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:.72rem;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
+.btn-switch:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
+
+.nav-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;gap:2px;}
+.nav-tab{padding:10px 14px;font-size:.82rem;font-weight:600;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;}
+.nav-tab:hover{color:var(--blue-mid);}
+.nav-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid);}
+
+.main-content{flex:1;padding:18px 16px;max-width:880px;margin:0 auto;width:100%;}
+.page{display:none;}.page.active{display:block;}
+.page-title{font-family:'Fraunces',serif;font-size:1.35rem;font-weight:700;color:var(--navy);margin-bottom:2px;}
+.page-title span{color:var(--blue-mid);}
+.page-sub{color:var(--muted);font-size:.82rem;margin-bottom:20px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
+.card-title{font-size:.88rem;font-weight:700;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px;}
+@media(max-width:560px){.form-row{grid-template-columns:1fr;}}
+.form-row.full{grid-template-columns:1fr;}
+label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
+input,select{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:.87rem;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border .2s;}
+input:focus,select:focus{border-color:var(--blue-mid);background:#fff;box-shadow:0 0 0 3px var(--blue-glow);}
+
+.type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;}
+@media(max-width:480px){.type-grid{grid-template-columns:repeat(2,1fr);}}
+.type-card{background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .2s;}
+.type-card:hover,.type-card.selected{border-color:var(--blue-mid);background:var(--blue-lt);}
+.tc-icon{font-size:1.35rem;margin-bottom:5px;}
+.tc-lbl{font-size:.7rem;font-weight:700;color:var(--muted);line-height:1.2;}
+.type-card.selected .tc-lbl{color:var(--blue-mid);}
+
+.btn{padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.84rem;font-weight:700;border:none;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--blue-mid);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3);}
+.btn-primary:hover{background:var(--blue);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.btn-outline{background:transparent;color:var(--blue-mid);border:1.5px solid var(--blue-mid);}
+.btn-outline:hover{background:var(--blue-lt);}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);}
+.btn-ghost:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
+.btn-danger{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
+.btn-sm{padding:5px 11px;font-size:.76rem;}
+
+.section-block{margin-bottom:20px;}
+.section-title{font-size:.85rem;font-weight:700;color:var(--blue-mid);border-bottom:2px solid var(--blue-glow);padding-bottom:6px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+
+.inv-row{background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;}
+.inv-info{flex:1;min-width:0;}
+.inv-name{font-weight:600;font-size:.87rem;word-break:break-word;line-height:1.45;}
+.inv-report{font-size:.73rem;color:var(--yellow);margin-top:3px;font-weight:600;}
+.inv-remark-disp{font-size:.75rem;color:var(--blue-mid);margin-top:3px;}
+
+.badge{padding:3px 10px;border-radius:20px;font-size:.71rem;font-weight:700;white-space:nowrap;}
+.b-pending{background:var(--yellow-lt);color:var(--yellow);border:1px solid #fde68a;}
+.b-ok{background:var(--green-lt);color:var(--green);border:1px solid #86efac;}
+.b-unreachable{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
+.b-inprogress{background:var(--teal-lt);color:var(--teal);border:1px solid #67e8f9;}
+.b-issue{background:var(--purple-lt);color:var(--purple);border:1px solid #c4b5fd;}
+
+.status-sel{background:var(--surface);border:1.5px solid var(--border);border-radius:7px;color:var(--text);padding:5px 8px;font-size:.77rem;cursor:pointer;outline:none;font-family:'Plus Jakarta Sans',sans-serif;}
+.remark-inp{width:100%;margin-top:7px;background:var(--surface);border:1.5px solid var(--border);border-radius:7px;color:var(--text);padding:6px 10px;font-size:.79rem;font-family:'Plus Jakarta Sans',sans-serif;outline:none;}
+.remark-inp:focus{border-color:var(--blue-mid);}
+
+.consist-header{background:linear-gradient(135deg,var(--navy),var(--blue-mid));border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;color:#fff;}
+.ch-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;}
+.ch-date{font-size:.78rem;opacity:.75;margin-top:2px;}
+.ch-chef{font-size:.85rem;font-weight:600;opacity:.9;}
+
+.month-label{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--blue-glow);}
+.hist-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:13px 16px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;transition:all .2s;box-shadow:var(--shadow);}
+.hist-card:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.hc-date{font-weight:700;font-size:.92rem;color:var(--navy);}
+.hc-chef{font-size:.76rem;color:var(--muted);margin-top:2px;}
+.hc-pills{display:flex;gap:6px;flex-wrap:wrap;}
+.pill{padding:2px 8px;border-radius:20px;font-size:.68rem;font-weight:700;}
+
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:20px;}
+.stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow);}
+.stat-num{font-family:'Fraunces',serif;font-size:1.9rem;font-weight:700;color:var(--blue-mid);}
+.stat-lbl{font-size:.7rem;color:var(--muted);margin-top:2px;}
+
+.hidden{display:none!important;}
+.flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty .eicon{font-size:2.4rem;margin-bottom:10px;}
+.empty p{font-size:.85rem;line-height:1.7;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 22px;font-size:.82rem;font-weight:600;z-index:9999;display:none;box-shadow:0 4px 20px rgba(15,32,87,.25);}
+
+footer{background:var(--surface);border-top:1px solid var(--border);text-align:center;padding:12px 16px;font-size:.7rem;color:var(--muted2);}
+footer strong{color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     ÉCRAN DE CONFIGURATION (première ouverture)
+══════════════════════════════════════════════ -->
+<div id="setup-screen">
+  <div class="setup-box">
+    <div class="setup-title">⚙️ Configuration initiale</div>
+    <div class="setup-sub">À faire <strong>une seule fois</strong> sur chaque appareil. L'URL sera mémorisée.</div>
+    <div class="setup-step"><div class="snum">1</div><div class="stext">Dans Apps Script, clique <strong>Déployer → Gérer les déploiements</strong></div></div>
+    <div class="setup-step"><div class="snum">2</div><div class="stext">Copie l'URL qui commence par <code>https://script.google.com/macros/s/...</code></div></div>
+    <div class="setup-step"><div class="snum">3</div><div class="stext">Colle-la ci-dessous et clique <strong>Enregistrer</strong></div></div>
+    <div style="margin-top:20px;">
+      <label>URL Apps Script</label>
+      <input type="url" id="setup-url" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:12px;">
+      <button class="btn btn-primary" style="width:100%" onclick="saveSetup()">✅ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     CHOIX DU RÔLE
+══════════════════════════════════════════════ -->
+<div id="role-screen">
+  <div class="role-logo">CERAF <span>Bafoussam</span></div>
+  <div class="role-tagline">Consistance des Travaux — Qui êtes-vous ?</div>
+  <div class="role-cards">
+    <div class="role-card chef" onclick="chooseRole('chef')">
+      <div class="r-icon">👷</div>
+      <div class="r-title">Chef d'équipe</div>
+      <div class="r-desc">Créer et publier la consistance du jour</div>
+    </div>
+    <div class="role-card" onclick="chooseRole('technicien')">
+      <div class="r-icon">📡</div>
+      <div class="r-title">Technicien</div>
+      <div class="r-desc">Consulter la fiche et mettre à jour vos interventions</div>
+    </div>
+  </div>
+  <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);">Ce choix est mémorisé sur votre appareil</p>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     APPLICATION PRINCIPALE
+══════════════════════════════════════════════ -->
+<div id="app">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="logo-text">CERAF <span>Bafm</span></div>
+      <div class="role-badge" id="role-badge">—</div>
+    </div>
+    <div class="sync-row">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span class="sync-lbl" id="sync-lbl">—</span>
+    </div>
+    <button class="btn-switch" onclick="switchRole()">⇄ Rôle</button>
+  </div>
+
+  <div class="nav-bar" id="nav-bar"></div>
+
+  <div class="main-content">
+
+    <!-- PAGE CHEF -->
+    <div class="page" id="page-chef">
+      <div class="page-title">Créer la <span>Consistance</span></div>
+      <div class="page-sub">Préparez et publiez la fiche du jour</div>
+      <div class="card">
+        <div class="card-title">📋 Informations générales</div>
+        <div class="form-row">
+          <div><label>Date</label><input type="date" id="inp-date"></div>
+          <div><label>Chef d'équipe</label><input type="text" id="inp-chef" placeholder="Ex: BENANA"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">➕ Ajouter une intervention</div>
+        <div class="type-grid">
+          <div class="type-card selected" data-type="etude_ftth"    onclick="selType(this)"><div class="tc-icon">🔍</div><div class="tc-lbl">Étude FTTH</div></div>
+          <div class="type-card"          data-type="install_ftth"  onclick="selType(this)"><div class="tc-icon">🔧</div><div class="tc-lbl">Installation FTTH</div></div>
+          <div class="type-card"          data-type="derang_ftth"   onclick="selType(this)"><div class="tc-icon">⚡</div><div class="tc-lbl">Dérang. FTTH</div></div>
+          <div class="type-card"          data-type="derang_cuivre" onclick="selType(this)"><div class="tc-icon">🪙</div><div class="tc-lbl">Dérang. Cuivre</div></div>
+          <div class="type-card"          data-type="etude_ls"      onclick="selType(this)"><div class="tc-icon">📐</div><div class="tc-lbl">Étude LS</div></div>
+          <div class="type-card"          data-type="derang_ls"     onclick="selType(this)"><div class="tc-icon">🔌</div><div class="tc-lbl">Dérang. LS</div></div>
+        </div>
+        <div id="fields-etude_ftth">
+          <div class="form-row"><div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen"></div><div><label>Téléphone(s)</label><input id="f1t" placeholder="621728190/678489859"></div></div>
+          <div class="form-row full"><div><label>Localité / Adresse</label><input id="f1l" placeholder="Après Ancien Acha bleu barrier"></div></div>
+        </div>
+        <div id="fields-install_ftth" class="hidden">
+          <div class="form-row"><div><label>N° FTTH</label><input id="f2u" placeholder="233444445"></div><div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row"><div><label>Téléphone</label><input id="f2t" placeholder="694561304"></div><div><label>Localité</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
+        </div>
+        <div id="fields-derang_ftth" class="hidden">
+          <div class="form-row"><div><label>N° FTTH</label><input id="f3u" placeholder="233442022"></div><div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row"><div><label>Téléphone</label><input id="f3t" placeholder="678451495"></div><div><label>Localité</label><input id="f3l" placeholder="MARCHE A"></div></div>
+        </div>
+        <div id="fields-derang_cuivre" class="hidden">
+          <div class="form-row"><div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118"></div><div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx si inconnu"></div><div><label>Localité</label><input id="f4l" placeholder="KAMPOP"></div></div>
+        </div>
+        <div id="fields-etude_ls" class="hidden">
+          <div class="form-row"><div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f5u" placeholder="xxx si inconnu"></div></div>
+          <div class="form-row full"><div><label>Localité</label><input id="f5l" placeholder="Localité"></div></div>
+        </div>
+        <div id="fields-derang_ls" class="hidden">
+          <div class="form-row"><div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f6u" placeholder="Numéro LS"></div></div>
+          <div class="form-row full"><div><label>Localité</label><input id="f6l" placeholder="Localité"></div></div>
+        </div>
+        <div class="mt-3">
+          <button class="btn btn-outline" onclick="addInv()">➕ Ajouter à la liste</button>
+        </div>
+      </div>
+      <div id="preview-section" class="hidden">
+        <div class="card">
+          <div class="card-title">📄 Aperçu de la fiche du jour</div>
+          <div id="preview-content"></div>
+          <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btn-pub" onclick="publishConsistance()">☁️ Publier</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑️ Effacer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE TERRAIN -->
+    <div class="page" id="page-terrain">
+      <div class="page-title">Fiche du <span>Jour</span></div>
+      <div class="page-sub">Mettez à jour vos interventions en temps réel</div>
+      <div id="terrain-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
+    </div>
+
+    <!-- PAGE HISTORIQUE -->
+    <div class="page" id="page-historique">
+      <div class="page-title"><span>Historique</span></div>
+      <div class="page-sub">Toutes les fiches classées par mois</div>
+      <div id="stats-wrap" class="hidden"><div class="stats-row" id="stats-row"></div></div>
+      <div id="historique-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
+    </div>
+
+  </div>
+  <footer>Application réalisée par <strong>BENANA BISSANA Gilles Hermann</strong> — CERAF Bafoussam</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONSTANTES
+// ══════════════════════════════════════════════
+const TL={etude_ftth:'Études FTTH',install_ftth:'Installations FTTH',derang_ftth:'Dérangements FTTH',derang_cuivre:'Dérangements Cuivre',etude_ls:'Étude LS',derang_ls:'Dérangements LS'};
+const TI={etude_ftth:'🔍',install_ftth:'🔧',derang_ftth:'⚡',derang_cuivre:'🪙',etude_ls:'📐',derang_ls:'🔌'};
+const SL={pending:'⏳ En attente',ok:'✅ Réalisé',unreachable:'📵 Injoignable',inprogress:'🔄 En cours',issue:'⚠️ Problème'};
+const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',inprogress:'b-inprogress',issue:'b-issue'};
+const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','En cours':'inprogress','Problème':'issue'};
+const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+let role='', cType='etude_ftth', pending=[], SCRIPT_URL='';
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+window.onload=()=>{
+  SCRIPT_URL = localStorage.getItem('ceraf_url')||'';
+  role       = localStorage.getItem('ceraf_role')||'';
+  document.getElementById('inp-date').value = todayStr();
+
+  if(!SCRIPT_URL){
+    // Première ouverture : demander l'URL Apps Script
+    show('setup-screen','flex');
+  } else if(!role){
+    show('role-screen','flex');
+  } else {
+    startApp(role);
+  }
+};
+
+function todayStr(){return new Date().toISOString().split('T')[0];}
+
+function show(id,d='flex'){
+  ['setup-screen','role-screen','app'].forEach(s=>{
+    const el=document.getElementById(s);
+    el.style.display=(s===id)?d:'none';
+  });
+}
+
+// ══════════════════════════════════════════════
+//  SETUP (saisie URL)
+// ══════════════════════════════════════════════
+function saveSetup(){
+  const url=document.getElementById('setup-url').value.trim();
+  if(!url||!url.includes('script.google.com')){
+    showToast('❌ URL invalide — doit contenir script.google.com');return;
+  }
+  SCRIPT_URL=url;
+  localStorage.setItem('ceraf_url',url);
+  show('role-screen','flex');
+}
+
+// ══════════════════════════════════════════════
+//  RÔLE
+// ══════════════════════════════════════════════
+function chooseRole(r){
+  role=r;
+  localStorage.setItem('ceraf_role',r);
+  startApp(r);
+}
+
+function switchRole(){
+  localStorage.removeItem('ceraf_role');
+  role='';
+  show('role-screen','flex');
+}
+
+function startApp(r){
+  show('app','flex');
+  document.getElementById('role-badge').textContent=r==='chef'?'👷 Chef':'📡 Technicien';
+  const nav=document.getElementById('nav-bar');
+  if(r==='chef'){
+    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('chef',this)">👷 Consistance</button>
+      <button class="nav-tab" onclick="goPage('historique',this)">📁 Historique</button>`;
+    goPage('chef',nav.querySelector('.nav-tab'),false);
+  } else {
+    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">📡 Terrain</button>
+      <button class="nav-tab" onclick="goPage('historique',this)">📁 Historique</button>`;
+    goPage('terrain',nav.querySelector('.nav-tab'),true);
+  }
+}
+
+function goPage(p,el,load=true){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  if(el)el.classList.add('active');
+  if(load){
+    if(p==='terrain')loadTerrain();
+    if(p==='historique')loadHistorique();
+  }
+}
+
+// ══════════════════════════════════════════════
+//  PAGE CHEF — saisie
+// ══════════════════════════════════════════════
+function selType(el){
+  document.querySelectorAll('.type-card').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');cType=el.dataset.type;
+  document.querySelectorAll('[id^="fields-"]').forEach(x=>x.classList.add('hidden'));
+  document.getElementById('fields-'+cType).classList.remove('hidden');
+}
+
+function gf(){
+  const v=id=>(document.getElementById(id)||{value:''}).value.trim();
+  if(cType==='etude_ftth')    return{nom:v('f1n'),tel:v('f1t'),loc:v('f1l')};
+  if(cType==='install_ftth')  return{num:v('f2u'),nom:v('f2n'),tel:v('f2t'),loc:v('f2l')};
+  if(cType==='derang_ftth')   return{num:v('f3u'),nom:v('f3n'),tel:v('f3t'),loc:v('f3l')};
+  if(cType==='derang_cuivre') return{num:v('f4u'),nom:v('f4n'),tel:v('f4t'),loc:v('f4l')};
+  if(cType==='etude_ls')      return{nom:v('f5n'),num:v('f5u'),loc:v('f5l')};
+  if(cType==='derang_ls')     return{nom:v('f6n'),num:v('f6u'),loc:v('f6l')};
+}
+
+function cf(){
+  ['f1n','f1t','f1l','f2u','f2n','f2t','f2l','f3u','f3n','f3t','f3l',
+   'f4u','f4n','f4t','f4l','f5n','f5u','f5l','f6n','f6u','f6l']
+  .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+
+function addInv(){
+  const f=gf();
+  if(!f.nom&&!f.num){showToast('⚠️ Renseignez au moins le nom ou le numéro');return;}
+  pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,id:Date.now()});
+  cf();renderPreview();
+}
+
+function buildLabel(inv){
+  const p=[];
+  if(inv.num)p.push(`<strong>${inv.num}</strong>`);
+  if(inv.nom)p.push(inv.nom);
+  if(inv.tel)p.push(inv.tel);
+  if(inv.loc)p.push(`<em style="color:var(--muted)">${inv.loc}</em>`);
+  return p.join(' – ');
+}
+
+function renderPreview(){
+  const sec=document.getElementById('preview-section');
+  if(pending.length===0){sec.classList.add('hidden');return;}
+  sec.classList.remove('hidden');
+  const g={};pending.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
+  let h='';
+  Object.keys(g).forEach(t=>{
+    h+=`<div class="section-block"><div class="section-title">${TI[t]} ${TL[t]}</div>`;
+    g[t].forEach((inv,i)=>{
+      h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div></div>
+        <button class="btn btn-danger btn-sm" onclick="remInv(${inv.id})">✕</button></div>`;
+    });
+    h+='</div>';
+  });
+  document.getElementById('preview-content').innerHTML=h;
+}
+
+function remInv(id){pending=pending.filter(i=>i.id!==id);renderPreview();}
+function clearAll(){if(confirm('Effacer toutes les interventions ?')){pending=[];renderPreview();}}
+
+async function publishConsistance(){
+  const date=document.getElementById('inp-date').value;
+  const chef=document.getElementById('inp-chef').value.trim();
+  if(!date){showToast('⚠️ Indiquez la date');return;}
+  if(!chef){showToast('⚠️ Indiquez le chef d\'équipe');return;}
+  if(pending.length===0){showToast('⚠️ Ajoutez au moins une intervention');return;}
+  const btn=document.getElementById('btn-pub');
+  btn.disabled=true;btn.textContent='⏳ Publication...';
+  const res=await apiPost({action:'saveConsistance',date,chef,interventions:pending});
+  btn.disabled=false;btn.textContent='☁️ Publier';
+  if(res.success){showToast('✅ Fiche publiée !');pending=[];renderPreview();}
+  else showToast('❌ Erreur : '+(res.error||'Vérifiez la connexion'));
+}
+
+// ══════════════════════════════════════════════
+//  PAGE TERRAIN
+// ══════════════════════════════════════════════
+async function loadTerrain(){
+  const el=document.getElementById('terrain-content');
+  el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
+  const data=await apiGet({action:'getByDate',date:todayStr()});
+  if(!data.success){
+    el.innerHTML=`<div class="empty"><div class="eicon">📋</div>
+      <p>Aucune consistance publiée aujourd'hui.<br>
+      <small style="color:var(--muted2)">${data.error||'Le chef doit publier la fiche.'}</small></p></div>`;
+    return;
+  }
+  const{consist,interventions}=data;
+  const g={};interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
+  let h=`<div class="consist-header">
+    <div><div class="ch-title">Consistance CERAF Bafoussam</div>
+    <div class="ch-date">📅 ${formatDate(consist.date)}</div></div>
+    <div class="ch-chef">👷 ${consist.chef}</div></div>`;
+  Object.keys(g).forEach(type=>{
+    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${type}</div>`;
+    g[type].forEach((inv,i)=>{
+      const sk=SM[inv.statut]||'pending';
+      h+=`<div class="inv-row" id="row-${inv.id}">
+        <div class="inv-info">
+          <div class="inv-name">${i+1}. ${buildLabel(inv)}</div>
+          ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDate(inv.reporteDepuis)}</div>`:''}
+          ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
+          <span class="badge ${SC[sk]}">${SL[sk]}</span>
+          <select class="status-sel" onchange="updStatut('${inv.id}',this.value)">
+            <option value="En attente"  ${inv.statut==='En attente' ?'selected':''}>⏳ En attente</option>
+            <option value="En cours"    ${inv.statut==='En cours'   ?'selected':''}>🔄 En cours</option>
+            <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>✅ Réalisé</option>
+            <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>📵 Injoignable</option>
+            <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>⚠️ Problème</option>
+          </select>
+          <input class="remark-inp" type="text" placeholder="Remarque..." value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}"
+            style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">
+        </div>
+      </div>`;
+    });
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
+async function updStatut(invId,statut){
+  const row=document.getElementById('row-'+invId);
+  const remarque=row?(row.querySelector('.remark-inp')||{value:''}).value:'';
+  const res=await apiPost({action:'updateStatus',invId,statut,remarque});
+  if(res.success){
+    showToast('✅ Statut mis à jour');
+    const sk=SM[statut]||'pending';
+    const badge=row?row.querySelector('.badge'):null;
+    if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[sk];}
+  } else showToast('❌ Erreur de mise à jour');
+}
+
+async function updRemarque(invId,remarque){
+  const row=document.getElementById('row-'+invId);
+  const statut=row?(row.querySelector('.status-sel')||{value:'En attente'}).value:'En attente';
+  const res=await apiPost({action:'updateStatus',invId,statut,remarque});
+  if(res.success) showToast('💬 Remarque enregistrée');
+}
+
+// ══════════════════════════════════════════════
+//  PAGE HISTORIQUE
+// ══════════════════════════════════════════════
+async function loadHistorique(){
+  const el=document.getElementById('historique-content');
+  const sw=document.getElementById('stats-wrap');
+  el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
+  const data=await apiGet({action:'getAll'});
+  if(!data.success||!data.data||data.data.length===0){
+    sw.classList.add('hidden');
+    el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée disponible.</p></div>';
+    return;
+  }
+  sw.classList.remove('hidden');
+  let total=0,ok=0,unr=0,issue=0;
+  data.data.forEach(c=>c.interventions.forEach(i=>{
+    total++;const sk=SM[i.statut]||'pending';
+    if(sk==='ok')ok++;if(sk==='unreachable')unr++;if(sk==='issue')issue++;
+  }));
+  document.getElementById('stats-row').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${data.data.length}</div><div class="stat-lbl">Jours</div></div>
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${unr}</div><div class="stat-lbl">Injoignables</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${issue}</div><div class="stat-lbl">Problèmes</div></div>`;
+  const sorted=[...data.data].sort((a,b)=>b.date.localeCompare(a.date));
+  const byMonth={};
+  sorted.forEach(c=>{
+    const[y,m]=c.date.split('-');const key=y+'-'+m;
+    if(!byMonth[key])byMonth[key]=[];byMonth[key].push(c);
+  });
+  let h='';
+  Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(key=>{
+    const[y,m]=key.split('-');
+    h+=`<div class="month-label">📅 ${MONTHS[parseInt(m)-1]} ${y}</div>`;
+    byMonth[key].forEach(c=>{
+      const tot=c.interventions.length;
+      const cok=c.interventions.filter(i=>(SM[i.statut]||'pending')==='ok').length;
+      const cunr=c.interventions.filter(i=>(SM[i.statut]||'pending')==='unreachable').length;
+      const safe=encodeURIComponent(JSON.stringify(c));
+      h+=`<div class="hist-card" onclick="showDetail(decodeURIComponent('${safe}'))">
+        <div><div class="hc-date">📄 ${formatDate(c.date)}</div>
+        <div class="hc-chef">👷 ${c.chef} — ${tot} intervention${tot>1?'s':''}</div></div>
+        <div class="hc-pills">
+          <span class="pill b-ok">${cok} réalisé${cok>1?'s':''}</span>
+          ${cunr>0?`<span class="pill b-unreachable">${cunr} injoignable${cunr>1?'s':''}</span>`:''}
+        </div></div>`;
+    });
+  });
+  el.innerHTML=h;
+}
+
+function showDetail(json){
+  const c=typeof json==='string'?JSON.parse(json):json;
+  const el=document.getElementById('historique-content');
+  const g={};c.interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
+  let h=`<button class="btn btn-ghost btn-sm" onclick="loadHistorique()" style="margin-bottom:14px;">← Retour</button>
+    <div class="consist-header"><div><div class="ch-title">Consistance — ${formatDate(c.date)}</div></div>
+    <div class="ch-chef">👷 ${c.chef}</div></div>`;
+  Object.keys(g).forEach(type=>{
+    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${type}</div>`;
+    g[type].forEach((inv,i)=>{
+      const sk=SM[inv.statut]||'pending';
+      h+=`<div class="inv-row">
+        <div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>
+        ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDate(inv.reporteDepuis)}</div>`:''}
+        ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
+        </div><span class="badge ${SC[sk]}">${SL[sk]}</span></div>`;
+    });
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
+// ══════════════════════════════════════════════
+//  API — communication avec Apps Script
+// ══════════════════════════════════════════════
+function setSS(state,msg){
+  document.getElementById('sync-dot').className='sync-dot '+state;
+  document.getElementById('sync-lbl').textContent=msg;
+}
+
+// POST via un proxy no-cors — on ne peut pas lire la réponse directement
+// On utilise donc un GET pour les lectures et POST pour les écritures
+async function apiPost(payload){
+  setSS('loading','Sync...');
+  try{
+    // Apps Script accepte les POST mais renvoie une réponse opaque en no-cors
+    // On contourne en envoyant via fetch normal (le déploiement "Tout le monde" le permet)
+    const res=await fetch(SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'}, // text/plain évite le preflight CORS
+      body:JSON.stringify(payload)
+    });
+    const text=await res.text();
+    const data=JSON.parse(text);
+    setSS('ok','Synchronisé');
+    return data;
+  }catch(e){
+    setSS('err','Hors ligne');
+    return{success:false,error:e.toString()};
+  }
+}
+
+async function apiGet(params){
+  setSS('loading','Chargement...');
+  try{
+    const qs=new URLSearchParams(params).toString();
+    const res=await fetch(SCRIPT_URL+'?'+qs);
+    const text=await res.text();
+    const data=JSON.parse(text);
+    setSS('ok','Synchronisé');
+    return data;
+  }catch(e){
+    setSS('err','Hors ligne');
+    return{success:false,error:'Connexion impossible. Vérifiez l\'URL du script.'};
+  }
+}
+
+// ══════════════════════════════════════════════
+//  UTILITAIRES
+// ══════════════════════════════════════════════
+function formatDate(d){
+  if(!d||d==='null')return'—';
+  const p=String(d).split('-');
+  if(p.length<3)return d;
+  const m=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  return parseInt(p[2])+' '+m[parseInt(p[1])-1]+' '+p[0];
+}
+
+let _tt;
+function showToast(msg){
+  clearTimeout(_tt);
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.display='block';
+  _tt=setTimeout(()=>{t.style.display='none';},2800);
+}
+</script>
+</body>
+</html>
