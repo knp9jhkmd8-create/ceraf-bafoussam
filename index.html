@@ -23,7 +23,6 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
 
-/* ── SETUP SCREEN ── */
 #setup-screen{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff);}
 .setup-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 28px;max-width:500px;width:100%;box-shadow:var(--shadow-md);}
 .setup-title{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--navy);margin-bottom:6px;}
@@ -34,7 +33,6 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .stext strong{color:var(--blue-mid);}
 .stext code{background:var(--blue-lt);color:var(--blue);padding:1px 5px;border-radius:4px;font-size:.8rem;}
 
-/* ── ROLE SCREEN ── */
 #role-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff,#f5f3ff);}
 .role-logo{font-family:'Fraunces',serif;font-size:2rem;font-weight:800;color:var(--navy);margin-bottom:4px;text-align:center;}
 .role-logo span{color:var(--blue-mid);}
@@ -47,7 +45,6 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .r-title{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:6px;}
 .r-desc{font-size:.78rem;color:var(--muted);line-height:1.5;}
 
-/* ── APP ── */
 #app{display:none;flex-direction:column;flex:1;}
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(30,58,138,.08);}
 .logo-text{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);}
@@ -104,8 +101,18 @@ select{cursor:pointer;}
 .btn-danger{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
 .btn-sm{padding:5px 11px;font-size:.76rem;}
 
-.section-block{margin-bottom:20px;}
+/* SECTIONS & INTERVENTIONS */
+.section-block{margin-bottom:24px;}
 .section-title{font-size:.85rem;font-weight:700;color:var(--blue-mid);border-bottom:2px solid var(--blue-glow);padding-bottom:6px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+
+/* Bloc quartier dans la vue terrain */
+.quartier-block{margin-bottom:16px;}
+.quartier-header{
+  display:flex;align-items:center;gap:8px;
+  font-size:.78rem;font-weight:700;color:var(--teal);
+  background:var(--teal-lt);border:1px solid #a5f3fc;
+  border-radius:8px;padding:6px 12px;margin-bottom:8px;
+}
 
 .inv-row{background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;}
 .inv-info{flex:1;min-width:0;}
@@ -121,7 +128,6 @@ select{cursor:pointer;}
 .b-pending{background:var(--yellow-lt);color:var(--yellow);border:1px solid #fde68a;}
 .b-ok{background:var(--green-lt);color:var(--green);border:1px solid #86efac;}
 .b-unreachable{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
-.b-inprogress{background:var(--teal-lt);color:var(--teal);border:1px solid #67e8f9;}
 .b-issue{background:var(--purple-lt);color:var(--purple);border:1px solid #c4b5fd;}
 
 .status-sel{background:var(--surface);border:1.5px solid var(--border);border-radius:7px;color:var(--text);padding:5px 8px;font-size:.77rem;cursor:pointer;outline:none;font-family:'Plus Jakarta Sans',sans-serif;}
@@ -132,6 +138,11 @@ select{cursor:pointer;}
 .ch-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;}
 .ch-date{font-size:.78rem;opacity:.75;margin-top:2px;}
 .ch-chef{font-size:.85rem;font-weight:600;opacity:.9;}
+
+/* Vue terrain : toggle type / quartier */
+.view-toggle{display:flex;gap:6px;margin-bottom:16px;}
+.vtab{padding:6px 14px;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
+.vtab.active{background:var(--blue-mid);color:#fff;border-color:var(--blue-mid);}
 
 .month-label{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--blue-glow);}
 .hist-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:13px 16px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;transition:all .2s;box-shadow:var(--shadow);}
@@ -163,15 +174,13 @@ footer strong{color:var(--muted);}
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════
-     ÉCRAN DE CONFIGURATION (première ouverture)
-══════════════════════════════════════════════ -->
+<!-- SETUP -->
 <div id="setup-screen">
   <div class="setup-box">
     <div class="setup-title">⚙️ Configuration initiale</div>
-    <div class="setup-sub">À faire <strong>une seule fois</strong> sur chaque appareil. L'URL sera mémorisée.</div>
-    <div class="setup-step"><div class="snum">1</div><div class="stext">Dans Apps Script, clique <strong>Déployer → Gérer les déploiements</strong></div></div>
-    <div class="setup-step"><div class="snum">2</div><div class="stext">Copie l'URL qui commence par <code>https://script.google.com/macros/s/...</code></div></div>
+    <div class="setup-sub">À faire <strong>une seule fois</strong> sur chaque appareil.</div>
+    <div class="setup-step"><div class="snum">1</div><div class="stext">Dans Apps Script → <strong>Déployer → Gérer les déploiements</strong></div></div>
+    <div class="setup-step"><div class="snum">2</div><div class="stext">Copie l'URL <code>https://script.google.com/macros/s/.../exec</code></div></div>
     <div class="setup-step"><div class="snum">3</div><div class="stext">Colle-la ci-dessous et clique <strong>Enregistrer</strong></div></div>
     <div style="margin-top:20px;">
       <label>URL Apps Script</label>
@@ -181,16 +190,14 @@ footer strong{color:var(--muted);}
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     CHOIX DU RÔLE
-══════════════════════════════════════════════ -->
+<!-- CHOIX RÔLE -->
 <div id="role-screen">
   <div class="role-logo">CERAF <span>Bafoussam</span></div>
   <div class="role-tagline">Consistance des Travaux — Qui êtes-vous ?</div>
   <div class="role-cards">
     <div class="role-card chef" onclick="chooseRole('chef')">
       <div class="r-icon">👷</div>
-      <div class="r-title">Chef d'équipe</div>
+      <div class="r-title">Chef centre</div>
       <div class="r-desc">Créer et publier la consistance du jour</div>
     </div>
     <div class="role-card" onclick="chooseRole('technicien')">
@@ -202,13 +209,11 @@ footer strong{color:var(--muted);}
   <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);">Ce choix est mémorisé sur votre appareil</p>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     APPLICATION PRINCIPALE
-══════════════════════════════════════════════ -->
+<!-- APP -->
 <div id="app">
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
-      <div class="logo-text">CERAF <span>Bafm</span></div>
+      <div class="logo-text">CERAF <span>Bafoussam</span></div>
       <div class="role-badge" id="role-badge">—</div>
     </div>
     <div class="sync-row">
@@ -225,12 +230,12 @@ footer strong{color:var(--muted);}
     <!-- PAGE CHEF -->
     <div class="page" id="page-chef">
       <div class="page-title">Créer la <span>Consistance</span></div>
-      <div class="page-sub">Préparez et publiez la fiche du jour — chaque publication s'ajoute à la fiche existante</div>
+      <div class="page-sub">Chaque publication s'ajoute à la fiche du jour</div>
       <div class="card">
         <div class="card-title">📋 Informations générales</div>
         <div class="form-row">
           <div><label>Date</label><input type="date" id="inp-date"></div>
-          <div><label>Chef d'équipe</label><input type="text" id="inp-chef" placeholder="Ex: BENANA"></div>
+          <div><label>Chef centre</label><input type="text" id="inp-chef" placeholder="Ex: BENANA"></div>
         </div>
       </div>
       <div class="card">
@@ -249,13 +254,7 @@ footer strong{color:var(--muted);}
           <div class="form-row"><div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen"></div><div><label>Téléphone(s)</label><input id="f1t" placeholder="621728190/678489859"></div></div>
           <div class="form-row">
             <div><label>Ville</label>
-              <select id="f1v">
-                <option value="">-- Sélectionner --</option>
-                <option value="Bafoussam">Bafoussam</option>
-                <option value="Bandjoun">Bandjoun</option>
-                <option value="Baham">Baham</option>
-                <option value="Foumbot">Foumbot</option>
-              </select>
+              <select id="f1v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
             </div>
             <div><label>Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
           </div>
@@ -265,51 +264,27 @@ footer strong{color:var(--muted);}
         <div id="fields-install_ftth" class="hidden">
           <div class="form-row"><div><label>N° FTTH</label><input id="f2u" placeholder="233444445" oninput="autoVille(this.value,'f2v')"></div><div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen"></div></div>
           <div class="form-row"><div><label>Téléphone</label><input id="f2t" placeholder="694561304"></div><div><label>Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
-          <div class="form-row full">
-            <div><label>Ville (auto-détectée — modifiable)</label>
-              <select id="f2v">
-                <option value="">-- Sélectionner --</option>
-                <option value="Bafoussam">Bafoussam</option>
-                <option value="Bandjoun">Bandjoun</option>
-                <option value="Baham">Baham</option>
-                <option value="Foumbot">Foumbot</option>
-              </select>
-            </div>
-          </div>
+          <div class="form-row full"><div><label>Ville (auto-détectée — modifiable)</label>
+            <select id="f2v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
+          </div></div>
         </div>
 
         <!-- DÉRANGEMENT FTTH -->
         <div id="fields-derang_ftth" class="hidden">
           <div class="form-row"><div><label>N° FTTH</label><input id="f3u" placeholder="233442022" oninput="autoVille(this.value,'f3v')"></div><div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen"></div></div>
           <div class="form-row"><div><label>Téléphone</label><input id="f3t" placeholder="678451495"></div><div><label>Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
-          <div class="form-row full">
-            <div><label>Ville (auto-détectée — modifiable)</label>
-              <select id="f3v">
-                <option value="">-- Sélectionner --</option>
-                <option value="Bafoussam">Bafoussam</option>
-                <option value="Bandjoun">Bandjoun</option>
-                <option value="Baham">Baham</option>
-                <option value="Foumbot">Foumbot</option>
-              </select>
-            </div>
-          </div>
+          <div class="form-row full"><div><label>Ville (auto-détectée — modifiable)</label>
+            <select id="f3v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
+          </div></div>
         </div>
 
         <!-- DÉRANGEMENT CUIVRE -->
         <div id="fields-derang_cuivre" class="hidden">
           <div class="form-row"><div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118" oninput="autoVille(this.value,'f4v')"></div><div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen"></div></div>
           <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx si inconnu"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
-          <div class="form-row full">
-            <div><label>Ville (auto-détectée — modifiable)</label>
-              <select id="f4v">
-                <option value="">-- Sélectionner --</option>
-                <option value="Bafoussam">Bafoussam</option>
-                <option value="Bandjoun">Bandjoun</option>
-                <option value="Baham">Baham</option>
-                <option value="Foumbot">Foumbot</option>
-              </select>
-            </div>
-          </div>
+          <div class="form-row full"><div><label>Ville (auto-détectée — modifiable)</label>
+            <select id="f4v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
+          </div></div>
         </div>
 
         <!-- ÉTUDE LS -->
@@ -317,13 +292,7 @@ footer strong{color:var(--muted);}
           <div class="form-row"><div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f5u" placeholder="xxx si inconnu"></div></div>
           <div class="form-row">
             <div><label>Ville</label>
-              <select id="f5v">
-                <option value="">-- Sélectionner --</option>
-                <option value="Bafoussam">Bafoussam</option>
-                <option value="Bandjoun">Bandjoun</option>
-                <option value="Baham">Baham</option>
-                <option value="Foumbot">Foumbot</option>
-              </select>
+              <select id="f5v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
             </div>
             <div><label>Localité / Quartier</label><input id="f5l" placeholder="Localité"></div>
           </div>
@@ -334,13 +303,7 @@ footer strong{color:var(--muted);}
           <div class="form-row"><div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f6u" placeholder="Numéro LS"></div></div>
           <div class="form-row">
             <div><label>Ville</label>
-              <select id="f6v">
-                <option value="">-- Sélectionner --</option>
-                <option value="Bafoussam">Bafoussam</option>
-                <option value="Bandjoun">Bandjoun</option>
-                <option value="Baham">Baham</option>
-                <option value="Foumbot">Foumbot</option>
-              </select>
+              <select id="f6v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
             </div>
             <div><label>Localité / Quartier</label><input id="f6l" placeholder="Localité"></div>
           </div>
@@ -367,6 +330,11 @@ footer strong{color:var(--muted);}
     <div class="page" id="page-terrain">
       <div class="page-title">Fiche du <span>Jour</span></div>
       <div class="page-sub">Mettez à jour vos interventions en temps réel</div>
+      <!-- Toggles de vue -->
+      <div class="view-toggle">
+        <button class="vtab active" id="vtab-type"     onclick="setTerrainView('type',this)">Par type</button>
+        <button class="vtab"        id="vtab-quartier" onclick="setTerrainView('quartier',this)">Par quartier</button>
+      </div>
       <div id="terrain-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
     </div>
 
@@ -391,50 +359,44 @@ footer strong{color:var(--muted);}
 // ══════════════════════════════════════════════
 const TL={etude_ftth:'Études FTTH',install_ftth:'Installations FTTH',derang_ftth:'Dérangements FTTH',derang_cuivre:'Dérangements Cuivre',etude_ls:'Étude LS',derang_ls:'Dérangements LS'};
 const TI={etude_ftth:'🔍',install_ftth:'🔧',derang_ftth:'⚡',derang_cuivre:'🪙',etude_ls:'📐',derang_ls:'🔌'};
-const SL={pending:'⏳ En attente',ok:'✅ Réalisé',unreachable:'📵 Injoignable',inprogress:'🔄 En cours',issue:'⚠️ Problème'};
-const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',inprogress:'b-inprogress',issue:'b-issue'};
-const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','En cours':'inprogress','Problème':'issue'};
+const SL={pending:'⏳ En attente',ok:'✅ Réalisé',unreachable:'📵 Injoignable',issue:'⚠️ Problème'};
+const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',issue:'b-issue'};
+const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','Problème':'issue'};
 const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const PREFIX_VILLE={'23344':'Bafoussam','23327':'Bandjoun'};
+const VILLE_REQUIRED=['etude_ftth','etude_ls','derang_ls'];
 
-// Préfixes connus des numéros FTTH / Cuivre → Ville
-const PREFIX_VILLE = { '23344':'Bafoussam', '23327':'Bandjoun' };
-
-// Types pour lesquels la sélection de ville est obligatoire
-const VILLE_REQUIRED_TYPES = ['etude_ftth','etude_ls','derang_ls'];
-
-// Quartiers connus de Bafoussam — pour détection automatique
-const QUARTIERS_BAFOUSSAM = [
-  "TAMDJA","TPO","EVECHE","KAMKOP","BALENG","ENTREE DE LA VILLE","TYO VILLE","BAMENZI","SOCADA","BIAO",
-  "TOTAL D'EN BAS","DJEMOUN","NDIANGDAM","NDIANSO","DUBAI","CAMI TOYOTA","BANDJOUN STATION","MICHOU BAR","KENA","CAMPS SABLE",
-  "KOUOGOUO","CARREFOUR LE MAIRE","SAPEUR POMPIER","MATEUR","BANENGO","COLACO","FEUX ROUGE","MARCHE B","MARCHE A","MARCHE DES POULETS",
-  "HOPITAL REGIONAL","MARCHE CASA","QUARTIER HAOUSSA","QUARTIER ADMINISTRATIF","TOCKET","TOURISTIQUE","ACHA","BINAM","AUBERGE","DJELENG"
-].sort((a,b)=>b.length-a.length); // les plus longs d'abord pour éviter les faux positifs
+// ← BIPMOP ajouté, liste triée par longueur décroissante
+const QUARTIERS_BAFOUSSAM=[
+  "ENTREE DE LA VILLE","CARREFOUR LE MAIRE","MARCHE DES POULETS","QUARTIER ADMINISTRATIF",
+  "TOTAL D'EN BAS","HOPITAL REGIONAL","SAPEUR POMPIER","BANDJOUN STATION","QUARTIER HAOUSSA",
+  "CAMPS SABLE","MARCHE CASA","CAMI TOYOTA","MICHOU BAR","NDIANGDAM","MARCHE B","MARCHE A",
+  "TYO VILLE","FEUX ROUGE","TOURISTIQUE","BAMENZI","KOUOGOUO","DJEMOUN","NDIANSO","BANENGO",
+  "SOCADA","TAMDJA","KAMKOP","BALENG","EVECHE","COLACO","BIPMOP","TOCKET","MATEUR","BINAM","DUBAI",
+  "AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO"
+].sort((a,b)=>b.length-a.length);
 
 let role='', cType='etude_ftth', pending=[], SCRIPT_URL='';
+let terrainData=null; // cache pour switcher la vue sans recharger
+let currentTerrainView='type';
 
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
 window.onload=()=>{
-  SCRIPT_URL = localStorage.getItem('ceraf_url')||'';
-  role       = localStorage.getItem('ceraf_role')||'';
-  document.getElementById('inp-date').value = todayStr();
-
-  if(!SCRIPT_URL){
-    show('setup-screen','flex');
-  } else if(!role){
-    show('role-screen','flex');
-  } else {
-    startApp(role);
-  }
+  SCRIPT_URL=localStorage.getItem('ceraf_url')||'';
+  role=localStorage.getItem('ceraf_role')||'';
+  document.getElementById('inp-date').value=todayStr();
+  if(!SCRIPT_URL) show('setup-screen','flex');
+  else if(!role)  show('role-screen','flex');
+  else            startApp(role);
 };
 
 function todayStr(){return new Date().toISOString().split('T')[0];}
 
 function show(id,d='flex'){
   ['setup-screen','role-screen','app'].forEach(s=>{
-    const el=document.getElementById(s);
-    el.style.display=(s===id)?d:'none';
+    document.getElementById(s).style.display=(s===id)?d:'none';
   });
 }
 
@@ -443,29 +405,21 @@ function show(id,d='flex'){
 // ══════════════════════════════════════════════
 function saveSetup(){
   const url=document.getElementById('setup-url').value.trim();
-  if(!url||!url.includes('script.google.com')){
-    showToast('❌ URL invalide — doit contenir script.google.com');return;
-  }
-  SCRIPT_URL=url;
-  localStorage.setItem('ceraf_url',url);
-  show('role-screen','flex');
+  if(!url||!url.includes('script.google.com')){showToast('❌ URL invalide');return;}
+  SCRIPT_URL=url; localStorage.setItem('ceraf_url',url); show('role-screen','flex');
 }
 
 function chooseRole(r){
-  role=r;
-  localStorage.setItem('ceraf_role',r);
-  startApp(r);
+  role=r; localStorage.setItem('ceraf_role',r); startApp(r);
 }
 
 function switchRole(){
-  localStorage.removeItem('ceraf_role');
-  role='';
-  show('role-screen','flex');
+  localStorage.removeItem('ceraf_role'); role=''; show('role-screen','flex');
 }
 
 function startApp(r){
   show('app','flex');
-  document.getElementById('role-badge').textContent=r==='chef'?'👷 Chef':'📡 Technicien';
+  document.getElementById('role-badge').textContent=r==='chef'?'👷 Chef centre':'📡 Technicien';
   const nav=document.getElementById('nav-bar');
   if(r==='chef'){
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('chef',this)">👷 Consistance</button>
@@ -484,53 +438,44 @@ function goPage(p,el,load=true){
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
   if(load){
-    if(p==='terrain')loadTerrain();
-    if(p==='historique')loadHistorique();
+    if(p==='terrain')    loadTerrain();
+    if(p==='historique') loadHistorique();
   }
 }
 
 // ══════════════════════════════════════════════
-//  DÉTECTION VILLE (préfixe numéro) & QUARTIER (texte localité)
+//  DÉTECTIONS
 // ══════════════════════════════════════════════
 function detectVilleFromNum(num){
-  if(!num) return '';
-  const digits = num.replace(/\D/g,'');
-  const prefix = digits.substring(0,5);
-  return PREFIX_VILLE[prefix] || '';
+  const d=num.replace(/\D/g,'');
+  return PREFIX_VILLE[d.substring(0,5)]||'';
 }
-
-function autoVille(num, selId){
-  const v = detectVilleFromNum(num);
-  if(v){
-    const sel = document.getElementById(selId);
-    if(sel) sel.value = v;
-  }
+function autoVille(num,selId){
+  const v=detectVilleFromNum(num);
+  if(v){const s=document.getElementById(selId);if(s)s.value=v;}
 }
-
-function normalizeTxt(s){
+function normTxt(s){
   return String(s).toUpperCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // retire accents
-    .replace(/[^A-Z0-9 ]/g,' ')                       // retire ponctuation
-    .replace(/\s+/g,' ').trim();
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 }
-
 function detectQuartier(loc){
   if(!loc) return '';
-  const norm = normalizeTxt(loc);
+  const n=normTxt(loc);
   for(const q of QUARTIERS_BAFOUSSAM){
-    const nq = normalizeTxt(q);
-    const re = new RegExp('\\b'+nq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
-    if(re.test(norm)) return q;
+    const nq=normTxt(q);
+    const re=new RegExp('\\b'+nq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
+    if(re.test(n)) return q;
   }
   return '';
 }
 
 // ══════════════════════════════════════════════
-//  PAGE CHEF — saisie
+//  CHEF — SAISIE
 // ══════════════════════════════════════════════
 function selType(el){
   document.querySelectorAll('.type-card').forEach(x=>x.classList.remove('selected'));
-  el.classList.add('selected');cType=el.dataset.type;
+  el.classList.add('selected'); cType=el.dataset.type;
   document.querySelectorAll('[id^="fields-"]').forEach(x=>x.classList.add('hidden'));
   document.getElementById('fields-'+cType).classList.remove('hidden');
 }
@@ -554,12 +499,10 @@ function cf(){
 function addInv(){
   const f=gf();
   if(!f.nom&&!f.num){showToast('⚠️ Renseignez au moins le nom ou le numéro');return;}
-  if(VILLE_REQUIRED_TYPES.includes(cType) && !f.ville){
-    showToast('⚠️ Sélectionnez la ville');return;
-  }
-  const quartier = detectQuartier(f.loc||'');
+  if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast('⚠️ Sélectionnez la ville');return;}
+  const quartier=detectQuartier(f.loc||'');
   pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,quartier,id:Date.now()});
-  cf();renderPreview();
+  cf(); renderPreview();
 }
 
 function buildLabel(inv){
@@ -573,9 +516,9 @@ function buildLabel(inv){
 
 function buildTags(inv){
   let h='';
-  if(inv.ville && inv.ville!=='null' && inv.ville!=='') h+=`<span class="tag tag-ville">📍 ${inv.ville}</span>`;
-  if(inv.quartier && inv.quartier!=='null' && inv.quartier!=='') h+=`<span class="tag tag-quartier">${inv.quartier}</span>`;
-  return h ? `<div class="inv-tags">${h}</div>` : '';
+  if(inv.ville&&inv.ville!=='null'&&inv.ville!=='') h+=`<span class="tag tag-ville">📍 ${inv.ville}</span>`;
+  if(inv.quartier&&inv.quartier!=='null'&&inv.quartier!=='') h+=`<span class="tag tag-quartier">${inv.quartier}</span>`;
+  return h?`<div class="inv-tags">${h}</div>`:'';
 }
 
 function renderPreview(){
@@ -596,13 +539,13 @@ function renderPreview(){
 }
 
 function remInv(id){pending=pending.filter(i=>i.id!==id);renderPreview();}
-function clearAll(){if(confirm('Effacer toutes les interventions ?')){pending=[];renderPreview();}}
+function clearAll(){if(confirm('Effacer ?')){pending=[];renderPreview();}}
 
 async function publishConsistance(){
   const date=document.getElementById('inp-date').value;
   const chef=document.getElementById('inp-chef').value.trim();
   if(!date){showToast('⚠️ Indiquez la date');return;}
-  if(!chef){showToast('⚠️ Indiquez le chef d\'équipe');return;}
+  if(!chef){showToast('⚠️ Indiquez le chef centre');return;}
   if(pending.length===0){showToast('⚠️ Ajoutez au moins une intervention');return;}
   const btn=document.getElementById('btn-pub');
   btn.disabled=true;btn.textContent='⏳ Publication...';
@@ -613,51 +556,109 @@ async function publishConsistance(){
 }
 
 // ══════════════════════════════════════════════
-//  PAGE TERRAIN
+//  TERRAIN — vue par TYPE ou par QUARTIER
 // ══════════════════════════════════════════════
+function setTerrainView(v, el){
+  currentTerrainView=v;
+  document.querySelectorAll('.vtab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  if(terrainData) renderTerrain(terrainData);
+}
+
 async function loadTerrain(){
   const el=document.getElementById('terrain-content');
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const data=await apiGet({action:'getByDate',date:todayStr()});
   if(!data.success){
+    terrainData=null;
     el.innerHTML=`<div class="empty"><div class="eicon">📋</div>
       <p>Aucune consistance publiée aujourd'hui.<br>
-      <small style="color:var(--muted2)">${data.error||'Le chef doit publier la fiche.'}</small></p></div>`;
+      <small style="color:var(--muted2)">${data.error||'Le chef centre doit publier la fiche.'}</small></p></div>`;
     return;
   }
+  terrainData=data;
+  renderTerrain(data);
+}
+
+function renderTerrain(data){
+  const el=document.getElementById('terrain-content');
   const{consist,interventions}=data;
-  const g={};interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
-  let h=`<div class="consist-header">
+
+  const header=`<div class="consist-header">
     <div><div class="ch-title">Consistance CERAF Bafoussam</div>
     <div class="ch-date">📅 ${formatDate(consist.date)}</div></div>
     <div class="ch-chef">👷 ${consist.chef}</div></div>`;
+
+  if(currentTerrainView==='type'){
+    el.innerHTML = header + renderByType(interventions);
+  } else {
+    el.innerHTML = header + renderByQuartier(interventions);
+  }
+}
+
+function renderByType(interventions){
+  const g={};
+  interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
+  let h='';
   Object.keys(g).forEach(type=>{
     h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${type}</div>`;
-    g[type].forEach((inv,i)=>{
-      const sk=SM[inv.statut]||'pending';
-      h+=`<div class="inv-row" id="row-${inv.id}">
-        <div class="inv-info">
-          <div class="inv-name">${i+1}. ${buildLabel(inv)}</div>
-          ${buildTags(inv)}
-          ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDate(inv.reporteDepuis)}</div>`:''}
-          ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
-          <span class="badge ${SC[sk]}">${SL[sk]}</span>
-          <select class="status-sel" onchange="updStatut('${inv.id}',this.value)">
-            <option value="En attente"  ${inv.statut==='En attente' ?'selected':''}>⏳ En attente</option>
-            <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>✅ Réalisé</option>
-            <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>📵 Injoignable</option>
-            <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>⚠️ Problème</option>
-          </select>
-          <input class="remark-inp" type="text" placeholder="Remarque..." value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}"
-            style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">
-        </div>
-      </div>`;
+    g[type].forEach((inv,i)=>{ h+=invRowHTML(inv,i); });
+    h+='</div>';
+  });
+  return h;
+}
+
+function renderByQuartier(interventions){
+  // Grouper par quartier (ceux sans quartier → "Quartier non identifié")
+  const g={};
+  interventions.forEach(i=>{
+    const q=(i.quartier&&i.quartier!=='null'&&i.quartier!=='')?i.quartier:'—';
+    if(!g[q])g[q]=[];g[q].push(i);
+  });
+
+  // Trier : quartiers connus d'abord (par ordre alphabétique), inconnus à la fin
+  const keys=Object.keys(g).sort((a,b)=>{
+    if(a==='—') return 1; if(b==='—') return -1; return a.localeCompare(b);
+  });
+
+  let h='';
+  keys.forEach(q=>{
+    const label=q==='—'?'📌 Quartier non identifié':`📌 ${q}`;
+    h+=`<div class="quartier-block">
+      <div class="quartier-header">${label} <span style="opacity:.6;font-weight:400">(${g[q].length} intervention${g[q].length>1?'s':''})</span></div>`;
+    // Sous-grouper par type dans chaque quartier
+    const sg={};g[q].forEach(i=>{if(!sg[i.type])sg[i.type]=[];sg[i.type].push(i);});
+    Object.keys(sg).forEach(type=>{
+      h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[type]||'📋'} ${type}</div>`;
+      sg[type].forEach((inv,i)=>{ h+=invRowHTML(inv,i); });
     });
     h+='</div>';
   });
-  el.innerHTML=h;
+  return h;
+}
+
+function invRowHTML(inv, idx){
+  const sk=SM[inv.statut]||'pending';
+  return `<div class="inv-row" id="row-${inv.id}">
+    <div class="inv-info">
+      <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
+      ${buildTags(inv)}
+      ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDate(inv.reporteDepuis)}</div>`:''}
+      ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
+      <span class="badge ${SC[sk]}">${SL[sk]}</span>
+      <select class="status-sel" onchange="updStatut('${inv.id}',this.value)">
+        <option value="En attente"  ${inv.statut==='En attente' ?'selected':''}>⏳ En attente</option>
+        <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>✅ Réalisé</option>
+        <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>📵 Injoignable</option>
+        <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>⚠️ Problème</option>
+      </select>
+      <input class="remark-inp" type="text" placeholder="Remarque..."
+        value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}"
+        style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">
+    </div>
+  </div>`;
 }
 
 async function updStatut(invId,statut){
@@ -669,6 +670,11 @@ async function updStatut(invId,statut){
     const sk=SM[statut]||'pending';
     const badge=row?row.querySelector('.badge'):null;
     if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[sk];}
+    // Mettre à jour le cache local
+    if(terrainData){
+      const inv=terrainData.interventions.find(i=>i.id===invId);
+      if(inv){inv.statut=statut;inv.remarque=remarque;}
+    }
   } else showToast('❌ Erreur de mise à jour');
 }
 
@@ -676,11 +682,17 @@ async function updRemarque(invId,remarque){
   const row=document.getElementById('row-'+invId);
   const statut=row?(row.querySelector('.status-sel')||{value:'En attente'}).value:'En attente';
   const res=await apiPost({action:'updateStatus',invId,statut,remarque});
-  if(res.success) showToast('💬 Remarque enregistrée');
+  if(res.success){
+    showToast('💬 Remarque enregistrée');
+    if(terrainData){
+      const inv=terrainData.interventions.find(i=>i.id===invId);
+      if(inv)inv.remarque=remarque;
+    }
+  }
 }
 
 // ══════════════════════════════════════════════
-//  PAGE HISTORIQUE
+//  HISTORIQUE
 // ══════════════════════════════════════════════
 async function loadHistorique(){
   const el=document.getElementById('historique-content');
@@ -689,20 +701,18 @@ async function loadHistorique(){
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const data=await apiGet({action:'getAll'});
   if(!data.success||!data.data||data.data.length===0){
-    sw.classList.add('hidden');
-    qw.classList.add('hidden');
+    sw.classList.add('hidden');qw.classList.add('hidden');
     el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée disponible.</p></div>';
     return;
   }
   sw.classList.remove('hidden');
   let total=0,ok=0,unr=0,issue=0;
-  const quartierCounts={};
+  const qCounts={};
   data.data.forEach(c=>c.interventions.forEach(i=>{
     total++;const sk=SM[i.statut]||'pending';
     if(sk==='ok')ok++;if(sk==='unreachable')unr++;if(sk==='issue')issue++;
-    if(i.quartier && i.quartier!=='null' && i.quartier!==''){
-      quartierCounts[i.quartier]=(quartierCounts[i.quartier]||0)+1;
-    }
+    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')
+      qCounts[i.quartier]=(qCounts[i.quartier]||0)+1;
   }));
   document.getElementById('stats-row').innerHTML=`
     <div class="stat-card"><div class="stat-num">${data.data.length}</div><div class="stat-lbl">Jours</div></div>
@@ -710,30 +720,24 @@ async function loadHistorique(){
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--red)">${unr}</div><div class="stat-lbl">Injoignables</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${issue}</div><div class="stat-lbl">Problèmes</div></div>`;
-
-  // Répartition par quartier
-  const topQuartiers = Object.entries(quartierCounts).sort((a,b)=>b[1]-a[1]);
-  if(topQuartiers.length>0){
+  const topQ=Object.entries(qCounts).sort((a,b)=>b[1]-a[1]);
+  if(topQ.length>0){
     qw.classList.remove('hidden');
-    qw.innerHTML = `<div class="card">
-      <div class="card-title">📍 Répartition par quartier</div>
-      <div>${topQuartiers.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div>
-    </div>`;
-  } else {
-    qw.classList.add('hidden');
-  }
+    qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier</div>
+      <div>${topQ.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div></div>`;
+  } else qw.classList.add('hidden');
 
   const sorted=[...data.data].sort((a,b)=>b.date.localeCompare(a.date));
   const byMonth={};
   sorted.forEach(c=>{
-    const[y,m]=c.date.split('-');const key=y+'-'+m;
-    if(!byMonth[key])byMonth[key]=[];byMonth[key].push(c);
+    const[y,m]=c.date.split('-');const k=y+'-'+m;
+    if(!byMonth[k])byMonth[k]=[];byMonth[k].push(c);
   });
   let h='';
-  Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(key=>{
-    const[y,m]=key.split('-');
+  Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(k=>{
+    const[y,m]=k.split('-');
     h+=`<div class="month-label">📅 ${MONTHS[parseInt(m)-1]} ${y}</div>`;
-    byMonth[key].forEach(c=>{
+    byMonth[k].forEach(c=>{
       const tot=c.interventions.length;
       const cok=c.interventions.filter(i=>(SM[i.statut]||'pending')==='ok').length;
       const cunr=c.interventions.filter(i=>(SM[i.statut]||'pending')==='unreachable').length;
@@ -774,61 +778,41 @@ function showDetail(json){
 }
 
 // ══════════════════════════════════════════════
-//  API — communication avec Apps Script
+//  API
 // ══════════════════════════════════════════════
-function setSS(state,msg){
-  document.getElementById('sync-dot').className='sync-dot '+state;
-  document.getElementById('sync-lbl').textContent=msg;
+function setSS(s,m){
+  document.getElementById('sync-dot').className='sync-dot '+s;
+  document.getElementById('sync-lbl').textContent=m;
 }
-
 async function apiPost(payload){
   setSS('loading','Sync...');
   try{
-    const res=await fetch(SCRIPT_URL,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify(payload)
-    });
-    const text=await res.text();
-    const data=JSON.parse(text);
-    setSS('ok','Synchronisé');
-    return data;
-  }catch(e){
-    setSS('err','Hors ligne');
-    return{success:false,error:e.toString()};
-  }
+    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    const data=JSON.parse(await res.text());
+    setSS('ok','Synchronisé'); return data;
+  }catch(e){ setSS('err','Hors ligne'); return{success:false,error:e.toString()}; }
 }
-
 async function apiGet(params){
   setSS('loading','Chargement...');
   try{
-    const qs=new URLSearchParams(params).toString();
-    const res=await fetch(SCRIPT_URL+'?'+qs);
-    const text=await res.text();
-    const data=JSON.parse(text);
-    setSS('ok','Synchronisé');
-    return data;
-  }catch(e){
-    setSS('err','Hors ligne');
-    return{success:false,error:'Connexion impossible. Vérifiez l\'URL du script.'};
-  }
+    const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams(params).toString());
+    const data=JSON.parse(await res.text());
+    setSS('ok','Synchronisé'); return data;
+  }catch(e){ setSS('err','Hors ligne'); return{success:false,error:'Connexion impossible.'}; }
 }
 
 // ══════════════════════════════════════════════
-//  UTILITAIRES
+//  UTILS
 // ══════════════════════════════════════════════
 function formatDate(d){
   if(!d||d==='null')return'—';
-  const p=String(d).split('-');
-  if(p.length<3)return d;
+  const p=String(d).split('-');if(p.length<3)return d;
   const m=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
   return parseInt(p[2])+' '+m[parseInt(p[1])-1]+' '+p[0];
 }
-
 let _tt;
 function showToast(msg){
-  clearTimeout(_tt);
-  const t=document.getElementById('toast');
+  clearTimeout(_tt);const t=document.getElementById('toast');
   t.textContent=msg;t.style.display='block';
   _tt=setTimeout(()=>{t.style.display='none';},2800);
 }
