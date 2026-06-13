@@ -83,6 +83,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
 input,select{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:.87rem;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border .2s;}
 input:focus,select:focus{border-color:var(--blue-mid);background:#fff;box-shadow:0 0 0 3px var(--blue-glow);}
+select{cursor:pointer;}
 
 .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;}
 @media(max-width:480px){.type-grid{grid-template-columns:repeat(2,1fr);}}
@@ -111,6 +112,10 @@ input:focus,select:focus{border-color:var(--blue-mid);background:#fff;box-shadow
 .inv-name{font-weight:600;font-size:.87rem;word-break:break-word;line-height:1.45;}
 .inv-report{font-size:.73rem;color:var(--yellow);margin-top:3px;font-weight:600;}
 .inv-remark-disp{font-size:.75rem;color:var(--blue-mid);margin-top:3px;}
+.inv-tags{margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;}
+.tag{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:6px;}
+.tag-ville{background:var(--blue-lt);color:var(--blue-mid);border:1px solid var(--blue-glow);}
+.tag-quartier{background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;}
 
 .badge{padding:3px 10px;border-radius:20px;font-size:.71rem;font-weight:700;white-space:nowrap;}
 .b-pending{background:var(--yellow-lt);color:var(--yellow);border:1px solid #fde68a;}
@@ -140,6 +145,9 @@ input:focus,select:focus{border-color:var(--blue-mid);background:#fff;box-shadow
 .stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow);}
 .stat-num{font-family:'Fraunces',serif;font-size:1.9rem;font-weight:700;color:var(--blue-mid);}
 .stat-lbl{font-size:.7rem;color:var(--muted);margin-top:2px;}
+
+.qpill{display:inline-flex;align-items:center;gap:6px;background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;border-radius:20px;padding:4px 10px;font-size:.74rem;font-weight:700;margin:0 6px 6px 0;}
+.qpill b{background:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;}
 
 .hidden{display:none!important;}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
@@ -182,7 +190,7 @@ footer strong{color:var(--muted);}
   <div class="role-cards">
     <div class="role-card chef" onclick="chooseRole('chef')">
       <div class="r-icon">👷</div>
-      <div class="r-title">Chef centre</div>
+      <div class="r-title">Chef d'équipe</div>
       <div class="r-desc">Créer et publier la consistance du jour</div>
     </div>
     <div class="role-card" onclick="chooseRole('technicien')">
@@ -200,7 +208,7 @@ footer strong{color:var(--muted);}
 <div id="app">
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
-      <div class="logo-text">CERAF <span>Bafoussam</span></div>
+      <div class="logo-text">CERAF <span>Bafm</span></div>
       <div class="role-badge" id="role-badge">—</div>
     </div>
     <div class="sync-row">
@@ -217,7 +225,7 @@ footer strong{color:var(--muted);}
     <!-- PAGE CHEF -->
     <div class="page" id="page-chef">
       <div class="page-title">Créer la <span>Consistance</span></div>
-      <div class="page-sub">Préparez et publiez la fiche du jour</div>
+      <div class="page-sub">Préparez et publiez la fiche du jour — chaque publication s'ajoute à la fiche existante</div>
       <div class="card">
         <div class="card-title">📋 Informations générales</div>
         <div class="form-row">
@@ -235,40 +243,120 @@ footer strong{color:var(--muted);}
           <div class="type-card"          data-type="etude_ls"      onclick="selType(this)"><div class="tc-icon">📐</div><div class="tc-lbl">Étude LS</div></div>
           <div class="type-card"          data-type="derang_ls"     onclick="selType(this)"><div class="tc-icon">🔌</div><div class="tc-lbl">Dérang. LS</div></div>
         </div>
+
+        <!-- ÉTUDE FTTH -->
         <div id="fields-etude_ftth">
           <div class="form-row"><div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen"></div><div><label>Téléphone(s)</label><input id="f1t" placeholder="621728190/678489859"></div></div>
-          <div class="form-row full"><div><label>Localité / Adresse</label><input id="f1l" placeholder="Après Ancien Acha bleu barrier"></div></div>
+          <div class="form-row">
+            <div><label>Ville</label>
+              <select id="f1v">
+                <option value="">-- Sélectionner --</option>
+                <option value="Bafoussam">Bafoussam</option>
+                <option value="Bandjoun">Bandjoun</option>
+                <option value="Baham">Baham</option>
+                <option value="Foumbot">Foumbot</option>
+              </select>
+            </div>
+            <div><label>Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
+          </div>
         </div>
+
+        <!-- INSTALLATION FTTH -->
         <div id="fields-install_ftth" class="hidden">
-          <div class="form-row"><div><label>N° FTTH</label><input id="f2u" placeholder="233444445"></div><div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen"></div></div>
-          <div class="form-row"><div><label>Téléphone</label><input id="f2t" placeholder="694561304"></div><div><label>Localité</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
+          <div class="form-row"><div><label>N° FTTH</label><input id="f2u" placeholder="233444445" oninput="autoVille(this.value,'f2v')"></div><div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row"><div><label>Téléphone</label><input id="f2t" placeholder="694561304"></div><div><label>Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
+          <div class="form-row full">
+            <div><label>Ville (auto-détectée — modifiable)</label>
+              <select id="f2v">
+                <option value="">-- Sélectionner --</option>
+                <option value="Bafoussam">Bafoussam</option>
+                <option value="Bandjoun">Bandjoun</option>
+                <option value="Baham">Baham</option>
+                <option value="Foumbot">Foumbot</option>
+              </select>
+            </div>
+          </div>
         </div>
+
+        <!-- DÉRANGEMENT FTTH -->
         <div id="fields-derang_ftth" class="hidden">
-          <div class="form-row"><div><label>N° FTTH</label><input id="f3u" placeholder="233442022"></div><div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen"></div></div>
-          <div class="form-row"><div><label>Téléphone</label><input id="f3t" placeholder="678451495"></div><div><label>Localité</label><input id="f3l" placeholder="MARCHE A"></div></div>
+          <div class="form-row"><div><label>N° FTTH</label><input id="f3u" placeholder="233442022" oninput="autoVille(this.value,'f3v')"></div><div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row"><div><label>Téléphone</label><input id="f3t" placeholder="678451495"></div><div><label>Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
+          <div class="form-row full">
+            <div><label>Ville (auto-détectée — modifiable)</label>
+              <select id="f3v">
+                <option value="">-- Sélectionner --</option>
+                <option value="Bafoussam">Bafoussam</option>
+                <option value="Bandjoun">Bandjoun</option>
+                <option value="Baham">Baham</option>
+                <option value="Foumbot">Foumbot</option>
+              </select>
+            </div>
+          </div>
         </div>
+
+        <!-- DÉRANGEMENT CUIVRE -->
         <div id="fields-derang_cuivre" class="hidden">
-          <div class="form-row"><div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118"></div><div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen"></div></div>
-          <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx si inconnu"></div><div><label>Localité</label><input id="f4l" placeholder="KAMPOP"></div></div>
+          <div class="form-row"><div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118" oninput="autoVille(this.value,'f4v')"></div><div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx si inconnu"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
+          <div class="form-row full">
+            <div><label>Ville (auto-détectée — modifiable)</label>
+              <select id="f4v">
+                <option value="">-- Sélectionner --</option>
+                <option value="Bafoussam">Bafoussam</option>
+                <option value="Bandjoun">Bandjoun</option>
+                <option value="Baham">Baham</option>
+                <option value="Foumbot">Foumbot</option>
+              </select>
+            </div>
+          </div>
         </div>
+
+        <!-- ÉTUDE LS -->
         <div id="fields-etude_ls" class="hidden">
           <div class="form-row"><div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f5u" placeholder="xxx si inconnu"></div></div>
-          <div class="form-row full"><div><label>Localité</label><input id="f5l" placeholder="Localité"></div></div>
+          <div class="form-row">
+            <div><label>Ville</label>
+              <select id="f5v">
+                <option value="">-- Sélectionner --</option>
+                <option value="Bafoussam">Bafoussam</option>
+                <option value="Bandjoun">Bandjoun</option>
+                <option value="Baham">Baham</option>
+                <option value="Foumbot">Foumbot</option>
+              </select>
+            </div>
+            <div><label>Localité / Quartier</label><input id="f5l" placeholder="Localité"></div>
+          </div>
         </div>
+
+        <!-- DÉRANGEMENT LS -->
         <div id="fields-derang_ls" class="hidden">
           <div class="form-row"><div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f6u" placeholder="Numéro LS"></div></div>
-          <div class="form-row full"><div><label>Localité</label><input id="f6l" placeholder="Localité"></div></div>
+          <div class="form-row">
+            <div><label>Ville</label>
+              <select id="f6v">
+                <option value="">-- Sélectionner --</option>
+                <option value="Bafoussam">Bafoussam</option>
+                <option value="Bandjoun">Bandjoun</option>
+                <option value="Baham">Baham</option>
+                <option value="Foumbot">Foumbot</option>
+              </select>
+            </div>
+            <div><label>Localité / Quartier</label><input id="f6l" placeholder="Localité"></div>
+          </div>
         </div>
+
         <div class="mt-3">
           <button class="btn btn-outline" onclick="addInv()">➕ Ajouter à la liste</button>
         </div>
       </div>
+
       <div id="preview-section" class="hidden">
         <div class="card">
-          <div class="card-title">📄 Aperçu de la fiche du jour</div>
+          <div class="card-title">📄 Aperçu — interventions à publier</div>
           <div id="preview-content"></div>
           <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
-            <button class="btn btn-primary" id="btn-pub" onclick="publishConsistance()">☁️ Publier</button>
+            <button class="btn btn-primary" id="btn-pub" onclick="publishConsistance()">☁️ Publier (ajouter à la fiche du jour)</button>
             <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑️ Effacer</button>
           </div>
         </div>
@@ -287,6 +375,7 @@ footer strong{color:var(--muted);}
       <div class="page-title"><span>Historique</span></div>
       <div class="page-sub">Toutes les fiches classées par mois</div>
       <div id="stats-wrap" class="hidden"><div class="stats-row" id="stats-row"></div></div>
+      <div id="quartier-wrap" class="hidden"></div>
       <div id="historique-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
     </div>
 
@@ -307,6 +396,20 @@ const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',inprogress:'
 const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','En cours':'inprogress','Problème':'issue'};
 const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
+// Préfixes connus des numéros FTTH / Cuivre → Ville
+const PREFIX_VILLE = { '23344':'Bafoussam', '23327':'Bandjoun' };
+
+// Types pour lesquels la sélection de ville est obligatoire
+const VILLE_REQUIRED_TYPES = ['etude_ftth','etude_ls','derang_ls'];
+
+// Quartiers connus de Bafoussam — pour détection automatique
+const QUARTIERS_BAFOUSSAM = [
+  "TAMDJA","TPO","EVECHE","KAMKOP","BALENG","ENTREE DE LA VILLE","TYO VILLE","BAMENZI","SOCADA","BIAO",
+  "TOTAL D'EN BAS","DJEMOUN","NDIANGDAM","NDIANSO","DUBAI","CAMI TOYOTA","BANDJOUN STATION","MICHOU BAR","KENA","CAMPS SABLE",
+  "KOUOGOUO","CARREFOUR LE MAIRE","SAPEUR POMPIER","MATEUR","BANENGO","COLACO","FEUX ROUGE","MARCHE B","MARCHE A","MARCHE DES POULETS",
+  "HOPITAL REGIONAL","MARCHE CASA","QUARTIER HAOUSSA","QUARTIER ADMINISTRATIF","TOCKET","TOURISTIQUE","ACHA","BINAM","AUBERGE","DJELENG"
+].sort((a,b)=>b.length-a.length); // les plus longs d'abord pour éviter les faux positifs
+
 let role='', cType='etude_ftth', pending=[], SCRIPT_URL='';
 
 // ══════════════════════════════════════════════
@@ -318,7 +421,6 @@ window.onload=()=>{
   document.getElementById('inp-date').value = todayStr();
 
   if(!SCRIPT_URL){
-    // Première ouverture : demander l'URL Apps Script
     show('setup-screen','flex');
   } else if(!role){
     show('role-screen','flex');
@@ -337,7 +439,7 @@ function show(id,d='flex'){
 }
 
 // ══════════════════════════════════════════════
-//  SETUP (saisie URL)
+//  SETUP / RÔLE
 // ══════════════════════════════════════════════
 function saveSetup(){
   const url=document.getElementById('setup-url').value.trim();
@@ -349,9 +451,6 @@ function saveSetup(){
   show('role-screen','flex');
 }
 
-// ══════════════════════════════════════════════
-//  RÔLE
-// ══════════════════════════════════════════════
 function chooseRole(r){
   role=r;
   localStorage.setItem('ceraf_role',r);
@@ -391,6 +490,42 @@ function goPage(p,el,load=true){
 }
 
 // ══════════════════════════════════════════════
+//  DÉTECTION VILLE (préfixe numéro) & QUARTIER (texte localité)
+// ══════════════════════════════════════════════
+function detectVilleFromNum(num){
+  if(!num) return '';
+  const digits = num.replace(/\D/g,'');
+  const prefix = digits.substring(0,5);
+  return PREFIX_VILLE[prefix] || '';
+}
+
+function autoVille(num, selId){
+  const v = detectVilleFromNum(num);
+  if(v){
+    const sel = document.getElementById(selId);
+    if(sel) sel.value = v;
+  }
+}
+
+function normalizeTxt(s){
+  return String(s).toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // retire accents
+    .replace(/[^A-Z0-9 ]/g,' ')                       // retire ponctuation
+    .replace(/\s+/g,' ').trim();
+}
+
+function detectQuartier(loc){
+  if(!loc) return '';
+  const norm = normalizeTxt(loc);
+  for(const q of QUARTIERS_BAFOUSSAM){
+    const nq = normalizeTxt(q);
+    const re = new RegExp('\\b'+nq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
+    if(re.test(norm)) return q;
+  }
+  return '';
+}
+
+// ══════════════════════════════════════════════
 //  PAGE CHEF — saisie
 // ══════════════════════════════════════════════
 function selType(el){
@@ -402,24 +537,28 @@ function selType(el){
 
 function gf(){
   const v=id=>(document.getElementById(id)||{value:''}).value.trim();
-  if(cType==='etude_ftth')    return{nom:v('f1n'),tel:v('f1t'),loc:v('f1l')};
-  if(cType==='install_ftth')  return{num:v('f2u'),nom:v('f2n'),tel:v('f2t'),loc:v('f2l')};
-  if(cType==='derang_ftth')   return{num:v('f3u'),nom:v('f3n'),tel:v('f3t'),loc:v('f3l')};
-  if(cType==='derang_cuivre') return{num:v('f4u'),nom:v('f4n'),tel:v('f4t'),loc:v('f4l')};
-  if(cType==='etude_ls')      return{nom:v('f5n'),num:v('f5u'),loc:v('f5l')};
-  if(cType==='derang_ls')     return{nom:v('f6n'),num:v('f6u'),loc:v('f6l')};
+  if(cType==='etude_ftth')    return{nom:v('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v')};
+  if(cType==='install_ftth')  return{num:v('f2u'),nom:v('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v')};
+  if(cType==='derang_ftth')   return{num:v('f3u'),nom:v('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v')};
+  if(cType==='derang_cuivre') return{num:v('f4u'),nom:v('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v')};
+  if(cType==='etude_ls')      return{nom:v('f5n'),num:v('f5u'),loc:v('f5l'),ville:v('f5v')};
+  if(cType==='derang_ls')     return{nom:v('f6n'),num:v('f6u'),loc:v('f6l'),ville:v('f6v')};
 }
 
 function cf(){
-  ['f1n','f1t','f1l','f2u','f2n','f2t','f2l','f3u','f3n','f3t','f3l',
-   'f4u','f4n','f4t','f4l','f5n','f5u','f5l','f6n','f6u','f6l']
+  ['f1n','f1t','f1l','f1v','f2u','f2n','f2t','f2l','f2v','f3u','f3n','f3t','f3l','f3v',
+   'f4u','f4n','f4t','f4l','f4v','f5n','f5u','f5l','f5v','f6n','f6u','f6l','f6v']
   .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }
 
 function addInv(){
   const f=gf();
   if(!f.nom&&!f.num){showToast('⚠️ Renseignez au moins le nom ou le numéro');return;}
-  pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,id:Date.now()});
+  if(VILLE_REQUIRED_TYPES.includes(cType) && !f.ville){
+    showToast('⚠️ Sélectionnez la ville');return;
+  }
+  const quartier = detectQuartier(f.loc||'');
+  pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,quartier,id:Date.now()});
   cf();renderPreview();
 }
 
@@ -432,6 +571,13 @@ function buildLabel(inv){
   return p.join(' – ');
 }
 
+function buildTags(inv){
+  let h='';
+  if(inv.ville && inv.ville!=='null' && inv.ville!=='') h+=`<span class="tag tag-ville">📍 ${inv.ville}</span>`;
+  if(inv.quartier && inv.quartier!=='null' && inv.quartier!=='') h+=`<span class="tag tag-quartier">${inv.quartier}</span>`;
+  return h ? `<div class="inv-tags">${h}</div>` : '';
+}
+
 function renderPreview(){
   const sec=document.getElementById('preview-section');
   if(pending.length===0){sec.classList.add('hidden');return;}
@@ -441,7 +587,7 @@ function renderPreview(){
   Object.keys(g).forEach(t=>{
     h+=`<div class="section-block"><div class="section-title">${TI[t]} ${TL[t]}</div>`;
     g[t].forEach((inv,i)=>{
-      h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div></div>
+      h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}</div>
         <button class="btn btn-danger btn-sm" onclick="remInv(${inv.id})">✕</button></div>`;
     });
     h+='</div>';
@@ -461,8 +607,8 @@ async function publishConsistance(){
   const btn=document.getElementById('btn-pub');
   btn.disabled=true;btn.textContent='⏳ Publication...';
   const res=await apiPost({action:'saveConsistance',date,chef,interventions:pending});
-  btn.disabled=false;btn.textContent='☁️ Publier';
-  if(res.success){showToast('✅ Fiche publiée !');pending=[];renderPreview();}
+  btn.disabled=false;btn.textContent='☁️ Publier (ajouter à la fiche du jour)';
+  if(res.success){showToast('✅ Ajouté à la fiche du jour !');pending=[];renderPreview();}
   else showToast('❌ Erreur : '+(res.error||'Vérifiez la connexion'));
 }
 
@@ -492,6 +638,7 @@ async function loadTerrain(){
       h+=`<div class="inv-row" id="row-${inv.id}">
         <div class="inv-info">
           <div class="inv-name">${i+1}. ${buildLabel(inv)}</div>
+          ${buildTags(inv)}
           ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDate(inv.reporteDepuis)}</div>`:''}
           ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
         </div>
@@ -499,7 +646,6 @@ async function loadTerrain(){
           <span class="badge ${SC[sk]}">${SL[sk]}</span>
           <select class="status-sel" onchange="updStatut('${inv.id}',this.value)">
             <option value="En attente"  ${inv.statut==='En attente' ?'selected':''}>⏳ En attente</option>
-            <option value="En cours"    ${inv.statut==='En cours'   ?'selected':''}>🔄 En cours</option>
             <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>✅ Réalisé</option>
             <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>📵 Injoignable</option>
             <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>⚠️ Problème</option>
@@ -539,18 +685,24 @@ async function updRemarque(invId,remarque){
 async function loadHistorique(){
   const el=document.getElementById('historique-content');
   const sw=document.getElementById('stats-wrap');
+  const qw=document.getElementById('quartier-wrap');
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const data=await apiGet({action:'getAll'});
   if(!data.success||!data.data||data.data.length===0){
     sw.classList.add('hidden');
+    qw.classList.add('hidden');
     el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée disponible.</p></div>';
     return;
   }
   sw.classList.remove('hidden');
   let total=0,ok=0,unr=0,issue=0;
+  const quartierCounts={};
   data.data.forEach(c=>c.interventions.forEach(i=>{
     total++;const sk=SM[i.statut]||'pending';
     if(sk==='ok')ok++;if(sk==='unreachable')unr++;if(sk==='issue')issue++;
+    if(i.quartier && i.quartier!=='null' && i.quartier!==''){
+      quartierCounts[i.quartier]=(quartierCounts[i.quartier]||0)+1;
+    }
   }));
   document.getElementById('stats-row').innerHTML=`
     <div class="stat-card"><div class="stat-num">${data.data.length}</div><div class="stat-lbl">Jours</div></div>
@@ -558,6 +710,19 @@ async function loadHistorique(){
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--red)">${unr}</div><div class="stat-lbl">Injoignables</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${issue}</div><div class="stat-lbl">Problèmes</div></div>`;
+
+  // Répartition par quartier
+  const topQuartiers = Object.entries(quartierCounts).sort((a,b)=>b[1]-a[1]);
+  if(topQuartiers.length>0){
+    qw.classList.remove('hidden');
+    qw.innerHTML = `<div class="card">
+      <div class="card-title">📍 Répartition par quartier</div>
+      <div>${topQuartiers.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div>
+    </div>`;
+  } else {
+    qw.classList.add('hidden');
+  }
+
   const sorted=[...data.data].sort((a,b)=>b.date.localeCompare(a.date));
   const byMonth={};
   sorted.forEach(c=>{
@@ -598,6 +763,7 @@ function showDetail(json){
       const sk=SM[inv.statut]||'pending';
       h+=`<div class="inv-row">
         <div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>
+        ${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDate(inv.reporteDepuis)}</div>`:''}
         ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
         </div><span class="badge ${SC[sk]}">${SL[sk]}</span></div>`;
@@ -615,16 +781,12 @@ function setSS(state,msg){
   document.getElementById('sync-lbl').textContent=msg;
 }
 
-// POST via un proxy no-cors — on ne peut pas lire la réponse directement
-// On utilise donc un GET pour les lectures et POST pour les écritures
 async function apiPost(payload){
   setSS('loading','Sync...');
   try{
-    // Apps Script accepte les POST mais renvoie une réponse opaque en no-cors
-    // On contourne en envoyant via fetch normal (le déploiement "Tout le monde" le permet)
     const res=await fetch(SCRIPT_URL,{
       method:'POST',
-      headers:{'Content-Type':'text/plain'}, // text/plain évite le preflight CORS
+      headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(payload)
     });
     const text=await res.text();
