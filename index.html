@@ -23,16 +23,17 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
 
+/* SETUP */
 #setup-screen{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff);}
 .setup-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 28px;max-width:500px;width:100%;box-shadow:var(--shadow-md);}
 .setup-title{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--navy);margin-bottom:6px;}
 .setup-sub{color:var(--muted);font-size:.82rem;margin-bottom:20px;line-height:1.6;}
 .setup-step{display:flex;gap:12px;margin-bottom:14px;}
 .snum{min-width:26px;height:26px;border-radius:50%;background:var(--blue-mid);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:2px;}
-.stext{font-size:.83rem;color:var(--text);line-height:1.55;}
-.stext strong{color:var(--blue-mid);}
+.stext{font-size:.83rem;line-height:1.55;}.stext strong{color:var(--blue-mid);}
 .stext code{background:var(--blue-lt);color:var(--blue);padding:1px 5px;border-radius:4px;font-size:.8rem;}
 
+/* ROLE */
 #role-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff,#f5f3ff);}
 .role-logo{font-family:'Fraunces',serif;font-size:2rem;font-weight:800;color:var(--navy);margin-bottom:4px;text-align:center;}
 .role-logo span{color:var(--blue-mid);}
@@ -45,6 +46,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .r-title{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:6px;}
 .r-desc{font-size:.78rem;color:var(--muted);line-height:1.5;}
 
+/* APP */
 #app{display:none;flex-direction:column;flex:1;}
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(30,58,138,.08);}
 .logo-text{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);}
@@ -52,18 +54,14 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .role-badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700;background:var(--blue-lt);color:var(--blue-mid);border:1px solid var(--blue-glow);}
 .sync-row{display:flex;align-items:center;gap:5px;}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);transition:background .3s;}
-.sync-dot.ok{background:var(--green);}
-.sync-dot.loading{background:var(--yellow);animation:pulse .9s infinite;}
-.sync-dot.err{background:var(--red);}
+.sync-dot.ok{background:var(--green);}.sync-dot.loading{background:var(--yellow);animation:pulse .9s infinite;}.sync-dot.err{background:var(--red);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .sync-lbl{font-size:.7rem;color:var(--muted);}
 .btn-switch{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:.72rem;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
 .btn-switch:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
-
-.nav-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;gap:2px;}
-.nav-tab{padding:10px 14px;font-size:.82rem;font-weight:600;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;}
-.nav-tab:hover{color:var(--blue-mid);}
-.nav-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid);}
+.nav-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;gap:2px;overflow-x:auto;}
+.nav-tab{padding:10px 12px;font-size:.8rem;font-weight:600;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;}
+.nav-tab:hover{color:var(--blue-mid);}.nav-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid);}
 
 .main-content{flex:1;padding:18px 16px;max-width:880px;margin:0 auto;width:100%;}
 .page{display:none;}.page.active{display:block;}
@@ -80,6 +78,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
 input,select{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:.87rem;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border .2s;}
 input:focus,select:focus{border-color:var(--blue-mid);background:#fff;box-shadow:0 0 0 3px var(--blue-glow);}
+input.autofilled{border-color:var(--green);background:#f0fdf4;}
 select{cursor:pointer;}
 
 .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;}
@@ -99,20 +98,31 @@ select{cursor:pointer;}
 .btn-ghost{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);}
 .btn-ghost:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
 .btn-danger{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
+.btn-green{background:var(--green-lt);color:var(--green);border:1px solid #86efac;}
 .btn-sm{padding:5px 11px;font-size:.76rem;}
 
-/* SECTIONS & INTERVENTIONS */
+/* Auto-fill badge */
+.autofill-banner{
+  background:var(--green-lt);border:1px solid #86efac;border-radius:8px;
+  padding:8px 12px;font-size:.78rem;color:var(--green);font-weight:600;
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+}
+.autofill-banner.warn{background:var(--yellow-lt);border-color:#fde68a;color:var(--yellow);}
+
+/* CLIENTS TABLE */
+.client-search-bar{display:flex;gap:8px;margin-bottom:14px;}
+.client-search-bar input{flex:1;}
+.clients-table{width:100%;border-collapse:collapse;font-size:.82rem;}
+.clients-table th{background:var(--blue-lt);color:var(--blue-mid);font-weight:700;padding:8px 10px;text-align:left;border-bottom:2px solid var(--blue-glow);font-size:.72rem;text-transform:uppercase;letter-spacing:.3px;}
+.clients-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.clients-table tr:hover td{background:var(--surface2);}
+.clients-table td:last-child{white-space:nowrap;}
+
+/* SECTION / INTERVENTION */
 .section-block{margin-bottom:24px;}
 .section-title{font-size:.85rem;font-weight:700;color:var(--blue-mid);border-bottom:2px solid var(--blue-glow);padding-bottom:6px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
-
-/* Bloc quartier dans la vue terrain */
 .quartier-block{margin-bottom:16px;}
-.quartier-header{
-  display:flex;align-items:center;gap:8px;
-  font-size:.78rem;font-weight:700;color:var(--teal);
-  background:var(--teal-lt);border:1px solid #a5f3fc;
-  border-radius:8px;padding:6px 12px;margin-bottom:8px;
-}
+.quartier-header{display:flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;color:var(--teal);background:var(--teal-lt);border:1px solid #a5f3fc;border-radius:8px;padding:6px 12px;margin-bottom:8px;}
 
 .inv-row{background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;}
 .inv-info{flex:1;min-width:0;}
@@ -139,7 +149,6 @@ select{cursor:pointer;}
 .ch-date{font-size:.78rem;opacity:.75;margin-top:2px;}
 .ch-chef{font-size:.85rem;font-weight:600;opacity:.9;}
 
-/* Vue terrain : toggle type / quartier */
 .view-toggle{display:flex;gap:6px;margin-bottom:16px;}
 .vtab{padding:6px 14px;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
 .vtab.active{background:var(--blue-mid);color:#fff;border-color:var(--blue-mid);}
@@ -156,18 +165,25 @@ select{cursor:pointer;}
 .stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow);}
 .stat-num{font-family:'Fraunces',serif;font-size:1.9rem;font-weight:700;color:var(--blue-mid);}
 .stat-lbl{font-size:.7rem;color:var(--muted);margin-top:2px;}
-
 .qpill{display:inline-flex;align-items:center;gap:6px;background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;border-radius:20px;padding:4px 10px;font-size:.74rem;font-weight:700;margin:0 6px 6px 0;}
 .qpill b{background:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;}
+
+/* MODAL CONFIRMATION */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,32,87,.4);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.active{display:flex;}
+.modal-box{background:var(--surface);border-radius:16px;padding:28px 24px;max-width:420px;width:100%;box-shadow:var(--shadow-md);}
+.modal-title{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--navy);margin-bottom:8px;}
+.modal-body{font-size:.84rem;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.modal-diff{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;font-size:.8rem;}
+.modal-diff .old{color:var(--red);text-decoration:line-through;}
+.modal-diff .new{color:var(--green);font-weight:600;}
 
 .hidden{display:none!important;}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
 .empty{text-align:center;padding:40px 20px;color:var(--muted);}
 .empty .eicon{font-size:2.4rem;margin-bottom:10px;}
 .empty p{font-size:.85rem;line-height:1.7;}
-
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:10px;padding:10px 22px;font-size:.82rem;font-weight:600;z-index:9999;display:none;box-shadow:0 4px 20px rgba(15,32,87,.25);}
-
 footer{background:var(--surface);border-top:1px solid var(--border);text-align:center;padding:12px 16px;font-size:.7rem;color:var(--muted2);}
 footer strong{color:var(--muted);}
 </style>
@@ -190,21 +206,13 @@ footer strong{color:var(--muted);}
   </div>
 </div>
 
-<!-- CHOIX RÔLE -->
+<!-- RÔLE -->
 <div id="role-screen">
   <div class="role-logo">CERAF <span>Bafoussam</span></div>
   <div class="role-tagline">Consistance des Travaux — Qui êtes-vous ?</div>
   <div class="role-cards">
-    <div class="role-card chef" onclick="chooseRole('chef')">
-      <div class="r-icon">👷</div>
-      <div class="r-title">Chef centre</div>
-      <div class="r-desc">Créer et publier la consistance du jour</div>
-    </div>
-    <div class="role-card" onclick="chooseRole('technicien')">
-      <div class="r-icon">📡</div>
-      <div class="r-title">Technicien</div>
-      <div class="r-desc">Consulter la fiche et mettre à jour vos interventions</div>
-    </div>
+    <div class="role-card chef" onclick="chooseRole('chef')"><div class="r-icon">👷</div><div class="r-title">Chef centre</div><div class="r-desc">Créer et publier la consistance du jour</div></div>
+    <div class="role-card" onclick="chooseRole('technicien')"><div class="r-icon">📡</div><div class="r-title">Technicien</div><div class="r-desc">Consulter la fiche et mettre à jour vos interventions</div></div>
   </div>
   <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);">Ce choix est mémorisé sur votre appareil</p>
 </div>
@@ -216,18 +224,14 @@ footer strong{color:var(--muted);}
       <div class="logo-text">CERAF <span>Bafoussam</span></div>
       <div class="role-badge" id="role-badge">—</div>
     </div>
-    <div class="sync-row">
-      <div class="sync-dot" id="sync-dot"></div>
-      <span class="sync-lbl" id="sync-lbl">—</span>
-    </div>
+    <div class="sync-row"><div class="sync-dot" id="sync-dot"></div><span class="sync-lbl" id="sync-lbl">—</span></div>
     <button class="btn-switch" onclick="switchRole()">⇄ Rôle</button>
   </div>
-
   <div class="nav-bar" id="nav-bar"></div>
 
   <div class="main-content">
 
-    <!-- PAGE CHEF -->
+    <!-- ── PAGE CHEF ── -->
     <div class="page" id="page-chef">
       <div class="page-title">Créer la <span>Consistance</span></div>
       <div class="page-sub">Chaque publication s'ajoute à la fiche du jour</div>
@@ -249,69 +253,67 @@ footer strong{color:var(--muted);}
           <div class="type-card"          data-type="derang_ls"     onclick="selType(this)"><div class="tc-icon">🔌</div><div class="tc-lbl">Dérang. LS</div></div>
         </div>
 
+        <div id="autofill-banner" class="hidden"></div>
+
         <!-- ÉTUDE FTTH -->
         <div id="fields-etude_ftth">
           <div class="form-row"><div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen"></div><div><label>Téléphone(s)</label><input id="f1t" placeholder="621728190/678489859"></div></div>
           <div class="form-row">
-            <div><label>Ville</label>
-              <select id="f1v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
-            </div>
+            <div><label>Ville</label><select id="f1v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
             <div><label>Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
           </div>
         </div>
-
         <!-- INSTALLATION FTTH -->
         <div id="fields-install_ftth" class="hidden">
-          <div class="form-row"><div><label>N° FTTH</label><input id="f2u" placeholder="233444445" oninput="autoVille(this.value,'f2v')"></div><div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row">
+            <div><label>N° FTTH</label><input id="f2u" placeholder="233444445" oninput="onNumInput(this.value,'f2v')" onblur="lookupClient(this.value)"></div>
+            <div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen"></div>
+          </div>
           <div class="form-row"><div><label>Téléphone</label><input id="f2t" placeholder="694561304"></div><div><label>Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
-          <div class="form-row full"><div><label>Ville (auto-détectée — modifiable)</label>
-            <select id="f2v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
-          </div></div>
+          <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f2v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
-
         <!-- DÉRANGEMENT FTTH -->
         <div id="fields-derang_ftth" class="hidden">
-          <div class="form-row"><div><label>N° FTTH</label><input id="f3u" placeholder="233442022" oninput="autoVille(this.value,'f3v')"></div><div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen"></div></div>
+          <div class="form-row">
+            <div><label>N° FTTH</label><input id="f3u" placeholder="233442022" oninput="onNumInput(this.value,'f3v')" onblur="lookupClient(this.value)"></div>
+            <div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen"></div>
+          </div>
           <div class="form-row"><div><label>Téléphone</label><input id="f3t" placeholder="678451495"></div><div><label>Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
-          <div class="form-row full"><div><label>Ville (auto-détectée — modifiable)</label>
-            <select id="f3v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
-          </div></div>
+          <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f3v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
-
         <!-- DÉRANGEMENT CUIVRE -->
         <div id="fields-derang_cuivre" class="hidden">
-          <div class="form-row"><div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118" oninput="autoVille(this.value,'f4v')"></div><div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen"></div></div>
-          <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx si inconnu"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
-          <div class="form-row full"><div><label>Ville (auto-détectée — modifiable)</label>
-            <select id="f4v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
-          </div></div>
+          <div class="form-row">
+            <div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118" oninput="onNumInput(this.value,'f4v')" onblur="lookupClient(this.value)"></div>
+            <div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen"></div>
+          </div>
+          <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
+          <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f4v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
-
         <!-- ÉTUDE LS -->
         <div id="fields-etude_ls" class="hidden">
-          <div class="form-row"><div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f5u" placeholder="xxx si inconnu"></div></div>
           <div class="form-row">
-            <div><label>Ville</label>
-              <select id="f5v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
-            </div>
+            <div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen"></div>
+            <div><label>N° Client LS</label><input id="f5u" placeholder="xxx" onblur="lookupClient(this.value)"></div>
+          </div>
+          <div class="form-row">
+            <div><label>Ville</label><select id="f5v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
             <div><label>Localité / Quartier</label><input id="f5l" placeholder="Localité"></div>
           </div>
         </div>
-
         <!-- DÉRANGEMENT LS -->
         <div id="fields-derang_ls" class="hidden">
-          <div class="form-row"><div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen"></div><div><label>N° Client LS</label><input id="f6u" placeholder="Numéro LS"></div></div>
           <div class="form-row">
-            <div><label>Ville</label>
-              <select id="f6v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
-            </div>
+            <div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen"></div>
+            <div><label>N° Client LS</label><input id="f6u" placeholder="Numéro LS" onblur="lookupClient(this.value)"></div>
+          </div>
+          <div class="form-row">
+            <div><label>Ville</label><select id="f6v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
             <div><label>Localité / Quartier</label><input id="f6l" placeholder="Localité"></div>
           </div>
         </div>
 
-        <div class="mt-3">
-          <button class="btn btn-outline" onclick="addInv()">➕ Ajouter à la liste</button>
-        </div>
+        <div class="mt-3"><button class="btn btn-outline" onclick="addInv()">➕ Ajouter à la liste</button></div>
       </div>
 
       <div id="preview-section" class="hidden">
@@ -319,18 +321,47 @@ footer strong{color:var(--muted);}
           <div class="card-title">📄 Aperçu — interventions à publier</div>
           <div id="preview-content"></div>
           <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
-            <button class="btn btn-primary" id="btn-pub" onclick="publishConsistance()">☁️ Publier (ajouter à la fiche du jour)</button>
+            <button class="btn btn-primary" id="btn-pub" onclick="publishConsistance()">☁️ Publier</button>
             <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑️ Effacer</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- PAGE TERRAIN -->
+    <!-- ── PAGE CLIENTS (chef) ── -->
+    <div class="page" id="page-clients">
+      <div class="page-title">Base <span>Clients</span></div>
+      <div class="page-sub">Annuaire automatique — mis à jour à chaque publication</div>
+      <div class="client-search-bar">
+        <input type="text" id="client-search" placeholder="🔍 Rechercher par numéro, nom, localité..." oninput="filterClients()">
+        <button class="btn btn-ghost btn-sm" onclick="loadClients()">↺ Actualiser</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div id="clients-table-wrap" style="overflow-x:auto;">
+          <div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAGE CLIENTS (technicien, lecture seule) ── -->
+    <div class="page" id="page-clients-ro">
+      <div class="page-title">Base <span>Clients</span></div>
+      <div class="page-sub">Consultation de l'annuaire — lecture seule</div>
+      <div class="client-search-bar">
+        <input type="text" id="client-search-ro" placeholder="🔍 Rechercher par numéro, nom, localité..." oninput="filterClientsRO()">
+        <button class="btn btn-ghost btn-sm" onclick="loadClientsRO()">↺ Actualiser</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div id="clients-table-ro-wrap" style="overflow-x:auto;">
+          <div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAGE TERRAIN ── -->
     <div class="page" id="page-terrain">
       <div class="page-title">Fiche du <span>Jour</span></div>
       <div class="page-sub">Mettez à jour vos interventions en temps réel</div>
-      <!-- Toggles de vue -->
       <div class="view-toggle">
         <button class="vtab active" id="vtab-type"     onclick="setTerrainView('type',this)">Par type</button>
         <button class="vtab"        id="vtab-quartier" onclick="setTerrainView('quartier',this)">Par quartier</button>
@@ -338,7 +369,7 @@ footer strong{color:var(--muted);}
       <div id="terrain-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
     </div>
 
-    <!-- PAGE HISTORIQUE -->
+    <!-- ── PAGE HISTORIQUE ── -->
     <div class="page" id="page-historique">
       <div class="page-title"><span>Historique</span></div>
       <div class="page-sub">Toutes les fiches classées par mois</div>
@@ -349,6 +380,19 @@ footer strong{color:var(--muted);}
 
   </div>
   <footer>Application réalisée par <strong>BENANA BISSANA Gilles Hermann</strong> — CERAF Bafoussam</footer>
+</div>
+
+<!-- MODAL CONFIRMATION MISE À JOUR CLIENT -->
+<div class="modal-overlay" id="modal-update">
+  <div class="modal-box">
+    <div class="modal-title">⚠️ Client déjà enregistré</div>
+    <div class="modal-body">Les informations saisies sont différentes de celles en base. Voulez-vous mettre à jour la fiche client ?</div>
+    <div class="modal-diff" id="modal-diff"></div>
+    <div class="flex gap-2" style="flex-wrap:wrap;">
+      <button class="btn btn-green btn-sm" onclick="confirmUpdate(true)">✅ Mettre à jour la base</button>
+      <button class="btn btn-ghost btn-sm" onclick="confirmUpdate(false)">Garder l'ancienne fiche</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -365,8 +409,6 @@ const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','P
 const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const PREFIX_VILLE={'23344':'Bafoussam','23327':'Bandjoun'};
 const VILLE_REQUIRED=['etude_ftth','etude_ls','derang_ls'];
-
-// ← BIPMOP ajouté, liste triée par longueur décroissante
 const QUARTIERS_BAFOUSSAM=[
   "ENTREE DE LA VILLE","CARREFOUR LE MAIRE","MARCHE DES POULETS","QUARTIER ADMINISTRATIF",
   "TOTAL D'EN BAS","HOPITAL REGIONAL","SAPEUR POMPIER","BANDJOUN STATION","QUARTIER HAOUSSA",
@@ -376,9 +418,11 @@ const QUARTIERS_BAFOUSSAM=[
   "AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO"
 ].sort((a,b)=>b.length-a.length);
 
-let role='', cType='etude_ftth', pending=[], SCRIPT_URL='';
-let terrainData=null; // cache pour switcher la vue sans recharger
-let currentTerrainView='type';
+let role='',cType='etude_ftth',pending=[],SCRIPT_URL='';
+let terrainData=null,currentTerrainView='type';
+let allClients=[]; // cache local de la base clients
+let pendingUpdateClient=null; // pour la modale de confirmation
+let lastLookedNum=''; // évite les doubles lookups
 
 // ══════════════════════════════════════════════
 //  INIT
@@ -391,13 +435,9 @@ window.onload=()=>{
   else if(!role)  show('role-screen','flex');
   else            startApp(role);
 };
-
 function todayStr(){return new Date().toISOString().split('T')[0];}
-
 function show(id,d='flex'){
-  ['setup-screen','role-screen','app'].forEach(s=>{
-    document.getElementById(s).style.display=(s===id)?d:'none';
-  });
+  ['setup-screen','role-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});
 }
 
 // ══════════════════════════════════════════════
@@ -406,27 +446,25 @@ function show(id,d='flex'){
 function saveSetup(){
   const url=document.getElementById('setup-url').value.trim();
   if(!url||!url.includes('script.google.com')){showToast('❌ URL invalide');return;}
-  SCRIPT_URL=url; localStorage.setItem('ceraf_url',url); show('role-screen','flex');
+  SCRIPT_URL=url;localStorage.setItem('ceraf_url',url);show('role-screen','flex');
 }
-
-function chooseRole(r){
-  role=r; localStorage.setItem('ceraf_role',r); startApp(r);
-}
-
-function switchRole(){
-  localStorage.removeItem('ceraf_role'); role=''; show('role-screen','flex');
-}
+function chooseRole(r){role=r;localStorage.setItem('ceraf_role',r);startApp(r);}
+function switchRole(){localStorage.removeItem('ceraf_role');role='';show('role-screen','flex');}
 
 function startApp(r){
   show('app','flex');
   document.getElementById('role-badge').textContent=r==='chef'?'👷 Chef centre':'📡 Technicien';
   const nav=document.getElementById('nav-bar');
   if(r==='chef'){
-    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('chef',this)">👷 Consistance</button>
+    nav.innerHTML=`
+      <button class="nav-tab active" onclick="goPage('chef',this)">👷 Consistance</button>
+      <button class="nav-tab" onclick="goPage('clients',this)">👥 Clients</button>
       <button class="nav-tab" onclick="goPage('historique',this)">📁 Historique</button>`;
     goPage('chef',nav.querySelector('.nav-tab'),false);
   } else {
-    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">📡 Terrain</button>
+    nav.innerHTML=`
+      <button class="nav-tab active" onclick="goPage('terrain',this)">📡 Terrain</button>
+      <button class="nav-tab" onclick="goPage('clients-ro',this)">👥 Clients</button>
       <button class="nav-tab" onclick="goPage('historique',this)">📁 Historique</button>`;
     goPage('terrain',nav.querySelector('.nav-tab'),true);
   }
@@ -438,8 +476,10 @@ function goPage(p,el,load=true){
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
   if(load){
-    if(p==='terrain')    loadTerrain();
-    if(p==='historique') loadHistorique();
+    if(p==='terrain')     loadTerrain();
+    if(p==='historique')  loadHistorique();
+    if(p==='clients')     loadClients();
+    if(p==='clients-ro')  loadClientsRO();
   }
 }
 
@@ -447,64 +487,145 @@ function goPage(p,el,load=true){
 //  DÉTECTIONS
 // ══════════════════════════════════════════════
 function detectVilleFromNum(num){
-  const d=num.replace(/\D/g,'');
-  return PREFIX_VILLE[d.substring(0,5)]||'';
+  const d=num.replace(/\D/g,'');return PREFIX_VILLE[d.substring(0,5)]||'';
 }
-function autoVille(num,selId){
-  const v=detectVilleFromNum(num);
-  if(v){const s=document.getElementById(selId);if(s)s.value=v;}
+function onNumInput(num,selId){
+  const v=detectVilleFromNum(num);if(v){const s=document.getElementById(selId);if(s)s.value=v;}
 }
 function normTxt(s){
-  return String(s).toUpperCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  return String(s).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 }
 function detectQuartier(loc){
-  if(!loc) return '';
-  const n=normTxt(loc);
+  if(!loc)return'';const n=normTxt(loc);
   for(const q of QUARTIERS_BAFOUSSAM){
-    const nq=normTxt(q);
-    const re=new RegExp('\\b'+nq.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
-    if(re.test(n)) return q;
+    const re=new RegExp('\\b'+normTxt(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
+    if(re.test(n))return q;
   }
-  return '';
+  return'';
 }
 
 // ══════════════════════════════════════════════
-//  CHEF — SAISIE
+//  AUTO-COMPLÉTION — lookup depuis la base
+// ══════════════════════════════════════════════
+async function lookupClient(num){
+  num=(num||'').trim();
+  if(!num||num===lastLookedNum) return;
+  lastLookedNum=num;
+
+  const data=await apiGet({action:'findClient',num});
+  if(!data.success||!data.found){
+    hideBanner();return;
+  }
+  const c=data.client;
+  // Remplir les champs
+  fillFields(c);
+  showBanner(`✅ Client trouvé en base : ${c.nom||'—'}`, false);
+}
+
+function fillFields(c){
+  const ids=getFieldIds();
+  const setVal=(id,val)=>{const el=document.getElementById(id);if(el&&val){el.value=val;el.classList.add('autofilled');}};
+  if(ids.nom) setVal(ids.nom, c.nom);
+  if(ids.tel) setVal(ids.tel, c.tel);
+  if(ids.loc) setVal(ids.loc, c.loc);
+  if(ids.vil) setVal(ids.vil, c.ville);
+}
+
+function getFieldIds(){
+  if(cType==='install_ftth')  return{num:'f2u',nom:'f2n',tel:'f2t',loc:'f2l',vil:'f2v'};
+  if(cType==='derang_ftth')   return{num:'f3u',nom:'f3n',tel:'f3t',loc:'f3l',vil:'f3v'};
+  if(cType==='derang_cuivre') return{num:'f4u',nom:'f4n',tel:'f4t',loc:'f4l',vil:'f4v'};
+  if(cType==='etude_ls')      return{num:'f5u',nom:'f5n',tel:null, loc:'f5l',vil:'f5v'};
+  if(cType==='derang_ls')     return{num:'f6u',nom:'f6n',tel:null, loc:'f6l',vil:'f6v'};
+  return{};
+}
+
+function showBanner(msg, isWarn){
+  const b=document.getElementById('autofill-banner');
+  b.className='autofill-banner'+(isWarn?' warn':'');
+  b.textContent=msg;b.classList.remove('hidden');
+}
+function hideBanner(){
+  const b=document.getElementById('autofill-banner');b.classList.add('hidden');
+}
+
+// ══════════════════════════════════════════════
+//  GESTION SAISIE CHEF
 // ══════════════════════════════════════════════
 function selType(el){
   document.querySelectorAll('.type-card').forEach(x=>x.classList.remove('selected'));
-  el.classList.add('selected'); cType=el.dataset.type;
+  el.classList.add('selected');cType=el.dataset.type;
   document.querySelectorAll('[id^="fields-"]').forEach(x=>x.classList.add('hidden'));
   document.getElementById('fields-'+cType).classList.remove('hidden');
+  hideBanner();lastLookedNum='';
+  // Retirer autofilled
+  document.querySelectorAll('.autofilled').forEach(e=>e.classList.remove('autofilled'));
 }
 
 function gf(){
   const v=id=>(document.getElementById(id)||{value:''}).value.trim();
-  if(cType==='etude_ftth')    return{nom:v('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v')};
+  if(cType==='etude_ftth')    return{nom:v('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v'),num:''};
   if(cType==='install_ftth')  return{num:v('f2u'),nom:v('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v')};
   if(cType==='derang_ftth')   return{num:v('f3u'),nom:v('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v')};
   if(cType==='derang_cuivre') return{num:v('f4u'),nom:v('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v')};
-  if(cType==='etude_ls')      return{nom:v('f5n'),num:v('f5u'),loc:v('f5l'),ville:v('f5v')};
-  if(cType==='derang_ls')     return{nom:v('f6n'),num:v('f6u'),loc:v('f6l'),ville:v('f6v')};
+  if(cType==='etude_ls')      return{num:v('f5u'),nom:v('f5n'),tel:'',    loc:v('f5l'),ville:v('f5v')};
+  if(cType==='derang_ls')     return{num:v('f6u'),nom:v('f6n'),tel:'',    loc:v('f6l'),ville:v('f6v')};
 }
 
 function cf(){
   ['f1n','f1t','f1l','f1v','f2u','f2n','f2t','f2l','f2v','f3u','f3n','f3t','f3l','f3v',
    'f4u','f4n','f4t','f4l','f4v','f5n','f5u','f5l','f5v','f6n','f6u','f6l','f6v']
-  .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  .forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('autofilled');}});
+  hideBanner();lastLookedNum='';
 }
 
-function addInv(){
+async function addInv(){
   const f=gf();
   if(!f.nom&&!f.num){showToast('⚠️ Renseignez au moins le nom ou le numéro');return;}
   if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast('⚠️ Sélectionnez la ville');return;}
   const quartier=detectQuartier(f.loc||'');
-  pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,quartier,id:Date.now()});
-  cf(); renderPreview();
+
+  // Vérifier si le client existe et si les données ont changé
+  let updateClient=false;
+  if(f.num&&f.num.trim()){
+    const lookup=await apiGet({action:'findClient',num:f.num});
+    if(lookup.success&&lookup.found){
+      const c=lookup.client;
+      const changed=(f.nom&&f.nom!==c.nom)||(f.tel&&f.tel!==c.tel)||(f.loc&&f.loc!==c.loc)||(f.ville&&f.ville!==c.ville);
+      if(changed){
+        // Afficher la modale
+        const ok=await askUpdateConfirm(c,f);
+        updateClient=ok;
+      }
+    }
+  }
+
+  pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,quartier,updateClient,id:Date.now()});
+  cf();renderPreview();
 }
 
+// Modale de confirmation
+function askUpdateConfirm(oldC,newF){
+  return new Promise(resolve=>{
+    const diff=document.getElementById('modal-diff');
+    let html='';
+    if(oldC.nom!==newF.nom&&newF.nom) html+=`<div><b>Nom :</b> <span class="old">${oldC.nom}</span> → <span class="new">${newF.nom}</span></div>`;
+    if(oldC.tel!==newF.tel&&newF.tel) html+=`<div><b>Tél :</b> <span class="old">${oldC.tel}</span> → <span class="new">${newF.tel}</span></div>`;
+    if(oldC.loc!==newF.loc&&newF.loc) html+=`<div><b>Localité :</b> <span class="old">${oldC.loc}</span> → <span class="new">${newF.loc}</span></div>`;
+    if(oldC.ville!==newF.ville&&newF.ville) html+=`<div><b>Ville :</b> <span class="old">${oldC.ville}</span> → <span class="new">${newF.ville}</span></div>`;
+    diff.innerHTML=html||'<em>Différence détectée</em>';
+    document.getElementById('modal-update').classList.add('active');
+    pendingUpdateClient=resolve;
+  });
+}
+function confirmUpdate(ok){
+  document.getElementById('modal-update').classList.remove('active');
+  if(pendingUpdateClient){pendingUpdateClient(ok);pendingUpdateClient=null;}
+}
+
+// ══════════════════════════════════════════════
+//  PREVIEW
+// ══════════════════════════════════════════════
 function buildLabel(inv){
   const p=[];
   if(inv.num)p.push(`<strong>${inv.num}</strong>`);
@@ -513,14 +634,12 @@ function buildLabel(inv){
   if(inv.loc)p.push(`<em style="color:var(--muted)">${inv.loc}</em>`);
   return p.join(' – ');
 }
-
 function buildTags(inv){
   let h='';
   if(inv.ville&&inv.ville!=='null'&&inv.ville!=='') h+=`<span class="tag tag-ville">📍 ${inv.ville}</span>`;
   if(inv.quartier&&inv.quartier!=='null'&&inv.quartier!=='') h+=`<span class="tag tag-quartier">${inv.quartier}</span>`;
   return h?`<div class="inv-tags">${h}</div>`:'';
 }
-
 function renderPreview(){
   const sec=document.getElementById('preview-section');
   if(pending.length===0){sec.classList.add('hidden');return;}
@@ -537,7 +656,6 @@ function renderPreview(){
   });
   document.getElementById('preview-content').innerHTML=h;
 }
-
 function remInv(id){pending=pending.filter(i=>i.id!==id);renderPreview();}
 function clearAll(){if(confirm('Effacer ?')){pending=[];renderPreview();}}
 
@@ -550,19 +668,88 @@ async function publishConsistance(){
   const btn=document.getElementById('btn-pub');
   btn.disabled=true;btn.textContent='⏳ Publication...';
   const res=await apiPost({action:'saveConsistance',date,chef,interventions:pending});
-  btn.disabled=false;btn.textContent='☁️ Publier (ajouter à la fiche du jour)';
-  if(res.success){showToast('✅ Ajouté à la fiche du jour !');pending=[];renderPreview();}
-  else showToast('❌ Erreur : '+(res.error||'Vérifiez la connexion'));
+  btn.disabled=false;btn.textContent='☁️ Publier';
+  if(res.success){
+    showToast('✅ Publié ! Base clients mise à jour.');
+    pending=[];renderPreview();
+    allClients=[]; // invalider le cache
+  } else showToast('❌ Erreur : '+(res.error||'Vérifiez la connexion'));
 }
 
 // ══════════════════════════════════════════════
-//  TERRAIN — vue par TYPE ou par QUARTIER
+//  BASE CLIENTS — CHEF
 // ══════════════════════════════════════════════
-function setTerrainView(v, el){
+async function loadClients(){
+  const wrap=document.getElementById('clients-table-wrap');
+  wrap.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
+  const data=await apiGet({action:'getClients'});
+  if(!data.success){wrap.innerHTML='<div class="empty"><div class="eicon">❌</div><p>Erreur de chargement</p></div>';return;}
+  allClients=data.clients||[];
+  renderClientsTable(allClients,'clients-table-wrap',false);
+}
+
+function filterClients(){
+  const q=(document.getElementById('client-search').value||'').toLowerCase();
+  const filtered=allClients.filter(c=>
+    (c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q)
+  );
+  renderClientsTable(filtered,'clients-table-wrap',false);
+}
+
+function renderClientsTable(list,wrapId,readOnly){
+  const wrap=document.getElementById(wrapId);
+  if(list.length===0){wrap.innerHTML='<div class="empty"><div class="eicon">👥</div><p>Aucun client enregistré.</p></div>';return;}
+  let h=`<table class="clients-table">
+    <thead><tr><th>N° Ligne</th><th>Nom</th><th>Téléphone</th><th>Localité</th><th>Ville</th><th>Quartier</th><th>Type</th>${readOnly?'':'<th>Actions</th>'}</tr></thead><tbody>`;
+  list.forEach(c=>{
+    h+=`<tr>
+      <td><strong>${c.num}</strong></td>
+      <td>${c.nom||'—'}</td>
+      <td>${c.tel||'—'}</td>
+      <td>${c.loc||'—'}</td>
+      <td>${c.ville||'—'}</td>
+      <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
+      <td><span class="tag tag-ville">${c.type||'—'}</span></td>
+      ${readOnly?'':'<td><button class="btn btn-danger btn-sm" onclick="deleteClientUI(\''+c.num.replace(/'/g,"\\'")+'\')">🗑️</button></td>'}
+    </tr>`;
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+}
+
+async function deleteClientUI(num){
+  if(!confirm('Supprimer le client '+num+' de la base ?')) return;
+  const res=await apiPost({action:'deleteClient',num});
+  if(res.success){showToast('🗑️ Client supprimé');loadClients();}
+  else showToast('❌ Erreur : '+res.error);
+}
+
+// ══════════════════════════════════════════════
+//  BASE CLIENTS — TECHNICIEN (lecture seule)
+// ══════════════════════════════════════════════
+let allClientsRO=[];
+async function loadClientsRO(){
+  const wrap=document.getElementById('clients-table-ro-wrap');
+  wrap.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
+  const data=await apiGet({action:'getClients'});
+  if(!data.success){wrap.innerHTML='<div class="empty"><div class="eicon">❌</div><p>Erreur de chargement</p></div>';return;}
+  allClientsRO=data.clients||[];
+  renderClientsTable(allClientsRO,'clients-table-ro-wrap',true);
+}
+function filterClientsRO(){
+  const q=(document.getElementById('client-search-ro').value||'').toLowerCase();
+  const filtered=allClientsRO.filter(c=>(c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q));
+  renderClientsTable(filtered,'clients-table-ro-wrap',true);
+}
+
+// ══════════════════════════════════════════════
+//  PAGE TERRAIN
+// ══════════════════════════════════════════════
+function setTerrainView(v,el){
   currentTerrainView=v;
   document.querySelectorAll('.vtab').forEach(x=>x.classList.remove('active'));
   el.classList.add('active');
-  if(terrainData) renderTerrain(terrainData);
+  if(terrainData)renderTerrain(terrainData);
 }
 
 async function loadTerrain(){
@@ -571,75 +758,50 @@ async function loadTerrain(){
   const data=await apiGet({action:'getByDate',date:todayStr()});
   if(!data.success){
     terrainData=null;
-    el.innerHTML=`<div class="empty"><div class="eicon">📋</div>
-      <p>Aucune consistance publiée aujourd'hui.<br>
-      <small style="color:var(--muted2)">${data.error||'Le chef centre doit publier la fiche.'}</small></p></div>`;
+    el.innerHTML=`<div class="empty"><div class="eicon">📋</div><p>Aucune consistance publiée aujourd'hui.<br><small style="color:var(--muted2)">${data.error||''}</small></p></div>`;
     return;
   }
-  terrainData=data;
-  renderTerrain(data);
+  terrainData=data;renderTerrain(data);
 }
 
 function renderTerrain(data){
   const el=document.getElementById('terrain-content');
   const{consist,interventions}=data;
-
-  const header=`<div class="consist-header">
-    <div><div class="ch-title">Consistance CERAF Bafoussam</div>
-    <div class="ch-date">📅 ${formatDate(consist.date)}</div></div>
-    <div class="ch-chef">👷 ${consist.chef}</div></div>`;
-
-  if(currentTerrainView==='type'){
-    el.innerHTML = header + renderByType(interventions);
-  } else {
-    el.innerHTML = header + renderByQuartier(interventions);
-  }
+  const hdr=`<div class="consist-header"><div><div class="ch-title">Consistance CERAF Bafoussam</div><div class="ch-date">📅 ${formatDate(consist.date)}</div></div><div class="ch-chef">👷 ${consist.chef}</div></div>`;
+  el.innerHTML=hdr+(currentTerrainView==='type'?renderByType(interventions):renderByQuartier(interventions));
 }
 
 function renderByType(interventions){
-  const g={};
-  interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
+  const g={};interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
   let h='';
-  Object.keys(g).forEach(type=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${type}</div>`;
-    g[type].forEach((inv,i)=>{ h+=invRowHTML(inv,i); });
+  Object.keys(g).forEach(t=>{
+    h+=`<div class="section-block"><div class="section-title">${TI[t]||'📋'} ${t}</div>`;
+    g[t].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
     h+='</div>';
   });
   return h;
 }
 
 function renderByQuartier(interventions){
-  // Grouper par quartier (ceux sans quartier → "Quartier non identifié")
   const g={};
-  interventions.forEach(i=>{
-    const q=(i.quartier&&i.quartier!=='null'&&i.quartier!=='')?i.quartier:'—';
-    if(!g[q])g[q]=[];g[q].push(i);
-  });
-
-  // Trier : quartiers connus d'abord (par ordre alphabétique), inconnus à la fin
-  const keys=Object.keys(g).sort((a,b)=>{
-    if(a==='—') return 1; if(b==='—') return -1; return a.localeCompare(b);
-  });
-
+  interventions.forEach(i=>{const q=(i.quartier&&i.quartier!=='null'&&i.quartier!=='')?i.quartier:'—';if(!g[q])g[q]=[];g[q].push(i);});
+  const keys=Object.keys(g).sort((a,b)=>{if(a==='—')return 1;if(b==='—')return-1;return a.localeCompare(b);});
   let h='';
   keys.forEach(q=>{
-    const label=q==='—'?'📌 Quartier non identifié':`📌 ${q}`;
-    h+=`<div class="quartier-block">
-      <div class="quartier-header">${label} <span style="opacity:.6;font-weight:400">(${g[q].length} intervention${g[q].length>1?'s':''})</span></div>`;
-    // Sous-grouper par type dans chaque quartier
+    h+=`<div class="quartier-block"><div class="quartier-header">📌 ${q==='—'?'Quartier non identifié':q} <span style="opacity:.6;font-weight:400">(${g[q].length})</span></div>`;
     const sg={};g[q].forEach(i=>{if(!sg[i.type])sg[i.type]=[];sg[i.type].push(i);});
-    Object.keys(sg).forEach(type=>{
-      h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[type]||'📋'} ${type}</div>`;
-      sg[type].forEach((inv,i)=>{ h+=invRowHTML(inv,i); });
+    Object.keys(sg).forEach(t=>{
+      h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[t]||'📋'} ${t}</div>`;
+      sg[t].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
     });
     h+='</div>';
   });
   return h;
 }
 
-function invRowHTML(inv, idx){
+function invRowHTML(inv,idx){
   const sk=SM[inv.statut]||'pending';
-  return `<div class="inv-row" id="row-${inv.id}">
+  return`<div class="inv-row" id="row-${inv.id}">
     <div class="inv-info">
       <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
       ${buildTags(inv)}
@@ -654,9 +816,7 @@ function invRowHTML(inv, idx){
         <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>📵 Injoignable</option>
         <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>⚠️ Problème</option>
       </select>
-      <input class="remark-inp" type="text" placeholder="Remarque..."
-        value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}"
-        style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">
+      <input class="remark-inp" type="text" placeholder="Remarque..." value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}" style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">
     </div>
   </div>`;
 }
@@ -670,25 +830,14 @@ async function updStatut(invId,statut){
     const sk=SM[statut]||'pending';
     const badge=row?row.querySelector('.badge'):null;
     if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[sk];}
-    // Mettre à jour le cache local
-    if(terrainData){
-      const inv=terrainData.interventions.find(i=>i.id===invId);
-      if(inv){inv.statut=statut;inv.remarque=remarque;}
-    }
+    if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv){inv.statut=statut;inv.remarque=remarque;}}
   } else showToast('❌ Erreur de mise à jour');
 }
-
 async function updRemarque(invId,remarque){
   const row=document.getElementById('row-'+invId);
   const statut=row?(row.querySelector('.status-sel')||{value:'En attente'}).value:'En attente';
   const res=await apiPost({action:'updateStatus',invId,statut,remarque});
-  if(res.success){
-    showToast('💬 Remarque enregistrée');
-    if(terrainData){
-      const inv=terrainData.interventions.find(i=>i.id===invId);
-      if(inv)inv.remarque=remarque;
-    }
-  }
+  if(res.success){showToast('💬 Remarque enregistrée');if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv)inv.remarque=remarque;}}
 }
 
 // ══════════════════════════════════════════════
@@ -702,17 +851,14 @@ async function loadHistorique(){
   const data=await apiGet({action:'getAll'});
   if(!data.success||!data.data||data.data.length===0){
     sw.classList.add('hidden');qw.classList.add('hidden');
-    el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée disponible.</p></div>';
-    return;
+    el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée.</p></div>';return;
   }
   sw.classList.remove('hidden');
-  let total=0,ok=0,unr=0,issue=0;
-  const qCounts={};
+  let total=0,ok=0,unr=0,issue=0;const qC={};
   data.data.forEach(c=>c.interventions.forEach(i=>{
     total++;const sk=SM[i.statut]||'pending';
     if(sk==='ok')ok++;if(sk==='unreachable')unr++;if(sk==='issue')issue++;
-    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')
-      qCounts[i.quartier]=(qCounts[i.quartier]||0)+1;
+    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='') qC[i.quartier]=(qC[i.quartier]||0)+1;
   }));
   document.getElementById('stats-row').innerHTML=`
     <div class="stat-card"><div class="stat-num">${data.data.length}</div><div class="stat-lbl">Jours</div></div>
@@ -720,35 +866,24 @@ async function loadHistorique(){
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--red)">${unr}</div><div class="stat-lbl">Injoignables</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${issue}</div><div class="stat-lbl">Problèmes</div></div>`;
-  const topQ=Object.entries(qCounts).sort((a,b)=>b[1]-a[1]);
-  if(topQ.length>0){
-    qw.classList.remove('hidden');
-    qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier</div>
-      <div>${topQ.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div></div>`;
-  } else qw.classList.add('hidden');
+  const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
+  if(topQ.length>0){qw.classList.remove('hidden');qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier</div><div>${topQ.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div></div>`;}
+  else qw.classList.add('hidden');
 
   const sorted=[...data.data].sort((a,b)=>b.date.localeCompare(a.date));
-  const byMonth={};
-  sorted.forEach(c=>{
-    const[y,m]=c.date.split('-');const k=y+'-'+m;
-    if(!byMonth[k])byMonth[k]=[];byMonth[k].push(c);
-  });
+  const byM={};sorted.forEach(c=>{const[y,m]=c.date.split('-');const k=y+'-'+m;if(!byM[k])byM[k]=[];byM[k].push(c);});
   let h='';
-  Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(k=>{
+  Object.keys(byM).sort((a,b)=>b.localeCompare(a)).forEach(k=>{
     const[y,m]=k.split('-');
     h+=`<div class="month-label">📅 ${MONTHS[parseInt(m)-1]} ${y}</div>`;
-    byMonth[k].forEach(c=>{
+    byM[k].forEach(c=>{
       const tot=c.interventions.length;
       const cok=c.interventions.filter(i=>(SM[i.statut]||'pending')==='ok').length;
       const cunr=c.interventions.filter(i=>(SM[i.statut]||'pending')==='unreachable').length;
       const safe=encodeURIComponent(JSON.stringify(c));
       h+=`<div class="hist-card" onclick="showDetail(decodeURIComponent('${safe}'))">
-        <div><div class="hc-date">📄 ${formatDate(c.date)}</div>
-        <div class="hc-chef">👷 ${c.chef} — ${tot} intervention${tot>1?'s':''}</div></div>
-        <div class="hc-pills">
-          <span class="pill b-ok">${cok} réalisé${cok>1?'s':''}</span>
-          ${cunr>0?`<span class="pill b-unreachable">${cunr} injoignable${cunr>1?'s':''}</span>`:''}
-        </div></div>`;
+        <div><div class="hc-date">📄 ${formatDate(c.date)}</div><div class="hc-chef">👷 ${c.chef} — ${tot} intervention${tot>1?'s':''}</div></div>
+        <div class="hc-pills"><span class="pill b-ok">${cok} réalisé${cok>1?'s':''}</span>${cunr>0?`<span class="pill b-unreachable">${cunr} injoignable${cunr>1?'s':''}</span>`:''}</div></div>`;
     });
   });
   el.innerHTML=h;
@@ -759,15 +894,12 @@ function showDetail(json){
   const el=document.getElementById('historique-content');
   const g={};c.interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
   let h=`<button class="btn btn-ghost btn-sm" onclick="loadHistorique()" style="margin-bottom:14px;">← Retour</button>
-    <div class="consist-header"><div><div class="ch-title">Consistance — ${formatDate(c.date)}</div></div>
-    <div class="ch-chef">👷 ${c.chef}</div></div>`;
-  Object.keys(g).forEach(type=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${type}</div>`;
-    g[type].forEach((inv,i)=>{
+    <div class="consist-header"><div><div class="ch-title">Consistance — ${formatDate(c.date)}</div></div><div class="ch-chef">👷 ${c.chef}</div></div>`;
+  Object.keys(g).forEach(t=>{
+    h+=`<div class="section-block"><div class="section-title">${TI[t]||'📋'} ${t}</div>`;
+    g[t].forEach((inv,i)=>{
       const sk=SM[inv.statut]||'pending';
-      h+=`<div class="inv-row">
-        <div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>
-        ${buildTags(inv)}
+      h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDate(inv.reporteDepuis)}</div>`:''}
         ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
         </div><span class="badge ${SC[sk]}">${SL[sk]}</span></div>`;
@@ -780,42 +912,28 @@ function showDetail(json){
 // ══════════════════════════════════════════════
 //  API
 // ══════════════════════════════════════════════
-function setSS(s,m){
-  document.getElementById('sync-dot').className='sync-dot '+s;
-  document.getElementById('sync-lbl').textContent=m;
-}
+function setSS(s,m){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-lbl').textContent=m;}
 async function apiPost(payload){
   setSS('loading','Sync...');
-  try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
-    const data=JSON.parse(await res.text());
-    setSS('ok','Synchronisé'); return data;
-  }catch(e){ setSS('err','Hors ligne'); return{success:false,error:e.toString()}; }
+  try{const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});const data=JSON.parse(await res.text());setSS('ok','Synchronisé');return data;}
+  catch(e){setSS('err','Hors ligne');return{success:false,error:e.toString()};}
 }
 async function apiGet(params){
   setSS('loading','Chargement...');
-  try{
-    const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams(params).toString());
-    const data=JSON.parse(await res.text());
-    setSS('ok','Synchronisé'); return data;
-  }catch(e){ setSS('err','Hors ligne'); return{success:false,error:'Connexion impossible.'}; }
+  try{const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams(params).toString());const data=JSON.parse(await res.text());setSS('ok','Synchronisé');return data;}
+  catch(e){setSS('err','Hors ligne');return{success:false,error:'Connexion impossible.'};}
 }
 
 // ══════════════════════════════════════════════
 //  UTILS
 // ══════════════════════════════════════════════
 function formatDate(d){
-  if(!d||d==='null')return'—';
-  const p=String(d).split('-');if(p.length<3)return d;
+  if(!d||d==='null')return'—';const p=String(d).split('-');if(p.length<3)return d;
   const m=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
   return parseInt(p[2])+' '+m[parseInt(p[1])-1]+' '+p[0];
 }
 let _tt;
-function showToast(msg){
-  clearTimeout(_tt);const t=document.getElementById('toast');
-  t.textContent=msg;t.style.display='block';
-  _tt=setTimeout(()=>{t.style.display='none';},2800);
-}
+function showToast(msg){clearTimeout(_tt);const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';_tt=setTimeout(()=>{t.style.display='none';},2800);}
 </script>
 </body>
 </html>
