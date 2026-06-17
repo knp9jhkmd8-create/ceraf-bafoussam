@@ -300,7 +300,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
         <!-- ÉTUDE FTTH -->
         <div id="fields-etude_ftth">
-          <div class="form-row"><div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen"></div><div><label>Téléphone(s)</label><input id="f1t" placeholder="621728190/678489859"></div></div>
+          <div class="form-row"><div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div><div><label>Téléphone(s)</label><input id="f1t" placeholder="621728190/678489859"></div></div>
           <div class="form-row">
             <div><label>Ville</label><select id="f1v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
             <div><label>Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
@@ -311,7 +311,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <div id="fields-install_ftth" class="hidden">
           <div class="form-row">
             <div><label>N° FTTH</label><input id="f2u" placeholder="233444445" oninput="onNumInput(this.value,'f2v')" onblur="lookupClientLocal(this.value)"></div>
-            <div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen"></div>
+            <div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row"><div><label>Téléphone</label><input id="f2t" placeholder="694561304"></div><div><label>Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
           <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f2v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
@@ -321,7 +321,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <div id="fields-derang_ftth" class="hidden">
           <div class="form-row">
             <div><label>N° FTTH</label><input id="f3u" placeholder="233442022" oninput="onNumInput(this.value,'f3v')" onblur="lookupClientLocal(this.value)"></div>
-            <div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen"></div>
+            <div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row"><div><label>Téléphone</label><input id="f3t" placeholder="678451495"></div><div><label>Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
           <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f3v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
@@ -331,7 +331,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <div id="fields-derang_cuivre" class="hidden">
           <div class="form-row">
             <div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118" oninput="onNumInput(this.value,'f4v')" onblur="lookupClientLocal(this.value)"></div>
-            <div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen"></div>
+            <div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
           <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f4v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
@@ -340,7 +340,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <!-- ÉTUDE LS -->
         <div id="fields-etude_ls" class="hidden">
           <div class="form-row">
-            <div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen"></div>
+            <div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
             <div><label>N° Client LS</label><input id="f5u" placeholder="xxx" onblur="lookupClientLocal(this.value)"></div>
           </div>
           <div class="form-row">
@@ -352,7 +352,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <!-- DÉRANGEMENT LS -->
         <div id="fields-derang_ls" class="hidden">
           <div class="form-row">
-            <div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen"></div>
+            <div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
             <div><label>N° Client LS</label><input id="f6u" placeholder="Numéro LS" onblur="lookupClientLocal(this.value)"></div>
           </div>
           <div class="form-row">
@@ -364,7 +364,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <!-- INSTALLATION LS -->
         <div id="fields-install_ls" class="hidden">
           <div class="form-row">
-            <div><label>Nom Client LS</label><input id="f7n" placeholder="Ex: Ewen"></div>
+            <div><label>Nom Client LS</label><input id="f7n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
             <div><label>Téléphone</label><input id="f7t" placeholder="621728190"></div>
           </div>
           <div class="form-row">
@@ -714,13 +714,14 @@ function selType(el){
 
 function gf(){
   const v=id=>(document.getElementById(id)||{value:''}).value.trim();
-  if(cType==='etude_ftth')    return{nom:v('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v'),num:'',gps:''};
-  if(cType==='install_ftth')  return{num:v('f2u'),nom:v('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),gps:''};
-  if(cType==='derang_ftth')   return{num:v('f3u'),nom:v('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),gps:''};
-  if(cType==='derang_cuivre') return{num:v('f4u'),nom:v('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),gps:''};
-  if(cType==='etude_ls')      return{num:v('f5u'),nom:v('f5n'),tel:'',loc:v('f5l'),ville:v('f5v'),gps:''};
-  if(cType==='derang_ls')     return{num:v('f6u'),nom:v('f6n'),tel:'',loc:v('f6l'),ville:v('f6v'),gps:''};
-  if(cType==='install_ls')    return{nom:v('f7n'),tel:v('f7t'),pop:v('f7p'),ville:v('f7v'),gps:v('f7g'),chambre:v('f7c'),extra:v('f7x'),num:'',loc:''};
+  const vUp=id=>v(id).toUpperCase();
+  if(cType==='etude_ftth')    return{nom:vUp('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v'),num:'',gps:''};
+  if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),gps:''};
+  if(cType==='derang_ftth')   return{num:v('f3u'),nom:vUp('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),gps:''};
+  if(cType==='derang_cuivre') return{num:v('f4u'),nom:vUp('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),gps:''};
+  if(cType==='etude_ls')      return{num:v('f5u'),nom:vUp('f5n'),tel:'',loc:v('f5l'),ville:v('f5v'),gps:''};
+  if(cType==='derang_ls')     return{num:v('f6u'),nom:vUp('f6n'),tel:'',loc:v('f6l'),ville:v('f6v'),gps:''};
+  if(cType==='install_ls')    return{nom:vUp('f7n'),tel:v('f7t'),pop:v('f7p'),ville:v('f7v'),gps:v('f7g'),chambre:v('f7c'),extra:v('f7x'),num:'',loc:''};
   return{};
 }
 
@@ -877,15 +878,23 @@ async function deleteClientUI(num){
 // ══════════════════════════════════════════════
 function getGPSField(fieldId,btn){
   const inp=document.getElementById(fieldId);
-  if(!navigator.geolocation){showToast('❌ GPS non disponible');return;}
+  if(!navigator.geolocation){showToast('❌ Votre navigateur ne supporte pas la géolocalisation');return;}
+  if(!window.isSecureContext){showToast('❌ GPS bloqué : la page doit être en HTTPS (vérifiez l\'URL)');return;}
   btn.disabled=true;btn.textContent='⏳...';
   navigator.geolocation.getCurrentPosition(
     pos=>{
       const c=pos.coords.latitude.toFixed(6)+', '+pos.coords.longitude.toFixed(6);
       inp.value=c;btn.disabled=false;btn.textContent='📍 Localiser';showToast('✅ Position : '+c);
     },
-    ()=>{btn.disabled=false;btn.textContent='📍 Localiser';showToast('❌ GPS refusé — saisissez manuellement');}
-    ,{enableHighAccuracy:true,timeout:10000}
+    err=>{
+      btn.disabled=false;btn.textContent='📍 Localiser';
+      let msg='❌ GPS indisponible';
+      if(err.code===1) msg='❌ Permission refusée — autorisez la localisation dans les paramètres du navigateur';
+      else if(err.code===2) msg='❌ Position indisponible — vérifiez que le GPS du téléphone est activé';
+      else if(err.code===3) msg='❌ Délai dépassé — réessayez, ou saisissez les coordonnées manuellement';
+      showToast(msg);
+    },
+    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
   );
 }
 
