@@ -200,6 +200,8 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .stat-num{font-family:'Fraunces',serif;font-size:1.9rem;font-weight:700;color:var(--blue-mid);}
 .stat-lbl{font-size:.7rem;color:var(--muted);margin-top:2px;}
 .qpill{display:inline-flex;align-items:center;gap:6px;background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;border-radius:20px;padding:4px 10px;font-size:.74rem;font-weight:700;margin:0 6px 6px 0;}
+.qpill-clickable{cursor:pointer;transition:all .2s;}.qpill-clickable:hover{background:var(--teal);color:#fff;}
+.qpill-active{background:var(--teal);color:#fff;border-color:var(--teal);cursor:default;}
 .qpill b{background:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;}
 .qpill-clickable{cursor:pointer;transition:all .15s;}
 .qpill-clickable:hover{background:var(--teal);color:#fff;transform:translateY(-1px);}
@@ -1302,9 +1304,9 @@ async function loadHistorique(){
 
 async function onHistoMonthChange(val){
   histoSelectedMonth=val;
+  window._histoQuartierFilter=''; // réinitialiser le filtre quartier au changement de mois
   const el=document.getElementById('historique-content');
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
-  // Recharger uniquement les données de ce nouveau mois
   const data=await apiGet({action:'getAll', month:val, role});
   histoAllData=(data&&data.success)?data.data:[];
   renderHistoForMonth();
@@ -1353,22 +1355,48 @@ function renderHistoForMonth(){
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">Instances</div></div>`;
-  const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
-  if(topQ.length>0){qw.classList.remove('hidden');qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier</div><div>${topQ.map(([q,c])=>`<span class="qpill qpill-clickable" onclick="showQuartierDetail('${q.replace(/'/g,"\\'")}','historique')">${q} <b>${c}</b></span>`).join('')}</div></div>`;}
-  else qw.classList.add('hidden');
+  // Comptage par quartier sur les interventions dédupliquées
+  const qC={};
+  Object.values(dedupMap).forEach(i=>{
+    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
+  });
 
+  const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
+  if(topQ.length>0){
+    qw.classList.remove('hidden');
+    // Le quartier actif est stocké pour le tri inline
+    const activeQ=window._histoQuartierFilter||'';
+    const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">Tous <b>${total}</b></span>`;
+    const qBtns=topQ.map(([q,c])=>`<span class="qpill${activeQ===q?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
+    qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier — cliquez pour filtrer</div><div>${allBtn}${qBtns}</div></div>`;
+  } else {
+    qw.classList.add('hidden');
+  }
+
+  const activeQ=window._histoQuartierFilter||'';
   const sorted=[...monthData].sort((a,b)=>b.date.localeCompare(a.date));
   let h='';
   sorted.forEach(c=>{
-    const tot=c.interventions.length;
-    const cok=c.interventions.filter(i=>(SM[i.statut]||'pending')==='ok').length;
-    const cunr=c.interventions.filter(i=>(SM[i.statut]||'pending')==='unreachable').length;
-    const safe=encodeURIComponent(JSON.stringify(c)).replace(/'/g,'%27');
+    // Filtrer les interventions si un quartier est actif
+    const invs=activeQ
+      ? c.interventions.filter(i=>i.quartier===activeQ)
+      : c.interventions;
+    if(invs.length===0)return; // masquer la fiche si elle n'a rien dans ce quartier
+    const tot=invs.length;
+    const cok=invs.filter(i=>(SM[i.statut]||'pending')==='ok').length;
+    const cunr=invs.filter(i=>(SM[i.statut]||'pending')==='unreachable').length;
+    const ficheFiltered={...c,interventions:invs};
+    const safe=encodeURIComponent(JSON.stringify(ficheFiltered)).replace(/'/g,'%27');
     h+=`<div class="hist-card" onclick="showDetail(decodeURIComponent('${safe}'))">
       <div><div class="hc-date">📄 ${formatDateDisplay(c.date)}</div><div class="hc-chef">👷 ${c.chef} — ${tot} intervention${tot>1?'s':''}</div></div>
       <div class="hc-pills"><span class="pill b-ok">${cok} réalisé${cok>1?'s':''}</span>${cunr>0?`<span class="pill b-unreachable">${cunr} injoignable${cunr>1?'s':''}</span>`:''}</div></div>`;
   });
-  el.innerHTML=h;
+  el.innerHTML=h||'<div class="empty"><div class="eicon">📭</div><p>Aucune intervention dans ce quartier ce mois-ci.</p></div>';
+}
+
+function filterHistoByQuartier(quartier){
+  window._histoQuartierFilter=quartier;
+  renderHistoForMonth();
 }
 
 function showDetail(json){
