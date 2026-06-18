@@ -1329,12 +1329,25 @@ function renderHistoForMonth(){
 
   sw.classList.remove('hidden');
   let total=0,ok=0;const qC={};
+
+  // Déduplication au niveau du mois entier — même logique que le serveur :
+  // clé = date d'origine + nom + numéro. On garde le statut le plus avancé.
+  const statutPoids=s=>{if(s==='ok')return 4;if(s==='issue')return 3;if(s==='unreachable')return 2;return 1;};
+  const dedupMap={};
   monthData.forEach(c=>c.interventions.forEach(i=>{
-    if(i.estTransfere)return; // ligne fantôme de report — ne pas compter deux fois
-    total++;const sk=SM[i.statut]||'pending';
-    if(sk==='ok')ok++;
-    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
+    const origine=(i.reporteDepuis&&i.reporteDepuis!=='null'&&i.reporteDepuis!=='')?i.reporteDepuis:c.date;
+    const cle=origine+'|'+(i.nom||'').trim().toUpperCase()+'|'+(i.num||'').trim();
+    const sk=SM[i.statut]||'pending';
+    if(!dedupMap[cle]||statutPoids(sk)>statutPoids(SM[dedupMap[cle].statut]||'pending')){
+      dedupMap[cle]={...i, _sk:sk};
+    }
   }));
+
+  Object.values(dedupMap).forEach(i=>{
+    total++;
+    if(i._sk==='ok')ok++;
+    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
+  });
   const instances=total-ok;
   document.getElementById('stats-row').innerHTML=`
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
