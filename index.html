@@ -1330,7 +1330,7 @@ function renderHistoForMonth(){
   }
 
   sw.classList.remove('hidden');
-  let total=0,ok=0;const qC={};
+  let total=0,ok=0;
 
   // Déduplication au niveau du mois entier — même logique que le serveur :
   // clé = date d'origine + nom + numéro. On garde le statut le plus avancé.
@@ -1345,6 +1345,8 @@ function renderHistoForMonth(){
     }
   }));
 
+  // Stats globales + comptage par quartier sur les interventions dédupliquées
+  const qC={};
   Object.values(dedupMap).forEach(i=>{
     total++;
     if(i._sk==='ok')ok++;
@@ -1355,11 +1357,6 @@ function renderHistoForMonth(){
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">Instances</div></div>`;
-  // Comptage par quartier sur les interventions dédupliquées
-  const qC={};
-  Object.values(dedupMap).forEach(i=>{
-    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
-  });
 
   const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
   if(topQ.length>0){
