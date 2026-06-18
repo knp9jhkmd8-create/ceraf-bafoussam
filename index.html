@@ -1307,10 +1307,24 @@ function showDetail(json){
       h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
         ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
-        </div><span class="badge ${SC[sk]}">${SL[sk]}</span></div>`;
+        </div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="badge ${SC[sk]}">${SL[sk]}</span>
+        ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvFromHisto('${inv.id}')">🗑️</button>`:''}
+        </div></div>`;
     });h+='</div>';
   });
   el.innerHTML=h;
+}
+
+async function deleteInvFromHisto(invId){
+  if(!confirm('Supprimer définitivement cette intervention ?\n\nCette action est irréversible.'))return;
+  const res=await apiPost({action:'deleteIntervention',invId});
+  if(res.success){
+    showToast('🗑️ Intervention supprimée');
+    loadHistorique();
+  } else {
+    showToast('❌ Erreur : '+(res.error||'suppression impossible'));
+  }
 }
 
 // ══════════════════════════════════════════════
