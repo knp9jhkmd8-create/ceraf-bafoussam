@@ -643,9 +643,7 @@ function startApp(r){
     goPage('chef',nav.querySelector('.nav-tab'),false);
     preloadClients();
   } else {
-    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">📡 Terrain</button>
-      <button class="nav-tab" onclick="goPage('clients-ro',this)">👥 Clients</button>
-      <button class="nav-tab" onclick="goPage('historique',this)">📁 Historique</button>`;
+    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">📡 Terrain</button>`;
     goPage('terrain',nav.querySelector('.nav-tab'),true);
   }
 }
@@ -1001,10 +999,12 @@ function renderClientsTable(list,wrapId,readOnly){
 }
 
 async function deleteClientUI(num){
-  if(!confirm('Supprimer '+num+' de la base ?'))return;
+  if(!confirm('⚠️ Supprimer le client '+num+' ?\n\nCette action supprimera AUSSI toutes ses interventions enregistrées (terrain, historique). Cette action est irréversible.'))return;
   const res=await apiPost({action:'deleteClient',num});
-  if(res.success){showToast('🗑️ Supprimé');refreshClients();}
-  else showToast('❌ '+res.error);
+  if(res.success){
+    showToast('🗑️ Client supprimé ainsi que '+(res.deletedInterventions||0)+' intervention(s) liée(s)');
+    refreshClients();
+  } else showToast('❌ '+res.error);
 }
 
 // ══════════════════════════════════════════════
@@ -1141,7 +1141,7 @@ function invRowHTML(inv,idx){
         <button class="btn-gps" onclick="getGPSField('gps-${inv.id}',this)">📍</button>
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">💾 GPS</button>
-      <button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="deleteInvUI('${inv.id}')">🗑️ Supprimer</button>
+      ${role==='chef'?`<button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="deleteInvUI('${inv.id}')">🗑️ Supprimer</button>`:''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
       <span class="badge ${SC[sk]}">${SL[sk]}</span>
@@ -1199,30 +1199,29 @@ async function loadHistorique(){
   const el=document.getElementById('historique-content');
   const sw=document.getElementById('stats-wrap');const qw=document.getElementById('quartier-wrap');
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
-  const data=await apiGet({action:'getAll'});
-  if(!data.success||!data.data||data.data.length===0){
+
+  // Déterminer le mois cible par défaut (mois courant) avant le premier appel réseau
+  const now=new Date();
+  const currentMonthKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const targetMonth=histoSelectedMonth||currentMonthKey;
+
+  // Charger UNIQUEMENT le mois ciblé — beaucoup plus rapide que tout l'historique
+  const data=await apiGet({action:'getAll', month:targetMonth, role});
+
+  if(!data.success){
     sw.classList.add('hidden');qw.classList.add('hidden');
     el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée.</p></div>';
     document.getElementById('histo-month-label').textContent='—';
     document.getElementById('histo-month-select').innerHTML='';
     return;
   }
-  histoAllData=data.data;
 
-  // Construire la liste des mois disponibles (triés du plus récent au plus ancien)
-  const monthsSet=new Set();
-  histoAllData.forEach(c=>{const[y,m]=c.date.split('-');monthsSet.add(y+'-'+m);});
-  const monthsList=[...monthsSet].sort((a,b)=>b.localeCompare(a));
+  histoAllData=data.data||[];
+  const monthsList=(data.availableMonths&&data.availableMonths.length>0)?data.availableMonths:[targetMonth];
 
-  // Mois courant par défaut s'il existe dans les données, sinon le plus récent disponible
-  const now=new Date();
-  const currentMonthKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  if(!histoSelectedMonth){
-    histoSelectedMonth=monthsList.includes(currentMonthKey)?currentMonthKey:(monthsList[0]||currentMonthKey);
-  }
-  if(!monthsList.includes(histoSelectedMonth)&&monthsList.length>0) histoSelectedMonth=monthsList[0];
+  histoSelectedMonth=monthsList.includes(targetMonth)?targetMonth:monthsList[0];
 
-  // Peupler le sélecteur
+  // Peupler le sélecteur (léger : juste des clés de mois, pas les données)
   const sel=document.getElementById('histo-month-select');
   sel.innerHTML=monthsList.map(k=>{
     const[y,m]=k.split('-');
@@ -1232,8 +1231,13 @@ async function loadHistorique(){
   renderHistoForMonth();
 }
 
-function onHistoMonthChange(val){
+async function onHistoMonthChange(val){
   histoSelectedMonth=val;
+  const el=document.getElementById('historique-content');
+  el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
+  // Recharger uniquement les données de ce nouveau mois
+  const data=await apiGet({action:'getAll', month:val, role});
+  histoAllData=(data&&data.success)?data.data:[];
   renderHistoForMonth();
 }
 
@@ -1255,18 +1259,17 @@ function renderHistoForMonth(){
   }
 
   sw.classList.remove('hidden');
-  let total=0,ok=0,unr=0,issue=0;const qC={};
+  let total=0,ok=0;const qC={};
   monthData.forEach(c=>c.interventions.forEach(i=>{
     total++;const sk=SM[i.statut]||'pending';
-    if(sk==='ok')ok++;if(sk==='unreachable')unr++;if(sk==='issue')issue++;
+    if(sk==='ok')ok++;
     if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
   }));
+  const instances=total-ok;
   document.getElementById('stats-row').innerHTML=`
-    <div class="stat-card"><div class="stat-num">${monthData.length}</div><div class="stat-lbl">Jours</div></div>
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${unr}</div><div class="stat-lbl">Injoignables</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${issue}</div><div class="stat-lbl">Problèmes</div></div>`;
+    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">Instances</div></div>`;
   const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
   if(topQ.length>0){qw.classList.remove('hidden');qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier</div><div>${topQ.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div></div>`;}
   else qw.classList.add('hidden');
@@ -1316,12 +1319,12 @@ function showDetail(json){
 function setSS(s,m){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-lbl').textContent=m;}
 async function apiPost(payload){
   setSS('loading','Sync...');
-  try{const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});const data=JSON.parse(await res.text());setSS('ok','Synchronisé');return data;}
+  try{const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...payload, role})});const data=JSON.parse(await res.text());setSS('ok','Synchronisé');return data;}
   catch(e){setSS('err','Hors ligne');return{success:false,error:e.toString()};}
 }
 async function apiGet(params){
   setSS('loading','Chargement...');
-  try{const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams(params).toString());const data=JSON.parse(await res.text());setSS('ok','Synchronisé');return data;}
+  try{const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams({...params, role}).toString());const data=JSON.parse(await res.text());setSS('ok','Synchronisé');return data;}
   catch(e){setSS('err','Hors ligne');return{success:false,error:'Connexion impossible.'};}
 }
 
