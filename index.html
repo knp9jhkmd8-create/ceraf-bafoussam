@@ -65,6 +65,8 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .nav-tab:hover{color:var(--blue-mid);}.nav-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid);}
 
 .main-content{flex:1;padding:18px 16px;max-width:880px;margin:0 auto;width:100%;}
+.main-content.wide-page{max-width:1400px;}
+.main-content.wide{max-width:1400px;}
 .page{display:none;}.page.active{display:block;}
 .page-title{font-family:'Fraunces',serif;font-size:1.35rem;font-weight:700;color:var(--navy);margin-bottom:2px;}
 .page-title span{color:var(--blue-mid);}
@@ -120,6 +122,10 @@ textarea{resize:vertical;min-height:60px;}
 
 .autofill-banner{background:var(--green-lt);border:1px solid #86efac;border-radius:8px;padding:8px 12px;font-size:.78rem;color:var(--green);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .autofill-banner.warn{background:var(--yellow-lt);border-color:#fde68a;color:var(--yellow);}
+input.input-error{border-color:var(--red)!important;background:#fef2f2!important;}
+.btn-addnum{background:transparent;border:none;color:var(--blue-mid);font-size:.74rem;font-weight:700;cursor:pointer;padding:4px 0;text-decoration:underline;font-family:'Plus Jakarta Sans',sans-serif;}
+.secnum-row{display:none;margin-top:8px;}
+.secnum-row.visible{display:block;}
 
 .client-search-bar{display:flex;gap:8px;margin-bottom:14px;}
 .client-search-bar input{flex:1;}
@@ -300,40 +306,52 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
         <!-- ÉTUDE FTTH -->
         <div id="fields-etude_ftth">
-          <div class="form-row"><div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div><div><label>Téléphone(s)</label><input id="f1t" placeholder="621728190/678489859"></div></div>
           <div class="form-row">
-            <div><label>Ville</label><select id="f1v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
-            <div><label>Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
+            <div><label>N° Ligne (9 chiffres)</label><input id="f1u" placeholder="233444445" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f1v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
+          <div class="form-row">
+            <div><label>Téléphone (9 chiffres)</label><input id="f1t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label>Ville</label><select id="f1v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+          </div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f1')">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f1sec-row"><input id="f1sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label>Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div></div>
         </div>
 
         <!-- INSTALLATION FTTH -->
         <div id="fields-install_ftth" class="hidden">
           <div class="form-row">
-            <div><label>N° FTTH</label><input id="f2u" placeholder="233444445" oninput="onNumInput(this.value,'f2v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label>N° FTTH (9 chiffres)</label><input id="f2u" placeholder="233444445" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f2v')" onblur="lookupClientLocal(this.value)"></div>
             <div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label>Téléphone</label><input id="f2t" placeholder="694561304"></div><div><label>Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
+          <div class="form-row"><div><label>Téléphone (9 chiffres)</label><input id="f2t" placeholder="694561304" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label>Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f2')">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f2sec-row"><input id="f2sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f2v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
         <!-- DÉRANGEMENT FTTH -->
         <div id="fields-derang_ftth" class="hidden">
           <div class="form-row">
-            <div><label>N° FTTH</label><input id="f3u" placeholder="233442022" oninput="onNumInput(this.value,'f3v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label>N° FTTH (9 chiffres)</label><input id="f3u" placeholder="233442022" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f3v')" onblur="lookupClientLocal(this.value)"></div>
             <div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label>Téléphone</label><input id="f3t" placeholder="678451495"></div><div><label>Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
+          <div class="form-row"><div><label>Téléphone (9 chiffres)</label><input id="f3t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label>Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f3')">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f3sec-row"><input id="f3sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f3v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
         <!-- DÉRANGEMENT CUIVRE -->
         <div id="fields-derang_cuivre" class="hidden">
           <div class="form-row">
-            <div><label>N° Cuivre</label><input id="f4u" placeholder="233441164 ou 118" oninput="onNumInput(this.value,'f4v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label>N° Cuivre (9 chiffres)</label><input id="f4u" placeholder="233441164" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f4v')" onblur="lookupClientLocal(this.value)"></div>
             <div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label>Téléphone</label><input id="f4t" placeholder="xxx"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
+          <div class="form-row"><div><label>Téléphone (9 chiffres)</label><input id="f4t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f4')">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f4sec-row"><input id="f4sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f4v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
@@ -341,33 +359,40 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <div id="fields-etude_ls" class="hidden">
           <div class="form-row">
             <div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-            <div><label>N° Client LS</label><input id="f5u" placeholder="xxx" onblur="lookupClientLocal(this.value)"></div>
+            <div><label>N° Client LS (9 chiffres)</label><input id="f5u" placeholder="233440001" maxlength="9" inputmode="numeric" oninput="filterDigits(this)" onblur="lookupClientLocal(this.value)"></div>
           </div>
           <div class="form-row">
+            <div><label>Téléphone (9 chiffres)</label><input id="f5t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
             <div><label>Ville</label><select id="f5v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
-            <div><label>Localité / Quartier</label><input id="f5l" placeholder="Localité"></div>
           </div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f5')">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f5sec-row"><input id="f5sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label>Localité / Quartier</label><input id="f5l" placeholder="Localité"></div></div>
         </div>
 
         <!-- DÉRANGEMENT LS -->
         <div id="fields-derang_ls" class="hidden">
           <div class="form-row">
             <div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-            <div><label>N° Client LS</label><input id="f6u" placeholder="Numéro LS" onblur="lookupClientLocal(this.value)"></div>
+            <div><label>N° Client LS (9 chiffres)</label><input id="f6u" placeholder="233440001" maxlength="9" inputmode="numeric" oninput="filterDigits(this)" onblur="lookupClientLocal(this.value)"></div>
           </div>
           <div class="form-row">
+            <div><label>Téléphone (9 chiffres)</label><input id="f6t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
             <div><label>Ville</label><select id="f6v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
-            <div><label>Localité / Quartier</label><input id="f6l" placeholder="Localité"></div>
           </div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f6')">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f6sec-row"><input id="f6sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label>Localité / Quartier</label><input id="f6l" placeholder="Localité"></div></div>
         </div>
 
         <!-- INSTALLATION LS -->
         <div id="fields-install_ls" class="hidden">
           <div class="form-row">
             <div><label>Nom Client LS</label><input id="f7n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-            <div><label>Téléphone</label><input id="f7t" placeholder="621728190"></div>
+            <div><label>N° Client LS (9 chiffres)</label><input id="f7u" placeholder="233440001" maxlength="9" inputmode="numeric" oninput="filterDigits(this)" onblur="lookupClientLocal(this.value)"></div>
           </div>
           <div class="form-row">
+            <div><label>Téléphone (9 chiffres)</label><input id="f7t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
             <div><label>POP</label>
               <select id="f7p">
                 <option value="">-- Sélectionner POP --</option>
@@ -375,6 +400,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
                 <option value="POP FAISCEAU">POP FAISCEAU</option>
               </select>
             </div>
+          </div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f7')">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f7sec-row"><input id="f7sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full">
             <div><label>Ville</label>
               <select id="f7v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
             </div>
@@ -439,8 +468,9 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
     <!-- PAGE TERRAIN -->
     <div class="page" id="page-terrain">
-      <div class="page-title">Fiche du <span>Jour</span></div>
-      <div class="page-sub">Mettez à jour vos interventions en temps réel</div>
+      <div class="page-title">Fiche du <span id="terrain-date-title">Jour</span></div>
+      <div class="page-sub" id="terrain-chef-sub">Mettez à jour vos interventions en temps réel</div>
+      <div id="terrain-quartier-summary" class="hidden"></div>
       <div class="view-toggle">
         <button class="vtab active" id="vtab-type"     onclick="setTerrainView('type',this)">Par type</button>
         <button class="vtab"        id="vtab-quartier" onclick="setTerrainView('quartier',this)">Par quartier</button>
@@ -450,8 +480,11 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
     <!-- PAGE HISTORIQUE -->
     <div class="page" id="page-historique">
-      <div class="page-title"><span>Historique</span></div>
-      <div class="page-sub">Toutes les fiches classées par mois</div>
+      <div class="page-title"><span>Historique</span> — <span id="histo-month-label">...</span></div>
+      <div class="page-sub">
+        Toutes les fiches classées par mois
+        <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>
+      </div>
       <div id="stats-wrap" class="hidden"><div class="stats-row" id="stats-row"></div></div>
       <div id="quartier-wrap" class="hidden"></div>
       <div id="historique-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
@@ -622,6 +655,9 @@ function goPage(p,el,load=true){
   document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
+  // Élargir le conteneur pour les pages Clients (tableau large)
+  const mc=document.querySelector('.main-content');
+  if(mc) mc.classList.toggle('wide-page', p==='clients'||p==='clients-ro');
   if(load){
     if(p==='terrain')    loadTerrain();
     if(p==='historique') loadHistorique();
@@ -673,11 +709,13 @@ function fillFields(c){
   if(ids.vil)setVal(ids.vil,c.ville);
 }
 function getFieldIds(){
+  if(cType==='etude_ftth')    return{num:'f1u',nom:'f1n',tel:'f1t',loc:'f1l',vil:'f1v'};
   if(cType==='install_ftth')  return{num:'f2u',nom:'f2n',tel:'f2t',loc:'f2l',vil:'f2v'};
   if(cType==='derang_ftth')   return{num:'f3u',nom:'f3n',tel:'f3t',loc:'f3l',vil:'f3v'};
   if(cType==='derang_cuivre') return{num:'f4u',nom:'f4n',tel:'f4t',loc:'f4l',vil:'f4v'};
-  if(cType==='etude_ls')      return{num:'f5u',nom:'f5n',tel:null,loc:'f5l',vil:'f5v'};
-  if(cType==='derang_ls')     return{num:'f6u',nom:'f6n',tel:null,loc:'f6l',vil:'f6v'};
+  if(cType==='etude_ls')      return{num:'f5u',nom:'f5n',tel:'f5t',loc:'f5l',vil:'f5v'};
+  if(cType==='derang_ls')     return{num:'f6u',nom:'f6n',tel:'f6t',loc:'f6l',vil:'f6v'};
+  if(cType==='install_ls')    return{num:'f7u',nom:'f7n',tel:'f7t',loc:null,vil:'f7v'};
   return{};
 }
 function showBanner(msg,w){const b=document.getElementById('autofill-banner');b.className='autofill-banner'+(w?' warn':'');b.textContent=msg;b.classList.remove('hidden');}
@@ -700,6 +738,18 @@ function detectQuartier(loc){
   return'';
 }
 
+// Ne garde que les chiffres, limité à 9
+function filterDigits(el){
+  el.value=el.value.replace(/\D/g,'').slice(0,9);
+  el.classList.remove('input-error');
+}
+
+// Affiche/cache le champ de numéro secondaire
+function toggleSecNum(prefix){
+  const row=document.getElementById(prefix+'sec-row');
+  row.classList.toggle('visible');
+}
+
 // ══════════════════════════════════════════════
 //  SAISIE
 // ══════════════════════════════════════════════
@@ -715,27 +765,76 @@ function selType(el){
 function gf(){
   const v=id=>(document.getElementById(id)||{value:''}).value.trim();
   const vUp=id=>v(id).toUpperCase();
-  if(cType==='etude_ftth')    return{nom:vUp('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v'),num:'',gps:''};
-  if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),gps:''};
-  if(cType==='derang_ftth')   return{num:v('f3u'),nom:vUp('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),gps:''};
-  if(cType==='derang_cuivre') return{num:v('f4u'),nom:vUp('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),gps:''};
-  if(cType==='etude_ls')      return{num:v('f5u'),nom:vUp('f5n'),tel:'',loc:v('f5l'),ville:v('f5v'),gps:''};
-  if(cType==='derang_ls')     return{num:v('f6u'),nom:vUp('f6n'),tel:'',loc:v('f6l'),ville:v('f6v'),gps:''};
-  if(cType==='install_ls')    return{nom:vUp('f7n'),tel:v('f7t'),pop:v('f7p'),ville:v('f7v'),gps:v('f7g'),chambre:v('f7c'),extra:v('f7x'),num:'',loc:''};
+  if(cType==='etude_ftth')    return{num:v('f1u'),nom:vUp('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v'),numSec:v('f1sec'),gps:''};
+  if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),numSec:v('f2sec'),gps:''};
+  if(cType==='derang_ftth')   return{num:v('f3u'),nom:vUp('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),numSec:v('f3sec'),gps:''};
+  if(cType==='derang_cuivre') return{num:v('f4u'),nom:vUp('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),numSec:v('f4sec'),gps:''};
+  if(cType==='etude_ls')      return{num:v('f5u'),nom:vUp('f5n'),tel:v('f5t'),loc:v('f5l'),ville:v('f5v'),numSec:v('f5sec'),gps:''};
+  if(cType==='derang_ls')     return{num:v('f6u'),nom:vUp('f6n'),tel:v('f6t'),loc:v('f6l'),ville:v('f6v'),numSec:v('f6sec'),gps:''};
+  if(cType==='install_ls')    return{num:v('f7u'),nom:vUp('f7n'),tel:v('f7t'),pop:v('f7p'),ville:v('f7v'),numSec:v('f7sec'),gps:v('f7g'),chambre:v('f7c'),extra:v('f7x'),loc:''};
   return{};
 }
 
+// Vérifie que les champs numériques obligatoires ont bien 9 chiffres
+function validateNumericFields(){
+  const map={
+    etude_ftth:['f1u','f1t'], install_ftth:['f2u','f2t'], derang_ftth:['f3u','f3t'],
+    derang_cuivre:['f4u','f4t'], etude_ls:['f5u','f5t'], derang_ls:['f6u','f6t'],
+    install_ls:['f7u','f7t']
+  };
+  const secMap={etude_ftth:'f1sec',install_ftth:'f2sec',derang_ftth:'f3sec',derang_cuivre:'f4sec',etude_ls:'f5sec',derang_ls:'f6sec',install_ls:'f7sec'};
+  const ids=map[cType]||[];
+  let ok=true;
+  let firstError=null;
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    const val=el.value.trim();
+    if(val.length>0 && val.length!==9){
+      el.classList.add('input-error');ok=false;if(!firstError)firstError='Le numéro doit contenir exactement 9 chiffres';
+    } else {
+      el.classList.remove('input-error');
+    }
+  });
+  // Numéro de ligne obligatoire (le premier de la liste)
+  const numId=ids[0];
+  if(numId){
+    const el=document.getElementById(numId);
+    if(el && el.value.trim().length===0){
+      el.classList.add('input-error');ok=false;if(!firstError)firstError='Le numéro de ligne est obligatoire';
+    }
+  }
+  // Numéro secondaire : optionnel, mais si rempli doit faire 9 chiffres
+  const secId=secMap[cType];
+  if(secId){
+    const el=document.getElementById(secId);
+    if(el){
+      const val=el.value.trim();
+      if(val.length>0 && val.length!==9){
+        el.classList.add('input-error');ok=false;if(!firstError)firstError='Le numéro secondaire doit contenir exactement 9 chiffres';
+      } else {
+        el.classList.remove('input-error');
+      }
+    }
+  }
+  return {ok, error:firstError};
+}
+
 function cf(){
-  ['f1n','f1t','f1l','f1v','f2u','f2n','f2t','f2l','f2v','f3u','f3n','f3t','f3l','f3v',
-   'f4u','f4n','f4t','f4l','f4v','f5n','f5u','f5l','f5v','f6n','f6u','f6l','f6v',
-   'f7n','f7t','f7p','f7v','f7g','f7c','f7x']
-  .forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('autofilled');}});
+  ['f1u','f1n','f1t','f1l','f1v','f1sec','f2u','f2n','f2t','f2l','f2v','f2sec',
+   'f3u','f3n','f3t','f3l','f3v','f3sec','f4u','f4n','f4t','f4l','f4v','f4sec',
+   'f5n','f5u','f5t','f5l','f5v','f5sec','f6n','f6u','f6t','f6l','f6v','f6sec',
+   'f7n','f7u','f7t','f7p','f7v','f7sec','f7g','f7c','f7x']
+  .forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('autofilled');el.classList.remove('input-error');}});
+  document.querySelectorAll('.secnum-row').forEach(r=>r.classList.remove('visible'));
   hideBanner();lastLookedNum='';
 }
 
 async function addInv(){
+  const valid=validateNumericFields();
+  if(!valid.ok){showToast('⚠️ '+(valid.error||'Vérifiez les numéros saisis (9 chiffres exactement)'));return;}
   const f=gf();
-  if(!f.nom&&!f.num){showToast('⚠️ Renseignez au moins le nom ou le numéro');return;}
+  if(!f.num){showToast('⚠️ Le numéro de ligne est obligatoire');return;}
   if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast('⚠️ Sélectionnez la ville');return;}
   const quartier=detectQuartier(f.loc||'');
 
@@ -777,6 +876,7 @@ function buildLabel(inv){
   if(inv.num)p.push(`<strong>${inv.num}</strong>`);
   if(inv.nom)p.push(inv.nom);
   if(inv.tel)p.push(inv.tel);
+  if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='')p.push('2è: '+inv.numSec);
   if(inv.pop)p.push(inv.pop);
   if(inv.loc)p.push(`<em style="color:var(--muted)">${inv.loc}</em>`);
   return p.join(' – ');
@@ -799,10 +899,44 @@ function renderPreview(){
   let h='';
   Object.keys(g).forEach(t=>{
     h+=`<div class="section-block"><div class="section-title">${TI[t]} ${TL[t]}</div>`;
-    g[t].forEach((inv,i)=>{h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}</div><button class="btn btn-danger btn-sm" onclick="remInv(${inv.id})">✕</button></div>`;});
+    g[t].forEach((inv,i)=>{h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}</div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm" onclick="editInv(${inv.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="remInv(${inv.id})">✕</button>
+      </div></div>`;});
     h+='</div>';
   });
   document.getElementById('preview-content').innerHTML=h;
+}
+
+// Réouvre une intervention en attente de publication pour la modifier
+function editInv(id){
+  const inv=pending.find(i=>i.id===id);
+  if(!inv)return;
+  // Sélectionner le bon type
+  const card=document.querySelector('.type-card[data-type="'+inv.type+'"]');
+  if(card) selType(card);
+
+  // Remplir les champs selon le type
+  const setIf=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!==undefined&&val!==null)el.value=val;};
+  if(inv.type==='etude_ftth'){setIf('f1u',inv.num);setIf('f1n',inv.nom);setIf('f1t',inv.tel);setIf('f1l',inv.loc);setIf('f1v',inv.ville);setIf('f1sec',inv.numSec);}
+  if(inv.type==='install_ftth'){setIf('f2u',inv.num);setIf('f2n',inv.nom);setIf('f2t',inv.tel);setIf('f2l',inv.loc);setIf('f2v',inv.ville);setIf('f2sec',inv.numSec);}
+  if(inv.type==='derang_ftth'){setIf('f3u',inv.num);setIf('f3n',inv.nom);setIf('f3t',inv.tel);setIf('f3l',inv.loc);setIf('f3v',inv.ville);setIf('f3sec',inv.numSec);}
+  if(inv.type==='derang_cuivre'){setIf('f4u',inv.num);setIf('f4n',inv.nom);setIf('f4t',inv.tel);setIf('f4l',inv.loc);setIf('f4v',inv.ville);setIf('f4sec',inv.numSec);}
+  if(inv.type==='etude_ls'){setIf('f5u',inv.num);setIf('f5n',inv.nom);setIf('f5t',inv.tel);setIf('f5l',inv.loc);setIf('f5v',inv.ville);setIf('f5sec',inv.numSec);}
+  if(inv.type==='derang_ls'){setIf('f6u',inv.num);setIf('f6n',inv.nom);setIf('f6t',inv.tel);setIf('f6l',inv.loc);setIf('f6v',inv.ville);setIf('f6sec',inv.numSec);}
+  if(inv.type==='install_ls'){setIf('f7u',inv.num);setIf('f7n',inv.nom);setIf('f7t',inv.tel);setIf('f7p',inv.pop);setIf('f7v',inv.ville);setIf('f7sec',inv.numSec);setIf('f7g',inv.gps);setIf('f7c',inv.chambre);setIf('f7x',inv.extra);}
+
+  // Afficher le champ secondaire si rempli
+  const prefixMap={etude_ftth:'f1',install_ftth:'f2',derang_ftth:'f3',derang_cuivre:'f4',etude_ls:'f5',derang_ls:'f6',install_ls:'f7'};
+  const prefix=prefixMap[inv.type];
+  if(prefix && inv.numSec){const row=document.getElementById(prefix+'sec-row');if(row)row.classList.add('visible');}
+
+  // Retirer l'ancienne entrée — elle sera recréée à l'ajout
+  pending=pending.filter(i=>i.id!==id);
+  renderPreview();
+  showToast('✏️ Modifiez les champs puis cliquez "Ajouter à la liste"');
+  document.querySelector('.card .card-title').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function remInv(id){pending=pending.filter(i=>i.id!==id);renderPreview();}
 function clearAll(){if(confirm('Effacer ?')){pending=[];renderPreview();}}
@@ -938,8 +1072,29 @@ async function loadTerrain(){
 function renderTerrain(data){
   const el=document.getElementById('terrain-content');
   const{consist,interventions}=data;
-  const hdr=`<div class="consist-header"><div><div class="ch-title">Consistance CERAF Bafoussam</div><div class="ch-date">📅 ${formatDateDisplay(consist.date)}</div></div><div class="ch-chef">👷 ${consist.chef}</div></div>`;
-  el.innerHTML=hdr+(currentTerrainView==='type'?renderByType(interventions):renderByQuartier(interventions));
+
+  // Titre dynamique : "Fiche du JJ/MM/AAAA"
+  document.getElementById('terrain-date-title').textContent=formatDateDisplay(consist.date);
+  document.getElementById('terrain-chef-sub').textContent='👷 '+consist.chef+' — Mettez à jour vos interventions en temps réel';
+
+  // Répartition par quartier — uniquement les quartiers présents dans CETTE fiche
+  const qC={};
+  interventions.forEach(i=>{
+    if(i.quartier&&i.quartier!=='null'&&i.quartier!==''){
+      qC[i.quartier]=(qC[i.quartier]||0)+1;
+    }
+  });
+  const summaryEl=document.getElementById('terrain-quartier-summary');
+  const entries=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
+  if(entries.length>0){
+    summaryEl.classList.remove('hidden');
+    summaryEl.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier (aujourd'hui)</div>
+      <div>${entries.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div></div>`;
+  } else {
+    summaryEl.classList.add('hidden');
+  }
+
+  el.innerHTML=(currentTerrainView==='type'?renderByType(interventions):renderByQuartier(interventions));
 }
 
 function renderByType(interventions){
@@ -1037,21 +1192,77 @@ async function deleteInvUI(invId){
 // ══════════════════════════════════════════════
 //  HISTORIQUE
 // ══════════════════════════════════════════════
+let histoAllData=null; // cache complet pour filtrer sans recharger
+let histoSelectedMonth=''; // format "YYYY-MM"
+
 async function loadHistorique(){
   const el=document.getElementById('historique-content');
   const sw=document.getElementById('stats-wrap');const qw=document.getElementById('quartier-wrap');
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const data=await apiGet({action:'getAll'});
-  if(!data.success||!data.data||data.data.length===0){sw.classList.add('hidden');qw.classList.add('hidden');el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée.</p></div>';return;}
+  if(!data.success||!data.data||data.data.length===0){
+    sw.classList.add('hidden');qw.classList.add('hidden');
+    el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée.</p></div>';
+    document.getElementById('histo-month-label').textContent='—';
+    document.getElementById('histo-month-select').innerHTML='';
+    return;
+  }
+  histoAllData=data.data;
+
+  // Construire la liste des mois disponibles (triés du plus récent au plus ancien)
+  const monthsSet=new Set();
+  histoAllData.forEach(c=>{const[y,m]=c.date.split('-');monthsSet.add(y+'-'+m);});
+  const monthsList=[...monthsSet].sort((a,b)=>b.localeCompare(a));
+
+  // Mois courant par défaut s'il existe dans les données, sinon le plus récent disponible
+  const now=new Date();
+  const currentMonthKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  if(!histoSelectedMonth){
+    histoSelectedMonth=monthsList.includes(currentMonthKey)?currentMonthKey:(monthsList[0]||currentMonthKey);
+  }
+  if(!monthsList.includes(histoSelectedMonth)&&monthsList.length>0) histoSelectedMonth=monthsList[0];
+
+  // Peupler le sélecteur
+  const sel=document.getElementById('histo-month-select');
+  sel.innerHTML=monthsList.map(k=>{
+    const[y,m]=k.split('-');
+    return `<option value="${k}" ${k===histoSelectedMonth?'selected':''}>${MONTHS[parseInt(m)-1]} ${y}</option>`;
+  }).join('');
+
+  renderHistoForMonth();
+}
+
+function onHistoMonthChange(val){
+  histoSelectedMonth=val;
+  renderHistoForMonth();
+}
+
+function renderHistoForMonth(){
+  if(!histoAllData)return;
+  const el=document.getElementById('historique-content');
+  const sw=document.getElementById('stats-wrap');const qw=document.getElementById('quartier-wrap');
+
+  const[y,m]=histoSelectedMonth.split('-');
+  document.getElementById('histo-month-label').textContent=MONTHS[parseInt(m)-1]+' '+y;
+
+  // Filtrer uniquement les fiches du mois sélectionné
+  const monthData=histoAllData.filter(c=>c.date.startsWith(histoSelectedMonth));
+
+  if(monthData.length===0){
+    sw.classList.add('hidden');qw.classList.add('hidden');
+    el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée pour ce mois.</p></div>';
+    return;
+  }
+
   sw.classList.remove('hidden');
   let total=0,ok=0,unr=0,issue=0;const qC={};
-  data.data.forEach(c=>c.interventions.forEach(i=>{
+  monthData.forEach(c=>c.interventions.forEach(i=>{
     total++;const sk=SM[i.statut]||'pending';
     if(sk==='ok')ok++;if(sk==='unreachable')unr++;if(sk==='issue')issue++;
     if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
   }));
   document.getElementById('stats-row').innerHTML=`
-    <div class="stat-card"><div class="stat-num">${data.data.length}</div><div class="stat-lbl">Jours</div></div>
+    <div class="stat-card"><div class="stat-num">${monthData.length}</div><div class="stat-lbl">Jours</div></div>
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--red)">${unr}</div><div class="stat-lbl">Injoignables</div></div>
@@ -1059,21 +1270,17 @@ async function loadHistorique(){
   const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
   if(topQ.length>0){qw.classList.remove('hidden');qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier</div><div>${topQ.map(([q,c])=>`<span class="qpill">${q} <b>${c}</b></span>`).join('')}</div></div>`;}
   else qw.classList.add('hidden');
-  const sorted=[...data.data].sort((a,b)=>b.date.localeCompare(a.date));
-  const byM={};sorted.forEach(c=>{const[y,m]=c.date.split('-');const k=y+'-'+m;if(!byM[k])byM[k]=[];byM[k].push(c);});
+
+  const sorted=[...monthData].sort((a,b)=>b.date.localeCompare(a.date));
   let h='';
-  Object.keys(byM).sort((a,b)=>b.localeCompare(a)).forEach(k=>{
-    const[y,m]=k.split('-');
-    h+=`<div class="month-label">📅 ${MONTHS[parseInt(m)-1]} ${y}</div>`;
-    byM[k].forEach(c=>{
-      const tot=c.interventions.length;
-      const cok=c.interventions.filter(i=>(SM[i.statut]||'pending')==='ok').length;
-      const cunr=c.interventions.filter(i=>(SM[i.statut]||'pending')==='unreachable').length;
-      const safe=encodeURIComponent(JSON.stringify(c)).replace(/'/g,'%27');
-      h+=`<div class="hist-card" onclick="showDetail(decodeURIComponent('${safe}'))">
-        <div><div class="hc-date">📄 ${formatDateDisplay(c.date)}</div><div class="hc-chef">👷 ${c.chef} — ${tot} intervention${tot>1?'s':''}</div></div>
-        <div class="hc-pills"><span class="pill b-ok">${cok} réalisé${cok>1?'s':''}</span>${cunr>0?`<span class="pill b-unreachable">${cunr} injoignable${cunr>1?'s':''}</span>`:''}</div></div>`;
-    });
+  sorted.forEach(c=>{
+    const tot=c.interventions.length;
+    const cok=c.interventions.filter(i=>(SM[i.statut]||'pending')==='ok').length;
+    const cunr=c.interventions.filter(i=>(SM[i.statut]||'pending')==='unreachable').length;
+    const safe=encodeURIComponent(JSON.stringify(c)).replace(/'/g,'%27');
+    h+=`<div class="hist-card" onclick="showDetail(decodeURIComponent('${safe}'))">
+      <div><div class="hc-date">📄 ${formatDateDisplay(c.date)}</div><div class="hc-chef">👷 ${c.chef} — ${tot} intervention${tot>1?'s':''}</div></div>
+      <div class="hc-pills"><span class="pill b-ok">${cok} réalisé${cok>1?'s':''}</span>${cunr>0?`<span class="pill b-unreachable">${cunr} injoignable${cunr>1?'s':''}</span>`:''}</div></div>`;
   });
   el.innerHTML=h;
 }
