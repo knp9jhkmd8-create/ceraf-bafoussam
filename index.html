@@ -1495,7 +1495,6 @@ function formatDateDisplay(d){
   if(!d||d==='null')return'—';
   const p=String(d).split('-');if(p.length<3)return d;
   return p[2]+'/'+p[1]+'/'+p[0];
-
 }
 let _tt;
 function showToast(msg){clearTimeout(_tt);const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';_tt=setTimeout(()=>{t.style.display='none';},2800);}
