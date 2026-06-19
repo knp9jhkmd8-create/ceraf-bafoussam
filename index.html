@@ -539,11 +539,11 @@ const PREFIX_VILLE={'23344':'Bafoussam','23327':'Bandjoun'};
 const VILLE_REQUIRED=['etude_ftth','etude_ls','derang_ls','install_ls'];
 const QUARTIERS_BAFOUSSAM=[
   "ENTREE DE LA VILLE","CARREFOUR LE MAIRE","MARCHE DES POULETS","QUARTIER ADMINISTRATIF",
-  "TOTAL D'EN BAS","HOPITAL REGIONAL","SAPEUR POMPIER","BANDJOUN STATION","QUARTIER HAOUSSA",
-  "ECOLE NORMALE","CAMPS SABLE","MARCHE CASA","CAMI TOYOTA","MICHOU BAR","NDIANGDAM",
-  "MARCHE B","MARCHE A","TYO VILLE","FEUX ROUGE","TOURISTIQUE","BAMENZI","KOUOGOUO",
+  "TOTAL EN BAS","HOPITAL REGIONAL","SAPEUR POMPIER","BANDJOUN STATION","QUARTIER HAOUSSA",
+  "ECOLE NORMALE","CAMPS SABLE","CASA","CAMI TOYOTA","MICHOU BAR","NDIANGDAM",
+  "MARCHE B","MARCHE A","TYO VILLE","FEU ROUGE","TOURISTIQUE","BAMENZI","KOUOGOUO",
   "DJEMOUN","NDIANSO","BANENGO","SOCADA","TAMDJA","KAMKOP","BALENG","EVECHE","COLACO",
-  "BIPMOP","TOCKET","MATEUR","BINAM","DUBAI","AUBERGE","DJELENG","FAMLA","ACHA","KENA","BIAO","TPO"
+  "BIPMOP","TOCKET","MATEUR","BINAM","DUBAI","AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO","FAMLA"
 ].sort((a,b)=>b.length-a.length);
 
 const CHEFS_DEFAUT=['BENANA Hermann','Godlove NGWANG FOR','NDZOUALI Joel','TENE Eric'];
@@ -883,8 +883,9 @@ function buildLabel(inv){
   const p=[];
   if(inv.num)p.push(`<strong>${inv.num}</strong>`);
   if(inv.nom)p.push(inv.nom);
-  if(inv.tel)p.push(inv.tel);
-  if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='')p.push('2è: '+inv.numSec);
+  if(inv.tel&&inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') p.push(inv.tel+' / '+inv.numSec);
+  else if(inv.tel) p.push(inv.tel);
+  else if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') p.push(inv.numSec);
   if(inv.pop)p.push(inv.pop);
   if(inv.loc)p.push(`<em style="color:var(--muted)">${inv.loc}</em>`);
   return p.join(' – ');
