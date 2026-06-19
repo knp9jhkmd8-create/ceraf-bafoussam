@@ -202,7 +202,8 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .qpill{display:inline-flex;align-items:center;gap:6px;background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;border-radius:20px;padding:4px 10px;font-size:.74rem;font-weight:700;margin:0 6px 6px 0;}
 .qpill-clickable{cursor:pointer;transition:all .2s;}.qpill-clickable:hover{background:var(--teal);color:#fff;}
 .qpill-active{background:var(--teal);color:#fff;border-color:var(--teal);cursor:default;}
-.qpill b{background:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;}
+.qpill b{background:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;color:var(--teal);}
+.qpill-active b{background:rgba(255,255,255,0.25);color:#fff;}
 .qpill-clickable{cursor:pointer;transition:all .15s;}
 .qpill-clickable:hover{background:var(--teal);color:#fff;transform:translateY(-1px);}
 .qpill-clickable:hover b{color:var(--teal);}
@@ -1315,54 +1316,40 @@ async function onHistoMonthChange(val){
 function renderHistoForMonth(){
   if(!histoAllData)return;
   const el=document.getElementById('historique-content');
-  const sw=document.getElementById('stats-wrap');const qw=document.getElementById('quartier-wrap');
+  const sw=document.getElementById('stats-wrap');
+  const qw=document.getElementById('quartier-wrap');
 
   const[y,m]=histoSelectedMonth.split('-');
   document.getElementById('histo-month-label').textContent=MONTHS[parseInt(m)-1]+' '+y;
 
-  // Filtrer uniquement les fiches du mois sélectionné
-  const monthData=histoAllData.filter(c=>c.date.startsWith(histoSelectedMonth));
+  // Les données venant du serveur sont déjà dédupliquées.
+  // On collecte toutes les interventions uniques du mois.
+  const allInvs=[];
+  histoAllData.forEach(c=>c.interventions.forEach(i=>allInvs.push({...i,date:i.date||c.date,chef:c.chef})));
 
-  if(monthData.length===0){
+  if(allInvs.length===0){
     sw.classList.add('hidden');qw.classList.add('hidden');
     el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée pour ce mois.</p></div>';
     return;
   }
 
+  // Stats
   sw.classList.remove('hidden');
-  let total=0,ok=0;
-
-  // Déduplication au niveau du mois entier — même logique que le serveur :
-  // clé = date d'origine + nom + numéro. On garde le statut le plus avancé.
-  const statutPoids=s=>{if(s==='ok')return 4;if(s==='issue')return 3;if(s==='unreachable')return 2;return 1;};
-  const dedupMap={};
-  monthData.forEach(c=>c.interventions.forEach(i=>{
-    const origine=(i.reporteDepuis&&i.reporteDepuis!=='null'&&i.reporteDepuis!=='')?i.reporteDepuis:c.date;
-    const cle=origine+'|'+(i.nom||'').trim().toUpperCase()+'|'+(i.num||'').trim();
-    const sk=SM[i.statut]||'pending';
-    if(!dedupMap[cle]||statutPoids(sk)>statutPoids(SM[dedupMap[cle].statut]||'pending')){
-      dedupMap[cle]={...i, _sk:sk};
-    }
-  }));
-
-  // Stats globales + comptage par quartier sur les interventions dédupliquées
-  const qC={};
-  Object.values(dedupMap).forEach(i=>{
-    total++;
-    if(i._sk==='ok')ok++;
-    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
-  });
+  const total=allInvs.length;
+  const ok=allInvs.filter(i=>(SM[i.statut]||'pending')==='ok').length;
   const instances=total-ok;
   document.getElementById('stats-row').innerHTML=`
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">Instances</div></div>`;
 
+  // Répartition par quartier
+  const qC={};
+  allInvs.forEach(i=>{if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;});
   const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
+  const activeQ=window._histoQuartierFilter||'';
   if(topQ.length>0){
     qw.classList.remove('hidden');
-    // Le quartier actif est stocké pour le tri inline
-    const activeQ=window._histoQuartierFilter||'';
     const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">Tous <b>${total}</b></span>`;
     const qBtns=topQ.map(([q,c])=>`<span class="qpill${activeQ===q?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
     qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier — cliquez pour filtrer</div><div>${allBtn}${qBtns}</div></div>`;
@@ -1370,34 +1357,15 @@ function renderHistoForMonth(){
     qw.classList.add('hidden');
   }
 
-  const activeQ=window._histoQuartierFilter||'';
-  const sorted=[...monthData].sort((a,b)=>b.date.localeCompare(a.date));
-  // ── AFFICHAGE PAR INTERVENTION UNIQUE ──────────────────────
-  // On repart du dedupMap (déjà dédupliqué) pour afficher UNE carte
-  // par intervention réelle, pas une carte par fiche journalière.
-  // • Réalisée / Problème → on montre la date de résolution + durée
-  // • En attente / Injoignable → on montre le dernier report + durée écoulée
-  const invsDedups = Object.values(dedupMap);
-
-  // Filtrer par quartier si actif
-  const invsFiltered = activeQ
-    ? invsDedups.filter(i=>i.quartier===activeQ)
-    : invsDedups;
-
-  // Trier par date décroissante (la plus récente en haut)
-  invsFiltered.sort((a,b)=>b.date.localeCompare(a.date));
-
-  // Grouper par type pour un affichage structuré
-  const byType={};
-  invsFiltered.forEach(i=>{
-    if(!byType[i.type])byType[i.type]=[];
-    byType[i.type].push(i);
-  });
-
+  // Filtrer + grouper par type
+  const invsFiltered=activeQ?allInvs.filter(i=>i.quartier===activeQ):allInvs;
   if(invsFiltered.length===0){
     el.innerHTML='<div class="empty"><div class="eicon">📭</div><p>Aucune intervention dans ce quartier ce mois-ci.</p></div>';
     return;
   }
+  invsFiltered.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const byType={};
+  invsFiltered.forEach(i=>{if(!byType[i.type])byType[i.type]=[];byType[i.type].push(i);});
 
   let h='';
   Object.keys(byType).forEach(type=>{
@@ -1405,12 +1373,11 @@ function renderHistoForMonth(){
     byType[type].forEach(inv=>{
       const sk=SM[inv.statut]||'pending';
       const estResolu=sk==='ok'||sk==='issue';
-      const dureeTxt=inv.duree>0
-        ?`<span class="duree-badge">⏱️ ${inv.duree} j. ouvr${inv.duree>1?'és':'é'}</span>`:'';
+      const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${inv.duree} j. ouvr${inv.duree>1?'és':'é'}</span>`:'';
       const dateTxt=estResolu
         ?`✅ Résolu le ${formatDateDisplay(inv.date)}`
         :`🔄 Dernier report : ${formatDateDisplay(inv.date)}`;
-      const safe=encodeURIComponent(JSON.stringify([inv])).replace(/'/g,'%27');
+      const safe=encodeURIComponent(JSON.stringify(inv)).replace(/'/g,'%27');
       h+=`<div class="inv-row" style="cursor:pointer" onclick="showSingleInv(decodeURIComponent('${safe}'))">
         <div class="inv-info">
           <div class="inv-name">${buildLabel(inv)}</div>
@@ -1420,8 +1387,7 @@ function renderHistoForMonth(){
             ?`<div class="inv-report">📅 Depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
-          <span class="badge ${SC[sk]}">${SL[sk]}</span>
-          ${dureeTxt}
+          <span class="badge ${SC[sk]}">${SL[sk]}</span>${dureeTxt}
         </div>
       </div>`;
     });
