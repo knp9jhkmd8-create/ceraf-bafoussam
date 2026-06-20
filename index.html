@@ -1094,14 +1094,17 @@ async function loadTerrain(){
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const now=new Date();
   const iso=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  const data=await apiGet({action:'getByDate',date:iso});
+  // Charger la fiche du jour ET le cache clients en parallèle
+  const [data] = await Promise.all([
+    apiGet({action:'getByDate',date:iso}),
+    Object.keys(clientsCache).length===0 ? preloadClients() : Promise.resolve()
+  ]);
   if(!data.success){
     terrainData=null;
     el.innerHTML=`<div class="empty"><div class="eicon">📋</div><p>Aucune consistance publiée aujourd'hui.<br><small style="color:var(--muted2)">${data.error||''}</small></p></div>`;
     return;
   }
   terrainData=data;renderTerrain(data);
-  if(Object.keys(clientsCache).length===0)preloadClients();
 }
 
 function renderTerrain(data){
