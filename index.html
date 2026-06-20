@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CERAF BFS">
+<link rel="manifest" href="manifest.json">
 <title>CERAF Bafoussam — Consistance des Travaux</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:wght@700;800&display=swap" rel="stylesheet">
 <style>
@@ -218,6 +223,8 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .modal-diff .new{color:var(--green);font-weight:600;}
 
 .hidden{display:none!important;}
+.offline-banner{position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;text-align:center;padding:6px;font-size:.78rem;font-weight:700;z-index:9999;display:none;}
+.offline-banner.visible{display:block;}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
 .empty{text-align:center;padding:40px 20px;color:var(--muted);}
 .empty .eicon{font-size:2.4rem;margin-bottom:10px;}
@@ -254,6 +261,8 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   </div>
   <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);">Ce choix est mémorisé sur votre appareil</p>
 </div>
+
+<div class="offline-banner" id="offline-banner">📵 Hors ligne — Les mises à jour de statut seront synchronisées au retour du réseau</div>
 
 <!-- APP -->
 <div id="app">
@@ -1539,6 +1548,46 @@ function formatDateDisplay(d){
   const p=String(d).split('-');if(p.length<3)return d;
   return p[2]+'/'+p[1]+'/'+p[0];
 }
+// ══════════════════════════════════════════════
+//  PWA — SERVICE WORKER + MODE HORS LIGNE
+// ══════════════════════════════════════════════
+(function(){
+  // Enregistrement du service worker
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        console.log('[PWA] Service Worker enregistré');
+        // Écouter les messages de synchro
+        navigator.serviceWorker.addEventListener('message', e => {
+          if(e.data && e.data.type === 'SYNC_DONE'){
+            showToast('✅ Statuts synchronisés !');
+            if(terrainData) loadTerrain(); // recharger la fiche
+          }
+        });
+      })
+      .catch(err => console.warn('[PWA] SW error:', err));
+  }
+
+  // Bannière hors ligne
+  const banner = document.getElementById('offline-banner');
+  function updateOnlineStatus(){
+    if(!navigator.onLine){
+      banner.classList.add('visible');
+    } else {
+      banner.classList.remove('visible');
+      // Tentative de synchro au retour du réseau
+      if('serviceWorker' in navigator && 'SyncManager' in window){
+        navigator.serviceWorker.ready.then(reg =>
+          reg.sync.register('ceraf-status-sync').catch(()=>{})
+        );
+      }
+    }
+  }
+  window.addEventListener('online',  updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+  updateOnlineStatus();
+})();
+
 let _tt;
 function showToast(msg){clearTimeout(_tt);const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';_tt=setTimeout(()=>{t.style.display='none';},2800);}
 </script>

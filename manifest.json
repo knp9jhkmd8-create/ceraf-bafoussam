@@ -1,0 +1,24 @@
+{
+  "name": "CERAF Bafoussam — Consistance",
+  "short_name": "CERAF BFS",
+  "description": "Gestion des consistances de travaux FTTH/LS/Cuivre",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f4ff",
+  "theme_color": "#1d4ed8",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://api.iconify.design/twemoji/telephone-receiver.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://api.iconify.design/twemoji/telephone-receiver.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
