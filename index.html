@@ -900,8 +900,12 @@ function buildTags(inv){
   if(inv.ville&&inv.ville!=='null'&&inv.ville!=='')h+=`<span class="tag tag-ville">📍 ${inv.ville}</span>`;
   if(inv.quartier&&inv.quartier!=='null'&&inv.quartier!=='')h+=`<span class="tag tag-quartier">${inv.quartier}</span>`;
   if(inv.gps&&inv.gps!=='null'&&inv.gps!==''){
-    const url='https://www.google.com/maps?q='+encodeURIComponent(inv.gps);
-    h+=`<a class="tag tag-gps" href="${url}" target="_blank">📌 GPS</a>`;
+    const gRaw=String(inv.gps).trim();
+    const gValide=/\d/.test(gRaw)&&/,/.test(gRaw)&&!/^(FTTH|LS|CUIVRE)$/i.test(gRaw);
+    if(gValide){
+      const url='https://www.google.com/maps?q='+encodeURIComponent(gRaw);
+      h+=`<a class="tag tag-gps" href="${url}" target="_blank">📌 GPS</a>`;
+    }
   }
   return h?`<div class="inv-tags">${h}</div>`:'';
 }
@@ -999,8 +1003,13 @@ function renderClientsTable(list,wrapId,readOnly){
     ${readOnly?'':'<th></th>'}
   </tr></thead><tbody>`;
   list.forEach(c=>{
-    const gpsH=c.gps&&c.gps!=='null'&&c.gps!==''
-      ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(c.gps)}" target="_blank">📌 Voir</a>`:'—';
+    // GPS valide = contient des chiffres et une virgule (coordonnées)
+    // On refuse d'afficher un lien si la valeur ressemble à un service (FTTH/LS/CUIVRE)
+    // ou à une date — ce qui indiquerait un décalage de colonnes dans la BD.
+    const gpsRaw=c.gps&&c.gps!=='null'?String(c.gps).trim():'';
+    const gpsValide=gpsRaw!==''&&/\d/.test(gpsRaw)&&/,/.test(gpsRaw)&&!/^(FTTH|LS|CUIVRE)$/i.test(gpsRaw);
+    const gpsH=gpsValide
+      ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">📌 Voir</a>`:'—';
     const svc=c.service||'';
     const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
     h+=`<tr>
