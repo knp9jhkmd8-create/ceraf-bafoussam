@@ -1631,22 +1631,12 @@ function formatDateDisplay(d){
   return p[2]+'/'+p[1]+'/'+p[0];
 }
 // ══════════════════════════════════════════════
-//  PWA — DÉSINSTALLATION FORCÉE DU SERVICE WORKER
-//  Le SW précédent avait mis en cache une version
-//  corrompue. On le désinstalle et vide tout.
+//  PWA — SERVICE WORKER + MODE HORS LIGNE
 // ══════════════════════════════════════════════
 (function(){
   if('serviceWorker' in navigator){
-    // Désenregistrer TOUS les service workers
-    navigator.serviceWorker.getRegistrations().then(regs=>{
-      regs.forEach(reg=>reg.unregister());
-    });
-    // Vider TOUS les caches
-    if('caches' in window){
-      caches.keys().then(keys=>{
-        keys.forEach(k=>caches.delete(k));
-      });
-    }
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('[SW] Erreur:', err));
   }
 
   // Bannière hors ligne
