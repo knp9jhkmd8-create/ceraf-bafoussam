@@ -715,15 +715,20 @@ function fillFields(c){
   if(ids.tel)setVal(ids.tel,c.tel);
   if(ids.loc)setVal(ids.loc,c.loc);
   if(ids.vil)setVal(ids.vil,c.ville);
+  if(ids.sec&&c.telSec&&c.telSec!=='null'&&c.telSec!==''){
+    setVal(ids.sec,c.telSec);
+    const row=document.getElementById(ids.sec.replace('sec','sec-row'));
+    if(row)row.classList.add('visible');
+  }
 }
 function getFieldIds(){
-  if(cType==='etude_ftth')    return{num:'f1u',nom:'f1n',tel:'f1t',loc:'f1l',vil:'f1v'};
-  if(cType==='install_ftth')  return{num:'f2u',nom:'f2n',tel:'f2t',loc:'f2l',vil:'f2v'};
-  if(cType==='derang_ftth')   return{num:'f3u',nom:'f3n',tel:'f3t',loc:'f3l',vil:'f3v'};
-  if(cType==='derang_cuivre') return{num:'f4u',nom:'f4n',tel:'f4t',loc:'f4l',vil:'f4v'};
-  if(cType==='etude_ls')      return{num:'f5u',nom:'f5n',tel:'f5t',loc:'f5l',vil:'f5v'};
-  if(cType==='derang_ls')     return{num:'f6u',nom:'f6n',tel:'f6t',loc:'f6l',vil:'f6v'};
-  if(cType==='install_ls')    return{num:'f7u',nom:'f7n',tel:'f7t',loc:null,vil:'f7v'};
+  if(cType==='etude_ftth')    return{nom:'f1n',tel:'f1t',loc:'f1l',vil:'f1v',sec:'f1sec'};
+  if(cType==='install_ftth')  return{num:'f2u',nom:'f2n',tel:'f2t',loc:'f2l',vil:'f2v',sec:'f2sec'};
+  if(cType==='derang_ftth')   return{num:'f3u',nom:'f3n',tel:'f3t',loc:'f3l',vil:'f3v',sec:'f3sec'};
+  if(cType==='derang_cuivre') return{num:'f4u',nom:'f4n',tel:'f4t',loc:'f4l',vil:'f4v',sec:'f4sec'};
+  if(cType==='etude_ls')      return{nom:'f5n',tel:'f5t',loc:'f5l',vil:'f5v',sec:'f5sec'};
+  if(cType==='derang_ls')     return{nom:'f6n',tel:'f6t',loc:'f6l',vil:'f6v',sec:'f6sec'};
+  if(cType==='install_ls')    return{nom:'f7n',tel:'f7t',loc:null,vil:'f7v',sec:'f7sec'};
   return{};
 }
 function showBanner(msg,w){const b=document.getElementById('autofill-banner');b.className='autofill-banner'+(w?' warn':'');b.textContent=msg;b.classList.remove('hidden');}
@@ -990,15 +995,17 @@ function renderClientsTable(list,wrapId,readOnly){
   const wrap=document.getElementById(wrapId);
   if(!list||list.length===0){wrap.innerHTML='<div class="empty"><div class="eicon">👥</div><p>Aucun client enregistré.</p></div>';return;}
   let h=`<table class="clients-table"><thead><tr>
-    <th>N° Ligne</th><th>Nom</th><th>Téléphone</th><th>Localité</th><th>Ville</th><th>Quartier</th><th>Service</th><th>GPS</th>
+    <th>N° Ligne</th><th>Nom</th><th>Téléphone</th><th>2ème contact</th><th>Localité</th><th>Ville</th><th>Quartier</th><th>Service</th><th>GPS</th>
     ${readOnly?'':'<th></th>'}
   </tr></thead><tbody>`;
   list.forEach(c=>{
     const gpsH=c.gps&&c.gps!=='null'&&c.gps!==''
       ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(c.gps)}" target="_blank">📌 Voir</a>`:'—';
     const svc=c.service||'';
+    const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
     h+=`<tr>
       <td><strong>${c.num}</strong></td><td>${c.nom||'—'}</td><td>${c.tel||'—'}</td>
+      <td>${telSec}</td>
       <td>${c.loc||'—'}</td><td>${c.ville||'—'}</td>
       <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
       <td>${svc?`<span class="service-badge ${svcClass(svc)}">${svc}</span>`:'—'}</td>
