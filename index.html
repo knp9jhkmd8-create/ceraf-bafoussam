@@ -888,9 +888,17 @@ function buildLabel(inv){
   const p=[];
   if(inv.num)p.push(`<strong>${inv.num}</strong>`);
   if(inv.nom)p.push(inv.nom);
-  if(inv.tel&&inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') p.push(inv.tel+' / '+inv.numSec);
-  else if(inv.tel) p.push(inv.tel);
-  else if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') p.push(inv.numSec);
+  // Affichage du téléphone :
+  // - Si tel contient déjà "/" (format combiné stocké en BD) → afficher tel quel
+  // - Sinon si numSec est renseigné séparément (saisie en cours) → combiner
+  if(inv.tel){
+    const telDisplay=(inv.numSec&&inv.numSec!=='null'&&inv.numSec!==''&&!inv.tel.includes('/'))
+      ? inv.tel+' / '+inv.numSec
+      : inv.tel;
+    p.push(telDisplay);
+  } else if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!==''){
+    p.push(inv.numSec);
+  }
   if(inv.pop)p.push(inv.pop);
   if(inv.loc)p.push(`<em style="color:var(--muted)">${inv.loc}</em>`);
   return p.join(' – ');
