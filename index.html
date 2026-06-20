@@ -1195,7 +1195,7 @@ function invRowHTML(inv,idx){
         <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="Coordonnées GPS (ex: 5.4764, 10.4191)" value="${gpsValue}" style="font-size:.75rem;">
         <button class="btn-gps" onclick="getGPSField('gps-${inv.id}',this)">📍</button>
       </div>
-      ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">📌 GPS enregistré${gpsSource} — <a href="https://www.google.com/maps?q=${encodeURIComponent(gpsValue)}" target="_blank" style="color:var(--teal);font-weight:700;text-decoration:none;">Ouvrir sur Maps 🗺️</a></div>`:''}
+      ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">📌 GPS enregistré${gpsSource} — <a href="geo:${encodeURIComponent(gpsValue)}?q=${encodeURIComponent(gpsValue)}" target="_blank" style="color:var(--teal);font-weight:700;text-decoration:none;" onclick="ouvrirMaps(event,'${gpsValue.replace(/'/g,"\\'")}')">Ouvrir sur Maps 🗺️</a></div>`:''}
       <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">💾 Mettre à jour GPS</button>
       ${role==='chef'?`<button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="deleteInvUI('${inv.id}')">🗑️ Supprimer</button>`:''}
     </div>
@@ -1426,6 +1426,23 @@ function renderHistoForMonth(){
     h+='</div>';
   });
   el.innerHTML=h;
+}
+
+function ouvrirMaps(e, gps){
+  e.preventDefault();
+  // Extraire lat et lng
+  const parts = gps.replace(/[()]/g,'').split(',').map(s=>s.trim());
+  const lat = parts[0], lng = parts[1];
+  if(!lat||!lng){showToast('❌ Coordonnées invalides');return;}
+  // Sur mobile : tente d'ouvrir l'app Maps native via geo:
+  // Sur PC ou si l'app n'est pas installée : ouvre Google Maps web
+  const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isMobile){
+    // geo: ouvre l'app Maps native instantanément
+    window.location.href=`geo:${lat},${lng}?q=${lat},${lng}`;
+  } else {
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`,'_blank');
+  }
 }
 
 function filterHistoByQuartier(quartier){
