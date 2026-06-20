@@ -1435,12 +1435,8 @@ function ouvrirMaps(gps){
   const parts=String(gps).replace(/[()]/g,'').split(',').map(s=>s.trim());
   const lat=parts[0],lng=parts[1];
   if(!lat||!lng){showToast('❌ Coordonnées invalides');return;}
-  const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if(isMobile){
-    window.location.href='geo:'+lat+','+lng+'?q='+lat+','+lng;
-  } else {
-    window.open('https://www.google.com/maps?q='+lat+','+lng,'_blank');
-  }
+  // URL directe qui ouvre Maps immédiatement sans redirection
+  window.open('https://maps.google.com/?q='+lat+','+lng,'_blank');
 }
 
 function filterHistoByQuartier(quartier){
