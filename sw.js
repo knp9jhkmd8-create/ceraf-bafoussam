@@ -1,42 +1,56 @@
 // ============================================================
-//  CERAF Bafoussam — Service Worker (sw.js)
-//  Rôle UNIQUE : file d'attente hors ligne pour les statuts.
-//  L'app shell (HTML/CSS/JS) est gérée par GitHub Pages.
-//  On ne cache RIEN ici pour éviter les conflits de version.
+//  CERAF Bafoussam — Service Worker v3
+//  - Met en cache index.html pour accès hors ligne
+//  - Ne touche PAS aux requêtes Apps Script
+//  - Vide automatiquement l'ancien cache à chaque mise à jour
 // ============================================================
 
-const SW_VERSION = 'ceraf-sw-v2';
+const CACHE_VERSION = 'ceraf-v3';
+const CACHE_FILES   = ['./index.html', './manifest.json'];
 
-// ── INSTALLATION : pas de précache ──────────────────────────
+// ── INSTALLATION ────────────────────────────────────────────
 self.addEventListener('install', e => {
-  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE_VERSION)
+      .then(cache => cache.addAll(CACHE_FILES))
+      .then(() => self.skipWaiting())
+  );
 });
 
 // ── ACTIVATION : vider les anciens caches ───────────────────
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
 
-// ── FETCH : on ne fait RIEN, on laisse passer tout ──────────
-// Pas d'interception → pas de risque de servir du contenu corrompu.
-// La file d'attente hors ligne est gérée côté app (localStorage).
+// ── FETCH ───────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
-  // Laisser le navigateur gérer normalement
-  return;
-});
+  const url = new URL(e.request.url);
 
-// ── SYNC : déclenché au retour du réseau ────────────────────
-self.addEventListener('sync', e => {
-  if (e.tag === 'ceraf-status-sync') {
-    e.waitUntil(notifyClientsToFlush());
+  // Ne jamais intercepter les requêtes Apps Script
+  if (url.hostname.includes('script.google.com')) return;
+
+  // Pour index.html et manifest.json : réseau d'abord, cache en fallback
+  if (CACHE_FILES.some(f => url.pathname.endsWith(f.replace('./', '/')))
+      || url.pathname === '/'
+      || url.pathname.endsWith('/')) {
+    e.respondWith(
+      fetch(e.request)
+        .then(response => {
+          // Mettre à jour le cache avec la version fraîche
+          const clone = response.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(e.request, clone));
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
   }
-});
 
-async function notifyClientsToFlush() {
-  const clients = await self.clients.matchAll();
-  clients.forEach(c => c.postMessage({ type: 'SYNC_DONE' }));
-}
+  // Tout le reste (fonts, etc.) : réseau normal sans interception
+});
