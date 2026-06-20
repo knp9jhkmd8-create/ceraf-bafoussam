@@ -1166,7 +1166,13 @@ function renderByQuartier(interventions){
 
 function invRowHTML(inv,idx){
   const sk=SM[inv.statut]||'pending';
-  const hasGps=inv.gps&&inv.gps!=='null'&&inv.gps!=='';
+  // GPS : d'abord depuis l'intervention, sinon depuis le cache clients
+  const cacheClient=inv.num?clientsCache[String(inv.num).replace(/\s/g,'').toLowerCase()]:null;
+  const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
+                :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps
+                :'';
+  const hasGps=gpsValue!=='';
+  const gpsSource=hasGps&&(!inv.gps||inv.gps==='null'||inv.gps==='')?' (depuis fiche client)':'';
   if(inv.estTransfere){
     // Ligne fantôme issue d'un report : affichage discret, non comptée dans les stats,
     // pour que l'intervention reste traçable mais ne soit jamais vue comme doublée.
@@ -1186,10 +1192,11 @@ function invRowHTML(inv,idx){
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
       ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
       <div class="gps-row" style="margin-top:8px;">
-        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="Coordonnées GPS (ex: 5.4764, 10.4191)" value="${hasGps?inv.gps:''}" style="font-size:.75rem;">
+        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="Coordonnées GPS (ex: 5.4764, 10.4191)" value="${gpsValue}" style="font-size:.75rem;">
         <button class="btn-gps" onclick="getGPSField('gps-${inv.id}',this)">📍</button>
       </div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">💾 GPS</button>
+      ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">📌 GPS enregistré${gpsSource} — <a href="https://www.google.com/maps?q=${encodeURIComponent(gpsValue)}" target="_blank" style="color:var(--teal);font-weight:700;text-decoration:none;">Ouvrir sur Maps 🗺️</a></div>`:''}
+      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">💾 Mettre à jour GPS</button>
       ${role==='chef'?`<button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="deleteInvUI('${inv.id}')">🗑️ Supprimer</button>`:''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
