@@ -1286,16 +1286,13 @@ function renderByQuartier(interventions){
 
 function invRowHTML(inv,idx){
   const sk=SM[inv.statut]||'pending';
-  // GPS : d'abord depuis l'intervention, sinon depuis le cache clients
   const cacheClient=inv.num?clientsCache[String(inv.num).replace(/\s/g,'').toLowerCase()]:null;
   const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
-                :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps
-                :'';
+                :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps:'';
   const hasGps=gpsValue!=='';
   const gpsSource=hasGps&&(!inv.gps||inv.gps==='null'||inv.gps==='')?' (depuis fiche client)':'';
+
   if(inv.estTransfere){
-    // Ligne fantôme issue d'un report : affichage discret, non comptée dans les stats,
-    // pour que l'intervention reste traçable mais ne soit jamais vue comme doublée.
     return`<div class="inv-row" id="row-${inv.id}" style="opacity:.55;background:#f1f5f9;">
       <div class="inv-info">
         <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
@@ -1305,9 +1302,13 @@ function invRowHTML(inv,idx){
       <span class="badge b-transfere">Transférée</span>
     </div>`;
   }
+
+  const safe=encodeURIComponent(JSON.stringify(inv)).replace(/'/g,'%27');
+
   return`<div class="inv-row" id="row-${inv.id}">
     <div class="inv-info">
-      <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
+      <!-- Nom cliquable → ouvre le détail avec remarques -->
+      <div class="inv-name" style="cursor:pointer;text-decoration:underline dotted var(--muted2);" onclick="showTerrainInvDetail(decodeURIComponent('${safe}'))">${idx+1}. ${buildLabel(inv)} <span style="font-size:.7rem;color:var(--muted2);">🔍</span></div>
       ${buildTags(inv)}
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
       ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
@@ -1317,7 +1318,6 @@ function invRowHTML(inv,idx){
       </div>
       ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">📌 GPS enregistré${gpsSource} — <button class="btn-gps" style="padding:3px 10px;font-size:.7rem;margin-left:4px;" data-gps="${gpsValue.replace(/"/g,'&quot;')}" onclick="ouvrirMaps(this.dataset.gps)">Ouvrir sur Maps 🗺️</button></div>`:''}
       <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">💾 Mettre à jour GPS</button>
-      ${role==='chef'?`<button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="deleteInvUI('${inv.id}')">🗑️ Supprimer</button>`:''}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
       <span class="badge ${SC[sk]}">${SL[sk]}</span>
@@ -1378,6 +1378,40 @@ function showQuartierDetail(quartier, context){
 
 function closeQuartierModal(){
   document.getElementById('modal-quartier').classList.remove('active');
+}
+
+function showTerrainInvDetail(json){
+  let inv;
+  try{ inv=typeof json==='string'?JSON.parse(json):json; }
+  catch(e){ showToast('❌ Erreur');return; }
+  const sk=SM[inv.statut]||'pending';
+  const row=document.getElementById('row-'+inv.id);
+  // Lire la remarque actuelle depuis le champ de saisie (peut avoir été modifiée)
+  const remarkeCurrent=row?(row.querySelector('.remark-inp')||{value:inv.remarque||''}).value:(inv.remarque||'');
+
+  let h=`<div class="modal-title">${TI[inv.type]||'📋'} ${TL[inv.type]||inv.type}</div>
+    <div class="inv-row" style="border:none;padding:0;margin-bottom:8px;">
+      <div class="inv-info">
+        <div class="inv-name">${buildLabel(inv)}</div>
+        ${buildTags(inv)}
+        ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
+          ?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
+      </div>
+      <span class="badge ${SC[sk]}">${SL[sk]}</span>
+    </div>
+    <div style="margin-top:10px;">
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">💬 Remarques</div>
+      ${remarkeCurrent&&remarkeCurrent!=='null'&&remarkeCurrent!==''
+        ?`<div style="background:var(--blue-lt);border-radius:8px;padding:10px 12px;font-size:.85rem;line-height:1.5;">${remarkeCurrent}</div>`
+        :`<div style="color:var(--muted);font-size:.82rem;font-style:italic;">Aucune remarque saisie.</div>`}
+    </div>
+    <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
+      ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvUI('${inv.id}');closeQuartierModal()">🗑️ Supprimer</button>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">Fermer</button>
+    </div>`;
+
+  document.getElementById('quartier-modal-content').innerHTML=h;
+  document.getElementById('modal-quartier').classList.add('active');
 }
 
 // ── File d'attente hors ligne ───────────────────────────────
