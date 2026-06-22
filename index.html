@@ -552,7 +552,7 @@ const VILLE_REQUIRED=['etude_ftth','etude_ls','derang_ls','install_ls'];
 const QUARTIERS_BAFOUSSAM=[
   "ENTREE DE LA VILLE","CARREFOUR LE MAIRE","MARCHE DES POULETS","QUARTIER ADMINISTRATIF",
   "TOTAL EN BAS","HOPITAL REGIONAL","SAPEUR POMPIER","BANDJOUN STATION","QUARTIER HAOUSSA",
-  "ECOLE NORMALE","CAMPS SABLE","CASA","CAMI TOYOTA","MICHOU BAR","NDIANGDAM",
+  "ECOLE NORMALE","CAMPS SABLE","CASA","CAMI TOYOTA","NDIANDAM",
   "MARCHE B","MARCHE A","TYO VILLE","FEU ROUGE","TOURISTIQUE","BAMENZI","KOUOGOUO",
   "DJEMOUN","NDIANSO","BANENGO","SOCADA","TAMDJA","KAMKOP","BALENG","EVECHE","COLACO",
   "BIPMOP","TOCKET","MATEUR","BINAM","DUBAI","AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO","FAMLA"
@@ -562,6 +562,7 @@ const CHEFS_DEFAUT=['BENANA Hermann','Godlove NGWANG FOR','NDZOUALI Joel','TENE 
 
 let role='',cType='etude_ftth',pending=[],SCRIPT_URL='';
 let terrainData=null,currentTerrainView='type';
+let terrainQuartierFilter='', terrainStatutFilter='';
 let terrainInterventionsCache=[]; // pour la vue détail quartier côté terrain
 let clientsCache={}, allClientsList=[];
 let pendingUpdateClient=null, lastLookedNum='';
@@ -1144,37 +1145,78 @@ async function loadTerrain(){
     localStorage.setItem('ceraf_terrain_cache', JSON.stringify({date:iso, data, savedAt:Date.now()}));
   }catch(e){}
 
-  terrainData=data;renderTerrain(data);
+  terrainData=data;
+  terrainQuartierFilter='';
+  terrainStatutFilter='';
+  renderTerrain(data);
 }
 
 function renderTerrain(data){
   const el=document.getElementById('terrain-content');
   const{consist,interventions}=data;
-  terrainInterventionsCache=interventions; // pour la vue détail par quartier
+  terrainInterventionsCache=interventions;
 
-  // Titre dynamique : "Fiche du JJ/MM/AAAA"
   document.getElementById('terrain-date-title').textContent=formatDateDisplay(consist.date);
   document.getElementById('terrain-chef-sub').textContent='👷 '+consist.chef+' — Mettez à jour vos interventions en temps réel';
 
-  // Répartition par quartier — uniquement les quartiers présents dans CETTE fiche
-  const qC={};
+  // Compter par quartier et par statut (sur les interventions actives)
+  const qC={}, sC={};
   interventions.forEach(i=>{
     if(i.estTransfere)return;
-    if(i.quartier&&i.quartier!=='null'&&i.quartier!==''){
-      qC[i.quartier]=(qC[i.quartier]||0)+1;
-    }
+    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='') qC[i.quartier]=(qC[i.quartier]||0)+1;
+    const sk=SM[i.statut]||'pending'; sC[sk]=(sC[sk]||0)+1;
   });
+  const totalActif=interventions.filter(i=>!i.estTransfere).length;
+
+  // Répartition par quartier — cliquable
   const summaryEl=document.getElementById('terrain-quartier-summary');
   const entries=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
   if(entries.length>0){
     summaryEl.classList.remove('hidden');
-    summaryEl.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier (aujourd'hui)</div>
-      <div>${entries.map(([q,c])=>`<span class="qpill qpill-clickable" onclick="showQuartierDetail('${q.replace(/'/g,"\\'")}','terrain')">${q} <b>${c}</b></span>`).join('')}</div></div>`;
+    const allQBtn=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">Tous <b>${totalActif}</b></span>`;
+    const qBtns=entries.map(([q,c])=>`<span class="qpill${terrainQuartierFilter===q?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
+
+    // Filtre par statut
+    const STATUT_LABELS=[['pending','⏳ En attente'],['ok','✅ Réalisé'],['unreachable','📵 Injoignable'],['issue','⚠️ Problème']];
+    const allSBtn=`<span class="qpill${terrainStatutFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainStatutFilter===''?'var(--blue-mid)':'var(--blue-lt)'};color:${terrainStatutFilter===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="setTerrainFilter('s','')">Tous <b>${totalActif}</b></span>`;
+    const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
+      const cnt=sC[sk]||0; if(!cnt)return'';
+      const active=terrainStatutFilter===sk;
+      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--red)','issue':'var(--purple)'};
+      const col=colors[sk];
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="setTerrainFilter('s','${sk}')">${lbl} <b>${cnt}</b></span>`;
+    }).join('');
+
+    summaryEl.innerHTML=`<div class="card">
+      <div class="card-title">📍 Répartition par quartier (aujourd'hui)</div>
+      <div style="margin-bottom:8px">${allQBtn}${qBtns}</div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par statut</div>
+        ${allSBtn}${sBtns}
+      </div>
+    </div>`;
   } else {
     summaryEl.classList.add('hidden');
   }
 
-  el.innerHTML=(currentTerrainView==='type'?renderByType(interventions):renderByQuartier(interventions));
+  // Appliquer les filtres avant le rendu
+  const filtered=applyTerrainFilters(interventions);
+  el.innerHTML=(currentTerrainView==='type'?renderByType(filtered):renderByQuartier(filtered));
+}
+
+function applyTerrainFilters(interventions){
+  return interventions.filter(i=>{
+    if(i.estTransfere)return false;
+    if(terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return false;
+    if(terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return false;
+    return true;
+  });
+}
+
+function setTerrainFilter(type,val){
+  if(type==='q') terrainQuartierFilter=val;
+  else           terrainStatutFilter=val;
+  if(terrainData) renderTerrain(terrainData);
 }
 
 function renderByType(interventions){
@@ -1444,7 +1486,8 @@ async function loadHistorique(){
 
 async function onHistoMonthChange(val){
   histoSelectedMonth=val;
-  window._histoQuartierFilter=''; // réinitialiser le filtre quartier au changement de mois
+  window._histoQuartierFilter='';
+  window._histoStatutFilter='';
   const el=document.getElementById('historique-content');
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const data=await apiGet({action:'getAll', month:val, role});
@@ -1483,23 +1526,50 @@ function renderHistoForMonth(){
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">Instances</div></div>`;
 
   // Répartition par quartier
-  const qC={};
-  allInvs.forEach(i=>{if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;});
+  const qC={}, sC={};
+  allInvs.forEach(i=>{
+    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
+    const sk=SM[i.statut]||'pending'; sC[sk]=(sC[sk]||0)+1;
+  });
   const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
   const activeQ=window._histoQuartierFilter||'';
+  const activeS=window._histoStatutFilter||'';
+
   if(topQ.length>0){
     qw.classList.remove('hidden');
+    // Filtre quartier
     const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">Tous <b>${total}</b></span>`;
     const qBtns=topQ.map(([q,c])=>`<span class="qpill${activeQ===q?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
-    qw.innerHTML=`<div class="card"><div class="card-title">📍 Répartition par quartier — cliquez pour filtrer</div><div>${allBtn}${qBtns}</div></div>`;
+    // Filtre statut
+    const STATUT_LABELS=[['pending','⏳ En attente'],['ok','✅ Réalisé'],['unreachable','📵 Injoignable'],['issue','⚠️ Problème']];
+    const allSBtn=`<span class="qpill${activeS===''?' qpill-active':' qpill-clickable'}" style="background:${activeS===''?'var(--blue-mid)':'var(--blue-lt)'};color:${activeS===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="filterHistoByStatut('')">Tous <b>${total}</b></span>`;
+    const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
+      const cnt=sC[sk]||0; if(!cnt)return'';
+      const active=activeS===sk;
+      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--red)','issue':'var(--purple)'};
+      const col=colors[sk];
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="filterHistoByStatut('${sk}')">${lbl} <b>${cnt}</b></span>`;
+    }).join('');
+    qw.innerHTML=`<div class="card">
+      <div class="card-title">📍 Répartition par quartier — cliquez pour filtrer</div>
+      <div style="margin-bottom:8px">${allBtn}${qBtns}</div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par statut</div>
+        ${allSBtn}${sBtns}
+      </div>
+    </div>`;
   } else {
     qw.classList.add('hidden');
   }
 
-  // Filtrer + grouper par type
-  const invsFiltered=activeQ?allInvs.filter(i=>i.quartier===activeQ):allInvs;
+  // Appliquer les deux filtres
+  const invsFiltered=allInvs.filter(i=>{
+    if(activeQ&&i.quartier!==activeQ)return false;
+    if(activeS&&(SM[i.statut]||'pending')!==activeS)return false;
+    return true;
+  });
   if(invsFiltered.length===0){
-    el.innerHTML='<div class="empty"><div class="eicon">📭</div><p>Aucune intervention dans ce quartier ce mois-ci.</p></div>';
+    el.innerHTML='<div class="empty"><div class="eicon">📭</div><p>Aucune intervention pour ce filtre ce mois-ci.</p></div>';
     return;
   }
   invsFiltered.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -1545,6 +1615,11 @@ function ouvrirMaps(gps){
 
 function filterHistoByQuartier(quartier){
   window._histoQuartierFilter=quartier;
+  renderHistoForMonth();
+}
+
+function filterHistoByStatut(statut){
+  window._histoStatutFilter=statut;
   renderHistoForMonth();
 }
 
