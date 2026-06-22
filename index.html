@@ -1156,26 +1156,50 @@ function renderTerrain(data){
   document.getElementById('terrain-date-title').textContent=formatDateDisplay(consist.date);
   document.getElementById('terrain-chef-sub').textContent='👷 '+consist.chef+' — Mettez à jour vos interventions en temps réel';
 
-  // Compter par quartier et par statut (sur les interventions actives)
-  const qC={}, sC={};
-  interventions.forEach(i=>{
-    if(i.estTransfere)return;
-    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='') qC[i.quartier]=(qC[i.quartier]||0)+1;
-    const sk=SM[i.statut]||'pending'; sC[sk]=(sC[sk]||0)+1;
-  });
-  const totalActif=interventions.filter(i=>!i.estTransfere).length;
+  const actives=interventions.filter(i=>!i.estTransfere);
+
+  // Compteurs croisés : chaque filtre compte en ignorant son propre filtre
+  // mais en appliquant les deux autres filtres actifs
+  function countWith(ignore){
+    const res={};
+    actives.forEach(i=>{
+      if(ignore!=='q'&&terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return;
+      if(ignore!=='s'&&terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return;
+      if(ignore!=='t'&&terrainTypeFilter&&i.type!==terrainTypeFilter)return;
+      if(ignore==='q') res[i.quartier&&i.quartier!=='null'&&i.quartier!==''?i.quartier:'—']=(res[i.quartier&&i.quartier!=='null'&&i.quartier!==''?i.quartier:'—']||0)+1;
+      else if(ignore==='s') { const sk=SM[i.statut]||'pending'; res[sk]=(res[sk]||0)+1; }
+      else if(ignore==='t') res[i.type]=(res[i.type]||0)+1;
+    });
+    return res;
+  }
+
+  const qC=countWith('q');
+  const sC=countWith('s');
+  const tC=countWith('t');
+
+  // Total de ce qui s'affiche réellement (tous les filtres actifs)
+  const totalFiltre=actives.filter(i=>{
+    if(terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return false;
+    if(terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return false;
+    if(terrainTypeFilter&&i.type!==terrainTypeFilter)return false;
+    return true;
+  }).length;
+  const totalActif=actives.length;
 
   // Répartition par quartier — cliquable
   const summaryEl=document.getElementById('terrain-quartier-summary');
-  const entries=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
-  if(entries.length>0){
+  const entries=Object.entries(qC).filter(([q])=>q!=='—').sort((a,b)=>b[1]-a[1]);
+  if(actives.length>0){
     summaryEl.classList.remove('hidden');
-    const allQBtn=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">Tous <b>${totalActif}</b></span>`;
+    const allQBtn=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">Tous <b>${terrainQuartierFilter===''?totalActif:totalFiltre+(terrainStatutFilter||terrainTypeFilter?'':' / '+totalActif)}</b></span>`.replace('/ '+totalActif,'/ '+totalActif);
+    // Simplifié : "Tous" affiche le total global
+    const allQBtnSimple=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">Tous <b>${totalActif}</b></span>`;
     const qBtns=entries.map(([q,c])=>`<span class="qpill${terrainQuartierFilter===q?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
 
     // Filtre par statut
     const STATUT_LABELS=[['pending','⏳ En attente'],['ok','✅ Réalisé'],['unreachable','📵 Injoignable'],['issue','⚠️ Problème']];
-    const allSBtn=`<span class="qpill${terrainStatutFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainStatutFilter===''?'var(--blue-mid)':'var(--blue-lt)'};color:${terrainStatutFilter===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="setTerrainFilter('s','')">Tous <b>${totalActif}</b></span>`;
+    const totalS=Object.values(sC).reduce((a,b)=>a+b,0);
+    const allSBtn=`<span class="qpill${terrainStatutFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainStatutFilter===''?'var(--blue-mid)':'var(--blue-lt)'};color:${terrainStatutFilter===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="setTerrainFilter('s','')">Tous <b>${totalS}</b></span>`;
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=terrainStatutFilter===sk;
@@ -1184,12 +1208,9 @@ function renderTerrain(data){
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="setTerrainFilter('s','${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
 
-    // Filtre par type — uniquement les types présents aujourd'hui
-    const tC={};
-    interventions.filter(i=>!i.estTransfere).forEach(i=>{
-      tC[i.type]=(tC[i.type]||0)+1;
-    });
-    const allTBtn=`<span class="qpill${terrainTypeFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainTypeFilter===''?'var(--navy)':'#e2e8f0'};color:${terrainTypeFilter===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="setTerrainFilter('t','')">Tous <b>${totalActif}</b></span>`;
+    // Filtre par type
+    const totalT=Object.values(tC).reduce((a,b)=>a+b,0);
+    const allTBtn=`<span class="qpill${terrainTypeFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainTypeFilter===''?'var(--navy)':'#e2e8f0'};color:${terrainTypeFilter===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="setTerrainFilter('t','')">Tous <b>${totalT}</b></span>`;
     const tBtns=Object.entries(tC).map(([t,c])=>{
       const active=terrainTypeFilter===t;
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="setTerrainFilter('t','${t.replace(/'/g,"\\'")}')"> ${TI[t]||'📋'} ${TL[t]||t} <b>${c}</b></span>`;
@@ -1197,7 +1218,7 @@ function renderTerrain(data){
 
     summaryEl.innerHTML=`<div class="card">
       <div class="card-title">📍 Répartition par quartier (aujourd'hui)</div>
-      <div style="margin-bottom:8px">${allQBtn}${qBtns}</div>
+      <div style="margin-bottom:8px">${allQBtnSimple}${qBtns}</div>
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par statut</div>
         ${allSBtn}${sBtns}
@@ -1540,24 +1561,42 @@ function renderHistoForMonth(){
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">Instances</div></div>`;
 
-  // Répartition par quartier
-  const qC={}, sC={};
-  allInvs.forEach(i=>{
-    if(i.quartier&&i.quartier!=='null'&&i.quartier!=='')qC[i.quartier]=(qC[i.quartier]||0)+1;
-    const sk=SM[i.statut]||'pending'; sC[sk]=(sC[sk]||0)+1;
-  });
-  const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
+  // Compteurs croisés pour l'historique
   const activeQ=window._histoQuartierFilter||'';
   const activeS=window._histoStatutFilter||'';
+  const activeT=window._histoTypeFilter||'';
+
+  function hCountWith(ignore){
+    const res={};
+    allInvs.forEach(i=>{
+      if(ignore!=='q'&&activeQ&&i.quartier!==activeQ)return;
+      if(ignore!=='s'&&activeS&&(SM[i.statut]||'pending')!==activeS)return;
+      if(ignore!=='t'&&activeT&&i.type!==activeT)return;
+      if(ignore==='q') { if(i.quartier&&i.quartier!=='null'&&i.quartier!=='') res[i.quartier]=(res[i.quartier]||0)+1; }
+      else if(ignore==='s') { const sk=SM[i.statut]||'pending'; res[sk]=(res[sk]||0)+1; }
+      else if(ignore==='t') res[i.type]=(res[i.type]||0)+1;
+    });
+    return res;
+  }
+
+  const qC=hCountWith('q');
+  const sC=hCountWith('s');
+  const tC=hCountWith('t');
+  const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
 
   if(topQ.length>0){
     qw.classList.remove('hidden');
+    const totalQ=Object.values(qC).reduce((a,b)=>a+b,0);
+    const totalS=Object.values(sC).reduce((a,b)=>a+b,0);
+    const totalT=Object.values(tC).reduce((a,b)=>a+b,0);
+
     // Filtre quartier
     const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">Tous <b>${total}</b></span>`;
     const qBtns=topQ.map(([q,c])=>`<span class="qpill${activeQ===q?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
+
     // Filtre statut
     const STATUT_LABELS=[['pending','⏳ En attente'],['ok','✅ Réalisé'],['unreachable','📵 Injoignable'],['issue','⚠️ Problème']];
-    const allSBtn=`<span class="qpill${activeS===''?' qpill-active':' qpill-clickable'}" style="background:${activeS===''?'var(--blue-mid)':'var(--blue-lt)'};color:${activeS===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="filterHistoByStatut('')">Tous <b>${total}</b></span>`;
+    const allSBtn=`<span class="qpill${activeS===''?' qpill-active':' qpill-clickable'}" style="background:${activeS===''?'var(--blue-mid)':'var(--blue-lt)'};color:${activeS===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="filterHistoByStatut('')">Tous <b>${totalS}</b></span>`;
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=activeS===sk;
@@ -1565,11 +1604,9 @@ function renderHistoForMonth(){
       const col=colors[sk];
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="filterHistoByStatut('${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
-    // Filtre par type
-    const tC={};
-    allInvs.forEach(i=>{ tC[i.type]=(tC[i.type]||0)+1; });
-    const activeT=window._histoTypeFilter||'';
-    const allTBtn2=`<span class="qpill${activeT===''?' qpill-active':' qpill-clickable'}" style="background:${activeT===''?'var(--navy)':'#e2e8f0'};color:${activeT===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="filterHistoByType('')">Tous <b>${total}</b></span>`;
+
+    // Filtre type
+    const allTBtn2=`<span class="qpill${activeT===''?' qpill-active':' qpill-clickable'}" style="background:${activeT===''?'var(--navy)':'#e2e8f0'};color:${activeT===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="filterHistoByType('')">Tous <b>${totalT}</b></span>`;
     const tBtns2=Object.entries(tC).map(([t,c])=>{
       const active=activeT===t;
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="filterHistoByType('${t.replace(/'/g,"\\'")}')"> ${TI[t]||'📋'} ${TL[t]||t} <b>${c}</b></span>`;
@@ -1591,7 +1628,7 @@ function renderHistoForMonth(){
     qw.classList.add('hidden');
   }
 
-  // Appliquer les deux filtres
+  // Appliquer les trois filtres
   const invsFiltered=allInvs.filter(i=>{
     if(activeQ&&i.quartier!==activeQ)return false;
     if(activeS&&(SM[i.statut]||'pending')!==activeS)return false;
