@@ -486,10 +486,6 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <div class="page-title">Fiche du <span id="terrain-date-title">Jour</span></div>
       <div class="page-sub" id="terrain-chef-sub">Mettez à jour vos interventions en temps réel</div>
       <div id="terrain-quartier-summary" class="hidden"></div>
-      <div class="view-toggle">
-        <button class="vtab active" id="vtab-type"     onclick="setTerrainView('type',this)">Par type</button>
-        <button class="vtab"        id="vtab-quartier" onclick="setTerrainView('quartier',this)">Par quartier</button>
-      </div>
       <div id="terrain-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
     </div>
 
@@ -562,7 +558,7 @@ const CHEFS_DEFAUT=['BENANA Hermann','Godlove NGWANG FOR','NDZOUALI Joel','TENE 
 
 let role='',cType='etude_ftth',pending=[],SCRIPT_URL='';
 let terrainData=null,currentTerrainView='type';
-let terrainQuartierFilter='', terrainStatutFilter='';
+let terrainQuartierFilter='', terrainStatutFilter='', terrainTypeFilter='';
 let terrainInterventionsCache=[]; // pour la vue détail quartier côté terrain
 let clientsCache={}, allClientsList=[];
 let pendingUpdateClient=null, lastLookedNum='';
@@ -1148,6 +1144,7 @@ async function loadTerrain(){
   terrainData=data;
   terrainQuartierFilter='';
   terrainStatutFilter='';
+  terrainTypeFilter='';
   renderTerrain(data);
 }
 
@@ -1187,12 +1184,27 @@ function renderTerrain(data){
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="setTerrainFilter('s','${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
 
+    // Filtre par type — uniquement les types présents aujourd'hui
+    const tC={};
+    interventions.filter(i=>!i.estTransfere).forEach(i=>{
+      tC[i.type]=(tC[i.type]||0)+1;
+    });
+    const allTBtn=`<span class="qpill${terrainTypeFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainTypeFilter===''?'var(--navy)':'#e2e8f0'};color:${terrainTypeFilter===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="setTerrainFilter('t','')">Tous <b>${totalActif}</b></span>`;
+    const tBtns=Object.entries(tC).map(([t,c])=>{
+      const active=terrainTypeFilter===t;
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="setTerrainFilter('t','${t.replace(/'/g,"\\'")}')"> ${TI[t]||'📋'} ${TL[t]||t} <b>${c}</b></span>`;
+    }).join('');
+
     summaryEl.innerHTML=`<div class="card">
       <div class="card-title">📍 Répartition par quartier (aujourd'hui)</div>
       <div style="margin-bottom:8px">${allQBtn}${qBtns}</div>
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par statut</div>
         ${allSBtn}${sBtns}
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par type</div>
+        ${allTBtn}${tBtns}
       </div>
     </div>`;
   } else {
@@ -1209,13 +1221,15 @@ function applyTerrainFilters(interventions){
     if(i.estTransfere)return false;
     if(terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return false;
     if(terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return false;
+    if(terrainTypeFilter&&i.type!==terrainTypeFilter)return false;
     return true;
   });
 }
 
 function setTerrainFilter(type,val){
   if(type==='q') terrainQuartierFilter=val;
-  else           terrainStatutFilter=val;
+  else if(type==='s') terrainStatutFilter=val;
+  else terrainTypeFilter=val;
   if(terrainData) renderTerrain(terrainData);
 }
 
@@ -1488,6 +1502,7 @@ async function onHistoMonthChange(val){
   histoSelectedMonth=val;
   window._histoQuartierFilter='';
   window._histoStatutFilter='';
+  window._histoTypeFilter='';
   const el=document.getElementById('historique-content');
   el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const data=await apiGet({action:'getAll', month:val, role});
@@ -1550,12 +1565,26 @@ function renderHistoForMonth(){
       const col=colors[sk];
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="filterHistoByStatut('${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
+    // Filtre par type
+    const tC={};
+    allInvs.forEach(i=>{ tC[i.type]=(tC[i.type]||0)+1; });
+    const activeT=window._histoTypeFilter||'';
+    const allTBtn2=`<span class="qpill${activeT===''?' qpill-active':' qpill-clickable'}" style="background:${activeT===''?'var(--navy)':'#e2e8f0'};color:${activeT===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="filterHistoByType('')">Tous <b>${total}</b></span>`;
+    const tBtns2=Object.entries(tC).map(([t,c])=>{
+      const active=activeT===t;
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="filterHistoByType('${t.replace(/'/g,"\\'")}')"> ${TI[t]||'📋'} ${TL[t]||t} <b>${c}</b></span>`;
+    }).join('');
+
     qw.innerHTML=`<div class="card">
       <div class="card-title">📍 Répartition par quartier — cliquez pour filtrer</div>
       <div style="margin-bottom:8px">${allBtn}${qBtns}</div>
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par statut</div>
         ${allSBtn}${sBtns}
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par type</div>
+        ${allTBtn2}${tBtns2}
       </div>
     </div>`;
   } else {
@@ -1566,6 +1595,7 @@ function renderHistoForMonth(){
   const invsFiltered=allInvs.filter(i=>{
     if(activeQ&&i.quartier!==activeQ)return false;
     if(activeS&&(SM[i.statut]||'pending')!==activeS)return false;
+    if(activeT&&i.type!==activeT)return false;
     return true;
   });
   if(invsFiltered.length===0){
@@ -1620,6 +1650,11 @@ function filterHistoByQuartier(quartier){
 
 function filterHistoByStatut(statut){
   window._histoStatutFilter=statut;
+  renderHistoForMonth();
+}
+
+function filterHistoByType(type){
+  window._histoTypeFilter=type;
   renderHistoForMonth();
 }
 
