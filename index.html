@@ -726,9 +726,11 @@ function fillFields(c){
   if(ids.tel)setVal(ids.tel,c.tel);
   if(ids.loc)setVal(ids.loc,c.loc);
   if(ids.vil)setVal(ids.vil,c.ville);
+  // Pré-remplir le numéro secondaire depuis telSec du client
   if(ids.sec&&c.telSec&&c.telSec!=='null'&&c.telSec!==''){
-    setVal(ids.sec,c.telSec);
-    const row=document.getElementById(ids.sec.replace('sec','sec-row'));
+    const secEl=document.getElementById(ids.sec);
+    if(secEl){secEl.value=c.telSec;secEl.classList.add('autofilled');}
+    const row=document.getElementById(ids.sec+'-row');
     if(row)row.classList.add('visible');
   }
 }
@@ -909,14 +911,14 @@ function buildLabel(inv){
   if(inv.customerId&&inv.customerId!=='null'&&inv.customerId!=='')p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${inv.customerId}</span>`);
   if(inv.num)p.push(`<strong>${inv.num}</strong>`);
   if(inv.nom)p.push(inv.nom);
-  // Affichage du téléphone :
-  // - Si tel contient déjà "/" (format combiné stocké en BD) → afficher tel quel
-  // - Sinon si numSec est renseigné séparément (saisie en cours) → combiner
+  // Affichage téléphone — tel et telSec séparés ou tel contenant déjà "/"
   if(inv.tel){
-    const telDisplay=(inv.numSec&&inv.numSec!=='null'&&inv.numSec!==''&&!inv.tel.includes('/'))
-      ? inv.tel+' / '+inv.numSec
-      : inv.tel;
-    p.push(telDisplay);
+    let telSec='';
+    // telSec peut venir du cache client ou de l'objet inv
+    if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') telSec=inv.numSec;
+    else if(inv.telSec&&inv.telSec!=='null'&&inv.telSec!=='') telSec=inv.telSec;
+    const display=telSec&&!inv.tel.includes('/')?inv.tel+' / '+telSec:inv.tel;
+    p.push(display);
   } else if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!==''){
     p.push(inv.numSec);
   }
@@ -1294,6 +1296,8 @@ function renderByQuartier(interventions){
 function invRowHTML(inv,idx){
   const sk=SM[inv.statut]||'pending';
   const cacheClient=inv.num?clientsCache[String(inv.num).replace(/\s/g,'').toLowerCase()]:null;
+  // Enrichir avec telSec du cache client si disponible
+  if(cacheClient&&cacheClient.telSec&&!inv.telSec) inv={...inv,telSec:cacheClient.telSec};
   const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
                 :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps:'';
   const hasGps=gpsValue!=='';
