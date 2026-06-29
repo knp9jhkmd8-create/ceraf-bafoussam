@@ -1159,12 +1159,17 @@ function renderTerrain(data){
   document.getElementById('terrain-chef-sub').textContent='👷 '+consist.chef+' — Mettez à jour vos interventions en temps réel';
 
   const actives=interventions.filter(i=>!i.estTransfere);
+  // Pour les compteurs quartier et type : ignorer les Réalisés
+  const nonRealises=actives.filter(i=>(SM[i.statut]||'pending')!=='ok');
 
   // Compteurs croisés : chaque filtre compte en ignorant son propre filtre
   // mais en appliquant les deux autres filtres actifs
   function countWith(ignore){
     const res={};
-    actives.forEach(i=>{
+    // Quartier et type : basés sur les non-réalisés uniquement
+    // Statut : basé sur toutes les actives (pour voir combien sont réalisées)
+    const base = (ignore==='s') ? actives : nonRealises;
+    base.forEach(i=>{
       if(ignore!=='q'&&terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return;
       if(ignore!=='s'&&terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return;
       if(ignore!=='t'&&terrainTypeFilter&&i.type!==terrainTypeFilter)return;
@@ -1186,7 +1191,7 @@ function renderTerrain(data){
     if(terrainTypeFilter&&i.type!==terrainTypeFilter)return false;
     return true;
   }).length;
-  const totalActif=actives.length;
+  const totalActif=nonRealises.length;
 
   // Répartition par quartier — cliquable
   const summaryEl=document.getElementById('terrain-quartier-summary');
