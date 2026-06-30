@@ -553,7 +553,7 @@ const QUARTIERS_BAFOUSSAM=[
   "ECOLE NORMALE","CAMPS SABLE","CASA","CAMI TOYOTA","NDIANDAM",
   "MARCHE B","MARCHE A","TYO VILLE","FEU ROUGE","TOURISTIQUE","BAMENZI","KOUOGOUO",
   "DJEMOUN","NDIANSO","BANENGO","SOCADA","TAMDJA","KAMKOP","BALENG","EVECHE","COLACO",
-  "BIPMOP","TOCKET","MAETURE","BINAM","DUBAI","AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO","FAMLA"
+  "BIPMOP","TOCKET","MAETUR","BINAM","DUBAI","AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO","FAMLA"
 ].sort((a,b)=>b.length-a.length);
 
 const CHEFS_DEFAUT=['BENANA Hermann','Godlove NGWANG FOR','NDZOUALI Joel','TENE Eric'];
@@ -563,6 +563,7 @@ let terrainData=null,currentTerrainView='type';
 let terrainQuartierFilter='', terrainStatutFilter='', terrainTypeFilter='';
 let terrainInterventionsCache=[]; // pour la vue détail quartier côté terrain
 let clientsCache={}, allClientsList=[];
+let activeInterventionsCache={}; // clé: num+type → date de création (pour détection doublons)
 let pendingUpdateClient=null, lastLookedNum='';
 
 // ══════════════════════════════════════════════
@@ -691,6 +692,22 @@ function goPage(p,el,load=true){
 async function preloadClients(){
   const data=await apiGet({action:'getClients'});
   if(data.success&&data.clients) buildClientsCache(data.clients);
+  // Charger en parallèle le cache léger des interventions actives (détection doublons)
+  preloadActiveInterventions();
+}
+
+async function preloadActiveInterventions(){
+  const data=await apiGet({action:'getActiveInterventions'});
+  if(data.success&&data.list){
+    activeInterventionsCache={};
+    data.list.forEach(item=>{
+      const key=item.num+'|'+item.type;
+      // Garder la date la plus ancienne (première création) en cas de doublon existant
+      if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key]){
+        activeInterventionsCache[key]=item.date;
+      }
+    });
+  }
 }
 function buildClientsCache(list){
   clientsCache={};
@@ -755,13 +772,73 @@ function onNumInput(num,selId){
   if(v){const s=document.getElementById(selId);if(s)s.value=v;}
 }
 function normTxt(s){return String(s).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+// Distance de Levenshtein — mesure le nombre de modifications
+// nécessaires pour transformer un mot en un autre (tolère les fautes de frappe)
+function levenshtein(a,b){
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++)dp[i][0]=i;
+  for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
 function detectQuartier(loc){
-  if(!loc)return'';const n=normTxt(loc);
+  if(!loc)return'';
+  const n=normTxt(loc);
+
+  // 1. Correspondance exacte (comme avant) — priorité absolue
   for(const q of QUARTIERS_BAFOUSSAM){
     const re=new RegExp('\\b'+normTxt(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
     if(re.test(n))return q;
   }
-  return'';
+
+  // 2. Correspondance floue — tolère 1-2 fautes de frappe selon la longueur du mot
+  // On compare chaque mot du texte saisi à chaque quartier connu
+  const mots=n.split(/\s+/).filter(w=>w.length>=3);
+  let meilleurMatch='', meilleureDist=Infinity;
+
+  for(const q of QUARTIERS_BAFOUSSAM){
+    const qNorm=normTxt(q);
+    const qMots=qNorm.split(/\s+/);
+    // Comparer le quartier complet à des fenêtres glissantes du texte
+    for(let i=0;i<mots.length;i++){
+      const fenetre=mots.slice(i,i+qMots.length).join(' ');
+      if(Math.abs(fenetre.length-qNorm.length)>3)continue; // trop différent en longueur
+      const dist=levenshtein(fenetre,qNorm);
+      // Tolérance : 1 faute pour mots courts, 2 pour mots longs
+      const tolerance=qNorm.length<=6?1:2;
+      if(dist<=tolerance && dist<meilleureDist){
+        meilleureDist=dist;
+        meilleurMatch=q;
+      }
+    }
+  }
+  return meilleurMatch;
+}
+
+// Trouve les quartiers les plus proches d'un texte (pour suggestions)
+function suggererQuartiers(loc,max=3){
+  if(!loc)return[];
+  const n=normTxt(loc);
+  const mots=n.split(/\s+/).filter(w=>w.length>=3);
+  if(mots.length===0)return[];
+
+  const scores=QUARTIERS_BAFOUSSAM.map(q=>{
+    const qNorm=normTxt(q);
+    let minDist=Infinity;
+    mots.forEach(mot=>{
+      const dist=levenshtein(mot,qNorm.split(' ')[0]);
+      if(dist<minDist)minDist=dist;
+    });
+    return{q,dist:minDist};
+  });
+  scores.sort((a,b)=>a.dist-b.dist);
+  return scores.slice(0,max).filter(s=>s.dist<=4).map(s=>s.q);
 }
 
 // Ne garde que les chiffres, limité à 9
@@ -869,23 +946,108 @@ async function addInv(){
   if(!f.nom&&!f.customerId){showToast('⚠️ Renseignez au moins le nom ou le Customer ID');return;}
   if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast('⚠️ Sélectionnez la ville');return;}
 
-  const quartier=detectQuartier(f.loc||'');
-
-  // Lookup client uniquement pour les interventions avec numéro
-  let updateClient=false;
+  // ── DÉTECTION DE DOUBLON — instantanée, cache local, pas d'appel réseau ──
   if(f.num&&f.num.trim()){
-    const key=f.num.trim().replace(/\s/g,'').toLowerCase();
-    const c=clientsCache[key];
-    if(c){
-      const changed=(f.nom&&f.nom!==c.nom)||(f.tel&&f.tel!==c.tel)||(f.loc&&f.loc!==c.loc)||(f.ville&&f.ville!==c.ville);
-      if(changed) updateClient=await askUpdateConfirm(c,f);
+    const key=f.num.trim().replace(/\s/g,'').toLowerCase()+'|'+(TL[cType]||cType);
+    const dateExistante=activeInterventionsCache[key];
+    if(dateExistante){
+      const confirme=await confirmDoublon(f.num,TL[cType]||cType,dateExistante);
+      if(!confirme)return; // annulé
     }
   }
 
-  // Marquer les études pour la feuille Etudes (pas Clients)
-  const isEtude = cType==='etude_ftth'||cType==='etude_ls';
-  pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,quartier,updateClient,isEtude,id:Date.now()});
-  cf();renderPreview();
+  const quartier=detectQuartier(f.loc||'');
+
+  // Si aucun quartier détecté et qu'une localité a été saisie → alerter avec suggestions
+  if(!quartier && f.loc && f.loc.trim().length>=3){
+    const suggestions=suggererQuartiers(f.loc);
+    const resultat=await confirmQuartierInconnu(f.loc,suggestions);
+    if(resultat===null)return; // annulé — l'utilisateur va corriger
+    // resultat est soit '' (continuer sans quartier) soit le nom d'un quartier choisi
+    return addInvWithQuartier(f,resultat);
+  }
+
+  return addInvWithQuartier(f,quartier);
+}
+
+function addInvWithQuartier(f,quartier){
+  // Lookup client uniquement pour les interventions avec numéro
+  return (async()=>{
+    let updateClient=false;
+    if(f.num&&f.num.trim()){
+      const key=f.num.trim().replace(/\s/g,'').toLowerCase();
+      const c=clientsCache[key];
+      if(c){
+        const changed=(f.nom&&f.nom!==c.nom)||(f.tel&&f.tel!==c.tel)||(f.loc&&f.loc!==c.loc)||(f.ville&&f.ville!==c.ville);
+        if(changed) updateClient=await askUpdateConfirm(c,f);
+      }
+    }
+    const isEtude = cType==='etude_ftth'||cType==='etude_ls';
+    pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,quartier,updateClient,isEtude,id:Date.now()});
+    // Mettre à jour le cache local immédiatement pour détecter les doublons
+    // saisis dans la même session (avant publication)
+    if(f.num&&f.num.trim()){
+      const key=f.num.trim().replace(/\s/g,'').toLowerCase()+'|'+(TL[cType]||cType);
+      if(!activeInterventionsCache[key]){
+        const today=new Date();
+        activeInterventionsCache[key]=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+      }
+    }
+    cf();renderPreview();
+  })();
+}
+
+// Modale de confirmation quand aucun quartier n'est reconnu dans la localité saisie
+// Modale de confirmation en cas de doublon détecté (même num + même type déjà actif)
+function confirmDoublon(num,typeLabel,dateExistante){
+  return new Promise(resolve=>{
+    const el=document.getElementById('quartier-modal-content');
+    el.innerHTML=`
+      <div class="modal-title">⚠️ Intervention déjà en cours</div>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:6px;">
+        Une intervention <strong>${typeLabel}</strong> pour le numéro <strong>${num}</strong>
+        existe déjà et n'est pas encore réalisée.
+      </p>
+      <p style="font-size:.82rem;color:var(--muted2);margin-bottom:14px;">
+        📅 Créée le ${formatDateDisplay(dateExistante)}
+      </p>
+      <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="window._resolveDoublonModal(false)">Annuler</button>
+        <button class="btn btn-primary btn-sm" onclick="window._resolveDoublonModal(true)">Ajouter quand même</button>
+      </div>`;
+    document.getElementById('modal-quartier').classList.add('active');
+    window._resolveDoublonModal=(val)=>{
+      document.getElementById('modal-quartier').classList.remove('active');
+      resolve(val);
+    };
+  });
+}
+
+function confirmQuartierInconnu(loc,suggestions){
+  return new Promise(resolve=>{
+    const el=document.getElementById('quartier-modal-content');
+    const sugBtns=suggestions.map(q=>
+      `<button class="btn btn-primary btn-sm" style="margin:4px 6px 0 0;" onclick="window._resolveQuartierModal('${q.replace(/'/g,"\\'")}')">${q}</button>`
+    ).join('');
+    el.innerHTML=`
+      <div class="modal-title">⚠️ Quartier non reconnu</div>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:10px;">
+        Le texte saisi (<strong>"${loc}"</strong>) ne correspond à aucun quartier connu de Bafoussam.
+      </p>
+      ${suggestions.length>0?`
+        <p style="font-size:.82rem;font-weight:700;margin-bottom:6px;">Vouliez-vous dire :</p>
+        <div>${sugBtns}</div>
+      `:''}
+      <div class="mt-3 flex gap-2" style="flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px;margin-top:14px;">
+        <button class="btn btn-ghost btn-sm" onclick="window._resolveQuartierModal('')">Continuer sans quartier</button>
+        <button class="btn btn-ghost btn-sm" onclick="window._resolveQuartierModal(null)">Annuler / Corriger</button>
+      </div>`;
+    document.getElementById('modal-quartier').classList.add('active');
+    window._resolveQuartierModal=(val)=>{
+      document.getElementById('modal-quartier').classList.remove('active');
+      resolve(val);
+    };
+  });
 }
 
 function askUpdateConfirm(oldC,newF){
