@@ -442,7 +442,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           </div>
         </div>
 
-        <div class="mt-3"><button class="btn btn-outline" onclick="addInv()">➕ Ajouter à la liste</button></div>
+        <div class="mt-3"><button id="btn-add-inv" class="btn btn-outline" onclick="addInv()">➕ Ajouter à la liste</button></div>
       </div>
 
       <div id="preview-section" class="hidden">
@@ -663,10 +663,26 @@ function startApp(r){
       <button class="nav-tab" onclick="goPage('clients',this)">👥 Clients</button>
       <button class="nav-tab" onclick="goPage('historique',this)">📁 Historique</button>`;
     goPage('chef',nav.querySelector('.nav-tab'),false);
-    preloadClients();
+    // Désactiver le bouton Ajouter jusqu'au chargement complet du cache
+    _setCacheLoading(true);
+    preloadClients().finally(()=>_setCacheLoading(false));
   } else {
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">📡 Terrain</button>`;
     goPage('terrain',nav.querySelector('.nav-tab'),true);
+  }
+}
+
+function _setCacheLoading(loading){
+  // Désactive/réactive le bouton Ajouter pendant le chargement du cache
+  const btn=document.getElementById('btn-add-inv');
+  if(!btn)return;
+  if(loading){
+    btn.disabled=true;
+    btn.dataset.origText=btn.textContent;
+    btn.textContent='⏳ Chargement...';
+  } else {
+    btn.disabled=false;
+    btn.textContent=btn.dataset.origText||'+ Ajouter';
   }
 }
 
