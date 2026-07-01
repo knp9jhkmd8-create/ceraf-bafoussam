@@ -690,10 +690,22 @@ function goPage(p,el,load=true){
 //  CACHE CLIENTS
 // ══════════════════════════════════════════════
 async function preloadClients(){
-  const data=await apiGet({action:'getClients'});
-  if(data.success&&data.clients) buildClientsCache(data.clients);
-  // Charger en parallèle le cache léger des interventions actives (détection doublons)
-  preloadActiveInterventions();
+  // Charger clients ET interventions actives en parallèle avec await
+  // Les deux caches sont prêts avant que l'utilisateur puisse interagir
+  const [clientsData, activeData] = await Promise.all([
+    apiGet({action:'getClients'}),
+    apiGet({action:'getActiveInterventions'})
+  ]);
+  if(clientsData.success&&clientsData.clients) buildClientsCache(clientsData.clients);
+  if(activeData.success&&activeData.list){
+    activeInterventionsCache={};
+    activeData.list.forEach(item=>{
+      const key=item.num+'|'+item.type;
+      if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key]){
+        activeInterventionsCache[key]=item.date;
+      }
+    });
+  }
 }
 
 async function preloadActiveInterventions(){
@@ -702,7 +714,6 @@ async function preloadActiveInterventions(){
     activeInterventionsCache={};
     data.list.forEach(item=>{
       const key=item.num+'|'+item.type;
-      // Garder la date la plus ancienne (première création) en cas de doublon existant
       if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key]){
         activeInterventionsCache[key]=item.date;
       }
