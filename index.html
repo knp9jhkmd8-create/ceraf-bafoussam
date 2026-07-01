@@ -706,29 +706,29 @@ function goPage(p,el,load=true){
 //  CACHE CLIENTS
 // ══════════════════════════════════════════════
 async function preloadClients(){
-  // Charger clients ET interventions actives en parallèle avec await
-  // Les deux caches sont prêts avant que l'utilisateur puisse interagir
-  const [clientsData, activeData] = await Promise.all([
-    apiGet({action:'getClients'}),
-    apiGet({action:'getActiveInterventions'})
-  ]);
-  if(clientsData.success&&clientsData.clients) buildClientsCache(clientsData.clients);
-  if(activeData.success&&activeData.list){
+  const data=await apiGet({action:'getClients'});
+  if(!data.success) return;
+  if(data.clients) buildClientsCache(data.clients);
+  // Les interventions actives sont incluses dans la même réponse — pas d'appel séparé
+  if(data.activeInterventions){
     activeInterventionsCache={};
-    activeData.list.forEach(item=>{
+    data.activeInterventions.forEach(item=>{
       const key=item.num+'|'+item.type;
       if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key]){
         activeInterventionsCache[key]=item.date;
       }
     });
+    console.log('[DOUBLON] Cache prêt —',Object.keys(activeInterventionsCache).length,'interventions actives');
   }
 }
 
 async function preloadActiveInterventions(){
-  const data=await apiGet({action:'getActiveInterventions'});
-  if(data.success&&data.list){
+  // Désormais chargé directement via getClients — cette fonction est conservée
+  // uniquement comme fallback si le cache est vide au moment de addInv
+  const data=await apiGet({action:'getClients'});
+  if(data.success&&data.activeInterventions){
     activeInterventionsCache={};
-    data.list.forEach(item=>{
+    data.activeInterventions.forEach(item=>{
       const key=item.num+'|'+item.type;
       if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key]){
         activeInterventionsCache[key]=item.date;
@@ -973,7 +973,14 @@ async function addInv(){
   if(!f.nom&&!f.customerId){showToast('⚠️ Renseignez au moins le nom ou le Customer ID');return;}
   if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast('⚠️ Sélectionnez la ville');return;}
 
-  // ── DÉTECTION DE DOUBLON — instantanée, cache local, pas d'appel réseau ──
+  // ── CACHE INTERVENTIONS ACTIVES — charger si vide ──────────
+  // Garantit que le cache est prêt avant la vérification doublon,
+  // même si preloadClients n'a pas encore fini au démarrage.
+  if(Object.keys(activeInterventionsCache).length===0){
+    await preloadActiveInterventions();
+  }
+
+  // ── DÉTECTION DE DOUBLON — cache local ─────────────────────
   if(f.num&&f.num.trim()){
     const key=f.num.trim().replace(/\s/g,'').toLowerCase()+'|'+(TL[cType]||cType);
     const dateExistante=activeInterventionsCache[key];
