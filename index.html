@@ -349,6 +349,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <button type="button" class="btn-addnum" onclick="toggleSecNum('f2')">+ Ajouter un numéro</button>
           <div class="secnum-row" id="f2sec-row"><input id="f2sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f2v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row">
+            <div><label>FDT</label><input id="f2fdt" placeholder="Ex: FDT-1"></div>
+            <div><label>FAT</label><input id="f2fat" placeholder="Ex: FAT-12"></div>
+          </div>
         </div>
 
         <!-- DÉRANGEMENT FTTH -->
@@ -945,7 +949,7 @@ function gf(){
   const v=id=>(document.getElementById(id)||{value:''}).value.trim();
   const vUp=id=>v(id).toUpperCase();
   if(cType==='etude_ftth')    return{customerId:v('f1c'),num:'',nom:vUp('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v'),numSec:v('f1sec'),gps:''};
-  if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),numSec:v('f2sec'),gps:''};
+  if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),numSec:v('f2sec'),gps:'',fdt:v('f2fdt'),fat:v('f2fat')};
   if(cType==='derang_ftth')   return{num:v('f3u'),nom:vUp('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),numSec:v('f3sec'),gps:''};
   if(cType==='derang_cuivre') return{num:v('f4u'),nom:vUp('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),numSec:v('f4sec'),gps:''};
   if(cType==='etude_ls')      return{num:'',nom:vUp('f5n'),tel:v('f5t'),loc:v('f5l'),ville:v('f5v'),numSec:v('f5sec'),gps:''};
@@ -1000,7 +1004,7 @@ function validateNumericFields(){
 }
 
 function cf(){
-  ['f1c','f1u','f1n','f1t','f1l','f1v','f1sec','f2u','f2n','f2t','f2l','f2v','f2sec',
+  ['f1c','f1u','f1n','f1t','f1l','f1v','f1sec','f2u','f2n','f2t','f2l','f2v','f2sec','f2fdt','f2fat',
    'f3u','f3n','f3t','f3l','f3v','f3sec','f4u','f4n','f4t','f4l','f4v','f4sec',
    'f5n','f5u','f5t','f5l','f5v','f5sec','f6n','f6u','f6t','f6l','f6v','f6sec',
    'f7n','f7u','f7t','f7p','f7v','f7sec','f7g','f7c','f7x']
@@ -1212,7 +1216,7 @@ function editInv(id){
   // Remplir les champs selon le type
   const setIf=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!==undefined&&val!==null)el.value=val;};
   if(inv.type==='etude_ftth'){setIf('f1u',inv.num);setIf('f1n',inv.nom);setIf('f1t',inv.tel);setIf('f1l',inv.loc);setIf('f1v',inv.ville);setIf('f1sec',inv.numSec);}
-  if(inv.type==='install_ftth'){setIf('f2u',inv.num);setIf('f2n',inv.nom);setIf('f2t',inv.tel);setIf('f2l',inv.loc);setIf('f2v',inv.ville);setIf('f2sec',inv.numSec);}
+  if(inv.type==='install_ftth'){setIf('f2u',inv.num);setIf('f2n',inv.nom);setIf('f2t',inv.tel);setIf('f2l',inv.loc);setIf('f2v',inv.ville);setIf('f2sec',inv.numSec);setIf('f2fdt',inv.fdt);setIf('f2fat',inv.fat);}
   if(inv.type==='derang_ftth'){setIf('f3u',inv.num);setIf('f3n',inv.nom);setIf('f3t',inv.tel);setIf('f3l',inv.loc);setIf('f3v',inv.ville);setIf('f3sec',inv.numSec);}
   if(inv.type==='derang_cuivre'){setIf('f4u',inv.num);setIf('f4n',inv.nom);setIf('f4t',inv.tel);setIf('f4l',inv.loc);setIf('f4v',inv.ville);setIf('f4sec',inv.numSec);}
   if(inv.type==='etude_ls'){setIf('f5u',inv.num);setIf('f5n',inv.nom);setIf('f5t',inv.tel);setIf('f5l',inv.loc);setIf('f5v',inv.ville);setIf('f5sec',inv.numSec);}
