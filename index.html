@@ -259,9 +259,9 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   <div class="role-tagline">Consistance des Travaux — Connexion</div>
   <div class="setup-box" style="max-width:360px;">
     <label>Nom</label>
-    <input type="text" id="login-nom" placeholder="Votre nom" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
+    <input type="text" id="login-nom" placeholder="Votre nom" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
     <label>Code PIN</label>
-    <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login">🔓 Se connecter</button>
     <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;" onclick="doBootstrapAdmin()">🛠️ Première utilisation : créer le compte admin</button>
     <div id="login-error" class="hidden" style="color:var(--red);font-size:.8rem;margin-top:12px;text-align:center;"></div>
@@ -703,12 +703,20 @@ window.onload=()=>{
   role=localStorage.getItem('ceraf_role')||'';
   SESSION_NOM=localStorage.getItem('ceraf_nom')||'';
   AVAILABLE_ROLES=JSON.parse(localStorage.getItem('ceraf_roles')||'[]');
+  // Compatibilité : une session ouverte AVANT le passage au multi-rôles n'a
+  // pas de "ceraf_roles" enregistré. Sans ce filet, AVAILABLE_ROLES resterait
+  // vide et l'écran "Sous quel rôle ?" s'afficherait sans aucune carte —
+  // écran bloqué, sans option cliquable. On retombe alors sur le rôle déjà
+  // connu plutôt que d'exiger un choix impossible à faire.
+  if(AVAILABLE_ROLES.length===0 && role) AVAILABLE_ROLES=[role];
   setTodayDate();
   initChefSelect();
   if(!SCRIPT_URL) show('setup-screen','flex');
   else if(!TOKEN)  show('login-screen','flex');
-  else if(!role||!AVAILABLE_ROLES.includes(role)) showRoleSwitch();
-  else             startApp(role);
+  else if(AVAILABLE_ROLES.length===0) show('login-screen','flex'); // aucune info exploitable
+  else if(AVAILABLE_ROLES.length>1 && !AVAILABLE_ROLES.includes(role)) showRoleSwitch();
+  else if(AVAILABLE_ROLES.length>1) startApp(role);
+  else             startApp(AVAILABLE_ROLES[0]);
 };
 
 function show(id,d='flex'){['setup-screen','login-screen','roleswitch-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});}
@@ -777,12 +785,13 @@ function saveSetup(){
 }
 
 async function doLogin(){
+  const btn=document.getElementById('btn-login');
+  if(btn.disabled)return; // garde anti double-tap (fréquent sur mobile)
   const nom=document.getElementById('login-nom').value.trim();
   const pin=document.getElementById('login-pin').value.trim();
   const errEl=document.getElementById('login-error');
   errEl.classList.add('hidden');
   if(!nom||!pin){errEl.textContent='Nom et PIN requis';errEl.classList.remove('hidden');return;}
-  const btn=document.getElementById('btn-login');
   btn.disabled=true;btn.textContent='⏳ Connexion...';
   try{
     const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'login',nom,pin})});
