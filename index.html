@@ -269,6 +269,13 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);">Connexion valable 30 jours sur cet appareil</p>
 </div>
 
+<!-- CHOIX DU RÔLE ACTIF (comptes multi-rôles uniquement) -->
+<div id="roleswitch-screen" style="flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff,#f5f3ff);">
+  <div class="role-logo">CERAF <span>Bafoussam</span></div>
+  <div class="role-tagline">Sous quel rôle voulez-vous continuer ?</div>
+  <div class="role-cards" id="roleswitch-cards"></div>
+</div>
+
 <div class="offline-banner" id="offline-banner">📵 Hors ligne — Les mises à jour de statut seront synchronisées au retour du réseau</div>
 
 <!-- APP -->
@@ -279,7 +286,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <div class="role-badge" id="role-badge">—</div>
     </div>
     <div class="sync-row"><div class="sync-dot" id="sync-dot"></div><span class="sync-lbl" id="sync-lbl">—</span></div>
-    <button class="btn-switch" onclick="doLogout()">⏻ Déconnexion</button>
+    <div style="display:flex;gap:6px;">
+      <button class="btn-switch hidden" id="btn-role-switch" onclick="showRoleSwitch()">⇄ Rôle</button>
+      <button class="btn-switch" onclick="doLogout()">⏻ Déconnexion</button>
+    </div>
   </div>
   <div class="nav-bar" id="nav-bar"></div>
 
@@ -522,8 +532,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <div><label>Nom</label><input id="adm-nom" placeholder="Ex: NDZOUALI Joel"></div>
           <div><label>PIN (4 à 6 chiffres)</label><input id="adm-pin" maxlength="6" inputmode="numeric" placeholder="1234"></div>
         </div>
-        <div class="form-row full"><div><label>Rôle</label>
-          <select id="adm-role"><option value="chef">Chef centre</option><option value="technicien">Technicien</option><option value="admin">Administrateur</option></select>
+        <div class="form-row full"><div><label>Rôle(s) — un compte peut cumuler plusieurs rôles</label>
+          <div style="display:flex;gap:14px;margin-top:6px;">
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="chef" style="width:auto;"> Chef centre</label>
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="technicien" style="width:auto;" checked> Technicien</label>
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="admin" style="width:auto;"> Administrateur</label>
+          </div>
         </div></div>
         <button class="btn btn-primary btn-sm" onclick="adminAddUserUI()">➕ Créer</button>
       </div>
@@ -644,7 +658,7 @@ function composePanneRemarque(panne,note){
 }
 
 let role='',cType='etude_ftth',pending=[],SCRIPT_URL='';
-let TOKEN='',SESSION_NOM='';
+let TOKEN='',SESSION_NOM='',AVAILABLE_ROLES=[];
 let terrainData=null,currentTerrainView='type';
 let terrainQuartierFilter='', terrainStatutFilter='', terrainTypeFilter='';
 let terrainInterventionsCache=[]; // pour la vue détail quartier côté terrain
@@ -688,14 +702,36 @@ window.onload=()=>{
   TOKEN=localStorage.getItem('ceraf_token')||'';
   role=localStorage.getItem('ceraf_role')||'';
   SESSION_NOM=localStorage.getItem('ceraf_nom')||'';
+  AVAILABLE_ROLES=JSON.parse(localStorage.getItem('ceraf_roles')||'[]');
   setTodayDate();
   initChefSelect();
   if(!SCRIPT_URL) show('setup-screen','flex');
   else if(!TOKEN)  show('login-screen','flex');
+  else if(!role||!AVAILABLE_ROLES.includes(role)) showRoleSwitch();
   else             startApp(role);
 };
 
-function show(id,d='flex'){['setup-screen','login-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});}
+function show(id,d='flex'){['setup-screen','login-screen','roleswitch-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});}
+
+// Écran de choix du rôle actif — affiché après connexion si le compte
+// dispose de plusieurs rôles (ex: chef ET technicien).
+const ROLE_META={
+  chef:{icon:'👷',titre:'Chef centre',desc:'Créer et publier la consistance du jour'},
+  technicien:{icon:'📡',titre:'Technicien',desc:'Consulter la fiche et mettre à jour vos interventions'},
+  admin:{icon:'🔑',titre:'Administrateur',desc:'Gérer les comptes utilisateurs'}
+};
+function showRoleSwitch(){
+  const wrap=document.getElementById('roleswitch-cards');
+  wrap.innerHTML=AVAILABLE_ROLES.map(r=>{
+    const m=ROLE_META[r]||{icon:'🔘',titre:r,desc:''};
+    return `<div class="role-card" onclick="chooseActiveRole('${r}')"><div class="r-icon">${m.icon}</div><div class="r-title">${m.titre}</div><div class="r-desc">${m.desc}</div></div>`;
+  }).join('');
+  show('roleswitch-screen','flex');
+}
+function chooseActiveRole(r){
+  role=r;localStorage.setItem('ceraf_role',r);
+  startApp(r);
+}
 
 // ══════════════════════════════════════════════
 //  CHEF SELECT
@@ -752,12 +788,16 @@ async function doLogin(){
     const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'login',nom,pin})});
     const data=JSON.parse(await res.text());
     if(data.success){
-      TOKEN=data.token;role=data.role;SESSION_NOM=data.nom;
+      TOKEN=data.token;SESSION_NOM=data.nom;AVAILABLE_ROLES=data.roles||[];
       localStorage.setItem('ceraf_token',TOKEN);
-      localStorage.setItem('ceraf_role',role);
       localStorage.setItem('ceraf_nom',SESSION_NOM);
+      localStorage.setItem('ceraf_roles',JSON.stringify(AVAILABLE_ROLES));
       document.getElementById('login-pin').value='';
-      startApp(role);
+      if(AVAILABLE_ROLES.length===1){
+        role=AVAILABLE_ROLES[0];localStorage.setItem('ceraf_role',role);startApp(role);
+      } else {
+        showRoleSwitch();
+      }
     } else {
       errEl.textContent=data.error||'Connexion impossible';errEl.classList.remove('hidden');
     }
@@ -785,19 +825,21 @@ async function doBootstrapAdmin(){
 
 async function doLogout(){
   if(TOKEN){ try{ await apiPost({action:'logout'}); }catch(e){} }
-  TOKEN='';role='';SESSION_NOM='';
+  TOKEN='';role='';SESSION_NOM='';AVAILABLE_ROLES=[];
   localStorage.removeItem('ceraf_token');
   localStorage.removeItem('ceraf_role');
   localStorage.removeItem('ceraf_nom');
+  localStorage.removeItem('ceraf_roles');
   show('login-screen','flex');
 }
 
 // Appelé quand le backend renvoie authError (token invalide/expiré/désactivé)
 function handleAuthError(){
-  TOKEN='';role='';SESSION_NOM='';
+  TOKEN='';role='';SESSION_NOM='';AVAILABLE_ROLES=[];
   localStorage.removeItem('ceraf_token');
   localStorage.removeItem('ceraf_role');
   localStorage.removeItem('ceraf_nom');
+  localStorage.removeItem('ceraf_roles');
   showToast('⚠️ Session expirée — reconnectez-vous');
   show('login-screen','flex');
 }
@@ -806,6 +848,7 @@ function startApp(r){
   show('app','flex');
   const badgeLbl=r==='chef'?'👷 Chef centre':r==='admin'?'🔑 Administrateur':'📡 Technicien';
   document.getElementById('role-badge').textContent=badgeLbl+(SESSION_NOM?' — '+SESSION_NOM:'');
+  document.getElementById('btn-role-switch').classList.toggle('hidden',AVAILABLE_ROLES.length<=1);
   const nav=document.getElementById('nav-bar');
   if(r==='chef'){
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('chef',this)">👷 Consistance</button>
@@ -866,15 +909,18 @@ async function loadAdminUsers(){
 function renderAdminUsers(users){
   const wrap=document.getElementById('admin-users-wrap');
   if(!users||users.length===0){wrap.innerHTML='<div class="empty"><div class="eicon">👤</div><p>Aucun utilisateur.</p></div>';return;}
-  let h='<table class="clients-table"><thead><tr><th>Nom</th><th>Rôle</th><th>Actif</th><th>Dernière connexion</th><th></th></tr></thead><tbody>';
+  const roleLbl={chef:'Chef',technicien:'Technicien',admin:'Admin'};
+  let h='<table class="clients-table"><thead><tr><th>Nom</th><th>Rôle(s)</th><th>Actif</th><th>Dernière connexion</th><th></th></tr></thead><tbody>';
   users.forEach(u=>{
     const nomEsc=u.nom.replace(/'/g,"\\'");
+    const rolesTxt=(u.roles||[]).map(r=>roleLbl[r]||r).join(', ')||'—';
     h+=`<tr>
       <td><strong>${u.nom}</strong></td>
-      <td>${u.role}</td>
+      <td>${rolesTxt}</td>
       <td>${u.actif?'✅':'⛔'}</td>
       <td>${u.derniereConnexion||'—'}</td>
       <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="adminEditRolesUI('${u.id}','${nomEsc}',${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">✏️ Rôles</button>
         <button class="btn btn-ghost btn-sm" onclick="adminResetPinUI('${u.id}','${nomEsc}')">🔑 PIN</button>
         <button class="btn btn-ghost btn-sm" onclick="adminToggleActive('${u.id}',${u.actif?'false':'true'})">${u.actif?'⛔ Désactiver':'✅ Activer'}</button>
         <button class="btn btn-danger btn-sm" onclick="adminDeleteUserUI('${u.id}','${nomEsc}')">🗑️</button>
@@ -887,10 +933,20 @@ function renderAdminUsers(users){
 async function adminAddUserUI(){
   const nom=document.getElementById('adm-nom').value.trim();
   const pin=document.getElementById('adm-pin').value.trim();
-  const role=document.getElementById('adm-role').value;
+  const roles=[...document.querySelectorAll('.adm-role-chk:checked')].map(c=>c.value);
   if(!nom||!/^\d{4,6}$/.test(pin)){showToast('⚠️ Nom et PIN (4 à 6 chiffres) requis');return;}
-  const res=await apiPost({action:'adminAddUser',nom,pin,role});
+  if(roles.length===0){showToast('⚠️ Sélectionnez au moins un rôle');return;}
+  const res=await apiPost({action:'adminAddUser',nom,pin,roles});
   if(res.success){showToast('✅ Utilisateur créé');document.getElementById('adm-nom').value='';document.getElementById('adm-pin').value='';loadAdminUsers();}
+  else showToast('❌ '+(res.error||'Erreur'));
+}
+async function adminEditRolesUI(id,nom,currentRoles){
+  const saisie=prompt('Rôles pour '+nom+' — séparés par une virgule.\nValeurs possibles : chef, technicien, admin',currentRoles.join(','));
+  if(saisie===null)return;
+  const roles=saisie.split(',').map(r=>r.trim()).filter(Boolean);
+  if(roles.length===0){showToast('⚠️ Au moins un rôle requis');return;}
+  const res=await apiPost({action:'adminUpdateUser',id,roles});
+  if(res.success){showToast('✅ Rôles mis à jour');loadAdminUsers();}
   else showToast('❌ '+(res.error||'Erreur'));
 }
 async function adminToggleActive(id,newVal){
@@ -2363,7 +2419,7 @@ function setSS(s,m){document.getElementById('sync-dot').className='sync-dot '+s;
 async function apiPost(payload){
   setSS('loading','Sync...');
   try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...payload, token:TOKEN})});
+    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...payload, token:TOKEN, actingRole:role})});
     const data=JSON.parse(await res.text());
     if(data.authError){handleAuthError();return data;}
     setSS('ok','Synchronisé');return data;
@@ -2373,7 +2429,7 @@ async function apiPost(payload){
 async function apiGet(params){
   setSS('loading','Chargement...');
   try{
-    const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams({...params, token:TOKEN}).toString());
+    const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams({...params, token:TOKEN, actingRole:role}).toString());
     const data=JSON.parse(await res.text());
     if(data.authError){handleAuthError();return data;}
     setSS('ok','Synchronisé');return data;
