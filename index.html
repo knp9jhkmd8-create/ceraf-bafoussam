@@ -1547,7 +1547,7 @@ async function showClientHistory(num){
         <div class="inv-name">${TI[Object.keys(TL).find(k=>TL[k]===inv.type)]||'📋'} ${inv.type}</div>
         <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">📅 Depuis le ${formatDateDisplay(inv.origine)} — dernière maj le ${formatDateDisplay(inv.date)}</div>
         ${inv.quartier?`<div class="inv-tags"><span class="tag tag-quartier">${inv.quartier}</span></div>`:''}
-        ${inv.remarque&&inv.remarque!=='null'&&inv.remarque!==''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
+        ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
         <span class="badge ${SC[sk]}">${SL[sk]}</span>${dureeTxt}
@@ -1861,7 +1861,7 @@ function invRowHTML(inv,idx){
       <div class="inv-name" style="cursor:pointer;text-decoration:underline dotted var(--muted2);" onclick="showTerrainInvDetail(decodeURIComponent('${safe}'))">${idx+1}. ${buildLabel(inv)} <span style="font-size:.7rem;color:var(--muted2);">🔍</span></div>
       ${buildTags(inv)}
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
-      ${!isEtudeFtth&&!isDerangFtth&&inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
+      ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
       ${structuredHTML}
       <div class="gps-row" style="margin-top:8px;">
         <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="Coordonnées GPS (ex: 5.4764, 10.4191)" value="${gpsValue}" style="font-size:.75rem;">
@@ -2367,8 +2367,8 @@ function showSingleInv(json){
           ${buildTags(inv)}
           ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
             ?`<div class="inv-report">📅 Première itération le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
-          ${inv.remarque&&inv.remarque!=='null'&&inv.remarque!==''
-            ?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
+          ${displayRemarque(inv.remarque)
+            ?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
           <span class="badge ${SC[sk]}">${SL[sk]}</span>
@@ -2399,7 +2399,7 @@ function showDetail(json){
       const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${inv.duree} j. ouvr${inv.duree>1?'és':'é'}</span>`:'';
       h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
-        ${inv.remarque&&inv.remarque!='null'&&inv.remarque!=''?`<div class="inv-remark-disp">💬 ${inv.remarque}</div>`:''}
+        ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
         </div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="badge ${SC[sk]}">${SL[sk]}</span>
         ${dureeTxt}
@@ -2454,6 +2454,20 @@ function formatDateDisplay(d){
   if(!d||d==='null')return'—';
   const p=String(d).split('-');if(p.length<3)return d;
   return p[2]+'/'+p[1]+'/'+p[0];
+}
+// Nettoie une remarque pour l'affichage :
+//  - masque le bruit auto-généré des reports ("(Reporté du …)", "(Réparé …)"),
+//    déjà rendu proprement par la ligne "🔄 Reporté depuis le …"
+//  - normalise les dates JS brutes héritées (ex: "Mon Jun 22 2026 00:00:00
+//    GMT+0100 (West Africa Time)") en JJ/MM/AAAA
+function displayRemarque(r){
+  if(!r||r==='null')return'';
+  let s=String(r).trim();
+  if(/^\(?\s*(Reporté\s+(du|au)|Réparé)/i.test(s))return'';
+  return s.replace(/[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}\s\d{2}:\d{2}:\d{2}\sGMT[+-]\d{4}\s\([^)]*\)/g,m=>{
+    const d=new Date(m);if(isNaN(d.getTime()))return m;
+    return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  });
 }
 // ══════════════════════════════════════════════
 //  PWA — SERVICE WORKER + MODE HORS LIGNE
