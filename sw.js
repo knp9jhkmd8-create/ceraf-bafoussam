@@ -5,7 +5,7 @@
 //  - Vide automatiquement l'ancien cache à chaque mise à jour
 // ============================================================
 
-const CACHE_VERSION = 'ceraf-v4';
+const CACHE_VERSION = 'ceraf-v5';
 const CACHE_FILES   = ['./index.html', './manifest.json'];
 
 // ── INSTALLATION ────────────────────────────────────────────

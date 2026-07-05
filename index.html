@@ -263,7 +263,6 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
     <label>Code PIN</label>
     <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login">🔓 Se connecter</button>
-    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;" onclick="doBootstrapAdmin()">🛠️ Première utilisation : créer le compte admin</button>
     <div id="login-error" class="hidden" style="color:var(--red);font-size:.8rem;margin-top:12px;text-align:center;"></div>
   </div>
   <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);">Connexion valable 30 jours sur cet appareil</p>
@@ -569,13 +568,6 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-client-histo">
-  <div class="modal-box" style="max-width:600px;max-height:80vh;overflow-y:auto;">
-    <div id="client-histo-content"></div>
-    <div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeClientHistoryModal()">Fermer</button></div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -662,6 +654,15 @@ let TOKEN='',SESSION_NOM='',AVAILABLE_ROLES=[];
 let terrainData=null,currentTerrainView='type';
 let terrainQuartierFilter='', terrainStatutFilter='', terrainTypeFilter='';
 let terrainInterventionsCache=[]; // pour la vue détail quartier côté terrain
+
+// Deux villes différentes peuvent avoir un quartier du même nom : on regroupe
+// donc par (quartier + ville), jamais par quartier seul, pour ne pas les confondre.
+function quartierKey(i){
+  const q=(i.quartier&&i.quartier!=='null'&&i.quartier!=='')?i.quartier:'';
+  if(!q)return'—';
+  const v=(i.ville&&i.ville!=='null')?i.ville.trim():'';
+  return v?q+' ('+v+')':q;
+}
 let clientsCache={}, allClientsList=[];
 let activeInterventionsCache={}; // clé: num de ligne → {date,statut} (pour détection doublons)
 let pendingUpdateClient=null, lastLookedNum='';
@@ -817,21 +818,6 @@ async function doLogin(){
   }
 }
 
-async function doBootstrapAdmin(){
-  const nom=document.getElementById('login-nom').value.trim();
-  const pin=document.getElementById('login-pin').value.trim();
-  const errEl=document.getElementById('login-error');
-  errEl.classList.add('hidden');
-  if(!nom||!/^\d{4,6}$/.test(pin)){errEl.textContent='Nom et PIN (4 à 6 chiffres) requis';errEl.classList.remove('hidden');return;}
-  if(!confirm('Créer le compte administrateur "'+nom+'" ?\n\nCette option ne fonctionne qu\'une seule fois, tant qu\'aucun utilisateur n\'existe encore.'))return;
-  try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'bootstrapAdmin',nom,pin})});
-    const data=JSON.parse(await res.text());
-    if(data.success){showToast('✅ Compte admin créé — connectez-vous maintenant');}
-    else{errEl.textContent=data.error||'Impossible';errEl.classList.remove('hidden');}
-  }catch(e){errEl.textContent='Connexion impossible — vérifiez le réseau';errEl.classList.remove('hidden');}
-}
-
 async function doLogout(){
   if(TOKEN){ try{ await apiPost({action:'logout'}); }catch(e){} }
   TOKEN='';role='';SESSION_NOM='';AVAILABLE_ROLES=[];
@@ -901,8 +887,8 @@ function goPage(p,el,load=true){
   if(load){
     if(p==='terrain')    loadTerrain();
     if(p==='historique') loadHistorique();
-    if(p==='clients')    {if(allClientsList.length>0)renderClientsTable(allClientsList,'clients-table-wrap',false);else refreshClients();}
-    if(p==='clients-ro') {if(allClientsList.length>0)renderClientsTable(allClientsList,'clients-table-ro-wrap',true);else refreshClientsRO();}
+    if(p==='clients')    {if(allClientsList.length>0)renderClientsTable(allClientsList,'clients-table-wrap');else refreshClients();}
+    if(p==='clients-ro') {if(allClientsList.length>0)renderClientsTable(allClientsList,'clients-table-ro-wrap');else refreshClientsRO();}
     if(p==='admin')      loadAdminUsers();
   }
 }
@@ -1478,29 +1464,28 @@ async function publishConsistance(){
 // ══════════════════════════════════════════════
 async function refreshClients(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-wrap',false);showToast('✅ Actualisé');}
+  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-wrap');showToast('✅ Actualisé');}
 }
 async function refreshClientsRO(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-ro-wrap',true);showToast('✅ Actualisé');}
+  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-ro-wrap');showToast('✅ Actualisé');}
 }
 function filterClients(){
   const q=(document.getElementById('client-search').value||'').toLowerCase();
-  renderClientsTable(allClientsList.filter(c=>(c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q)),'clients-table-wrap',false);
+  renderClientsTable(allClientsList.filter(c=>(c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q)),'clients-table-wrap');
 }
 function filterClientsRO(){
   const q=(document.getElementById('client-search-ro').value||'').toLowerCase();
-  renderClientsTable(allClientsList.filter(c=>(c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q)),'clients-table-ro-wrap',true);
+  renderClientsTable(allClientsList.filter(c=>(c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q)),'clients-table-ro-wrap');
 }
 
 function svcClass(s){if(s==='FTTH')return'svc-ftth';if(s==='LS')return'svc-ls';if(s==='CUIVRE')return'svc-cuivre';return'svc-ftth';}
 
-function renderClientsTable(list,wrapId,readOnly){
+function renderClientsTable(list,wrapId){
   const wrap=document.getElementById(wrapId);
   if(!list||list.length===0){wrap.innerHTML='<div class="empty"><div class="eicon">👥</div><p>Aucun client enregistré.</p></div>';return;}
   let h=`<table class="clients-table"><thead><tr>
     <th>N° Ligne</th><th>Nom</th><th>Téléphone</th><th>2ème contact</th><th>Localité</th><th>Ville</th><th>Quartier</th><th>Service</th><th>GPS</th>
-    ${readOnly?'':'<th></th>'}
   </tr></thead><tbody>`;
   list.forEach(c=>{
     // GPS valide = contient des chiffres et une virgule (coordonnées)
@@ -1519,52 +1504,9 @@ function renderClientsTable(list,wrapId,readOnly){
       <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
       <td>${svc?`<span class="service-badge ${svcClass(svc)}">${svc}</span>`:'—'}</td>
       <td>${gpsH}</td>
-      ${readOnly?'':'<td style="white-space:nowrap;"><button class="btn btn-ghost btn-sm" onclick="showClientHistory(\''+c.num.replace(/'/g,"\\'")+'\')">🕘</button> <button class="btn btn-danger btn-sm" onclick="deleteClientUI(\''+c.num.replace(/'/g,"\\'")+'\')">🗑️</button></td>'}
     </tr>`;
   });
   h+='</tbody></table>';wrap.innerHTML=h;
-}
-
-// ══════════════════════════════════════════════
-//  HISTORIQUE COMPLET D'UN CLIENT (toutes interventions, tous mois)
-// ══════════════════════════════════════════════
-async function showClientHistory(num){
-  const modal=document.getElementById('modal-client-histo');
-  const content=document.getElementById('client-histo-content');
-  content.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
-  modal.classList.add('active');
-
-  const res=await apiGet({action:'getClientHistory',num});
-  if(!res.success){content.innerHTML='<div class="empty"><p>❌ '+(res.error||'Erreur')+'</p></div>';return;}
-  if(!res.history||res.history.length===0){content.innerHTML='<div class="empty"><div class="eicon">📭</div><p>Aucune intervention trouvée pour ce numéro.</p></div>';return;}
-
-  let h=`<div class="modal-title">🕘 Historique — ${num}</div>`;
-  res.history.forEach(inv=>{
-    const sk=SM[inv.statut]||'pending';
-    const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${inv.duree} j. ouvr${inv.duree>1?'és':'é'}</span>`:'';
-    h+=`<div class="inv-row" style="margin-top:8px;">
-      <div class="inv-info">
-        <div class="inv-name">${TI[Object.keys(TL).find(k=>TL[k]===inv.type)]||'📋'} ${inv.type}</div>
-        <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">📅 Depuis le ${formatDateDisplay(inv.origine)} — dernière maj le ${formatDateDisplay(inv.date)}</div>
-        ${inv.quartier?`<div class="inv-tags"><span class="tag tag-quartier">${inv.quartier}</span></div>`:''}
-        ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
-        <span class="badge ${SC[sk]}">${SL[sk]}</span>${dureeTxt}
-      </div>
-    </div>`;
-  });
-  content.innerHTML=h;
-}
-function closeClientHistoryModal(){document.getElementById('modal-client-histo').classList.remove('active');}
-
-async function deleteClientUI(num){
-  if(!confirm('⚠️ Supprimer le client '+num+' ?\n\nCette action supprimera AUSSI toutes ses interventions enregistrées (terrain, historique). Cette action est irréversible.'))return;
-  const res=await apiPost({action:'deleteClient',num});
-  if(res.success){
-    showToast('🗑️ Client supprimé ainsi que '+(res.deletedInterventions||0)+' intervention(s) liée(s)');
-    refreshClients();
-  } else showToast('❌ '+res.error);
 }
 
 // ══════════════════════════════════════════════
@@ -1674,10 +1616,10 @@ function renderTerrain(data){
     // Statut : basé sur toutes les actives (pour voir combien sont réalisées)
     const base = (ignore==='s') ? actives : nonRealises;
     base.forEach(i=>{
-      if(ignore!=='q'&&terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return;
+      if(ignore!=='q'&&terrainQuartierFilter&&quartierKey(i)!==terrainQuartierFilter)return;
       if(ignore!=='s'&&terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return;
       if(ignore!=='t'&&terrainTypeFilter&&i.type!==terrainTypeFilter)return;
-      if(ignore==='q') res[i.quartier&&i.quartier!=='null'&&i.quartier!==''?i.quartier:'—']=(res[i.quartier&&i.quartier!=='null'&&i.quartier!==''?i.quartier:'—']||0)+1;
+      if(ignore==='q') res[quartierKey(i)]=(res[quartierKey(i)]||0)+1;
       else if(ignore==='s') { const sk=SM[i.statut]||'pending'; res[sk]=(res[sk]||0)+1; }
       else if(ignore==='t') res[i.type]=(res[i.type]||0)+1;
     });
@@ -1690,7 +1632,7 @@ function renderTerrain(data){
 
   // Total de ce qui s'affiche réellement (tous les filtres actifs)
   const totalFiltre=actives.filter(i=>{
-    if(terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return false;
+    if(terrainQuartierFilter&&quartierKey(i)!==terrainQuartierFilter)return false;
     if(terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return false;
     if(terrainTypeFilter&&i.type!==terrainTypeFilter)return false;
     return true;
@@ -1751,7 +1693,7 @@ function renderTerrain(data){
 function applyTerrainFilters(interventions){
   return interventions.filter(i=>{
     if(i.estTransfere)return false;
-    if(terrainQuartierFilter&&i.quartier!==terrainQuartierFilter)return false;
+    if(terrainQuartierFilter&&quartierKey(i)!==terrainQuartierFilter)return false;
     if(terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return false;
     if(terrainTypeFilter&&i.type!==terrainTypeFilter)return false;
     return true;
@@ -1780,7 +1722,7 @@ function renderByType(interventions){
 
 function renderByQuartier(interventions){
   const g={};
-  interventions.forEach(i=>{const q=(i.quartier&&i.quartier!=='null'&&i.quartier!=='')?i.quartier:'—';if(!g[q])g[q]=[];g[q].push(i);});
+  interventions.forEach(i=>{const q=quartierKey(i);if(!g[q])g[q]=[];g[q].push(i);});
   const keys=Object.keys(g).sort((a,b)=>{if(a==='—')return 1;if(b==='—')return-1;return a.localeCompare(b);});
   let h='';
   keys.forEach(q=>{
@@ -2224,10 +2166,10 @@ function renderHistoForMonth(){
   function hCountWith(ignore){
     const res={};
     allInvs.forEach(i=>{
-      if(ignore!=='q'&&activeQ&&i.quartier!==activeQ)return;
+      if(ignore!=='q'&&activeQ&&quartierKey(i)!==activeQ)return;
       if(ignore!=='s'&&activeS&&(SM[i.statut]||'pending')!==activeS)return;
       if(ignore!=='t'&&activeT&&i.type!==activeT)return;
-      if(ignore==='q') { if(i.quartier&&i.quartier!=='null'&&i.quartier!=='') res[i.quartier]=(res[i.quartier]||0)+1; }
+      if(ignore==='q') { const qk=quartierKey(i); if(qk!=='—') res[qk]=(res[qk]||0)+1; }
       else if(ignore==='s') { const sk=SM[i.statut]||'pending'; res[sk]=(res[sk]||0)+1; }
       else if(ignore==='t') res[i.type]=(res[i.type]||0)+1;
     });
@@ -2285,7 +2227,7 @@ function renderHistoForMonth(){
 
   // Appliquer les trois filtres
   const invsFiltered=allInvs.filter(i=>{
-    if(activeQ&&i.quartier!==activeQ)return false;
+    if(activeQ&&quartierKey(i)!==activeQ)return false;
     if(activeS&&(SM[i.statut]||'pending')!==activeS)return false;
     if(activeT&&i.type!==activeT)return false;
     return true;
