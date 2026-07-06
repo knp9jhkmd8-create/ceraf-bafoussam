@@ -11,6 +11,8 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>CERAF Bafoussam — Consistance des Travaux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:wght@700;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -158,6 +160,8 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
   border-radius:10px;padding:8px 14px;margin-bottom:10px;
 }
 
+.ville-group{margin-bottom:8px;}
+.ville-label{font-size:.76rem;font-weight:700;color:var(--navy);margin-right:4px;}
 .quartier-block{margin-bottom:16px;}
 .quartier-header{display:flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;color:var(--teal);background:var(--teal-lt);border:1px solid #a5f3fc;border-radius:8px;padding:6px 12px;margin-bottom:8px;}
 .section-title{font-size:.85rem;font-weight:700;color:var(--blue-mid);border-bottom:2px solid var(--blue-glow);padding-bottom:6px;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
@@ -240,15 +244,15 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 <!-- SETUP -->
 <div id="setup-screen">
   <div class="setup-box">
-    <div class="setup-title">⚙️ Configuration initiale</div>
-    <div class="setup-sub">À faire <strong>une seule fois</strong> sur chaque appareil.</div>
-    <div class="setup-step"><div class="snum">1</div><div class="stext">Dans Apps Script → <strong>Déployer → Gérer les déploiements</strong></div></div>
-    <div class="setup-step"><div class="snum">2</div><div class="stext">Copie l'URL <code>https://script.google.com/macros/s/.../exec</code></div></div>
-    <div class="setup-step"><div class="snum">3</div><div class="stext">Colle-la ci-dessous et clique <strong>Enregistrer</strong></div></div>
+    <div class="setup-title" data-i18n="setup.title">⚙️ Configuration initiale</div>
+    <div class="setup-sub" data-i18n-html="setup.sub">À faire <strong>une seule fois</strong> sur chaque appareil.</div>
+    <div class="setup-step"><div class="snum">1</div><div class="stext" data-i18n-html="setup.step1">Dans Apps Script → <strong>Déployer → Gérer les déploiements</strong></div></div>
+    <div class="setup-step"><div class="snum">2</div><div class="stext" data-i18n-html="setup.step2">Copie l'URL <code>https://script.google.com/macros/s/.../exec</code></div></div>
+    <div class="setup-step"><div class="snum">3</div><div class="stext" data-i18n-html="setup.step3">Colle-la ci-dessous et clique <strong>Enregistrer</strong></div></div>
     <div style="margin-top:20px;">
-      <label>URL Apps Script</label>
+      <label data-i18n="setup.url.label">URL Apps Script</label>
       <input type="url" id="setup-url" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:12px;">
-      <button class="btn btn-primary" style="width:100%" onclick="saveSetup()">✅ Enregistrer</button>
+      <button class="btn btn-primary" style="width:100%" onclick="saveSetup()" data-i18n="setup.save.btn">✅ Enregistrer</button>
     </div>
   </div>
 </div>
@@ -256,26 +260,26 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 <!-- LOGIN -->
 <div id="login-screen" style="flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff,#f5f3ff);">
   <div class="role-logo">CERAF <span>Bafoussam</span></div>
-  <div class="role-tagline">Consistance des Travaux — Connexion</div>
+  <div class="role-tagline" data-i18n="login.tagline">Consistance des Travaux — Connexion</div>
   <div class="setup-box" style="max-width:360px;">
-    <label>Nom</label>
-    <input type="text" id="login-nom" placeholder="Votre nom" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
-    <label>Code PIN</label>
+    <label data-i18n="common.name.label">Nom</label>
+    <input type="text" id="login-nom" placeholder="Votre nom" data-i18n-ph="login.name.ph" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
+    <label data-i18n="login.pin.label">Code PIN</label>
     <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login">🔓 Se connecter</button>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login" data-i18n="login.btn">🔓 Se connecter</button>
     <div id="login-error" class="hidden" style="color:var(--red);font-size:.8rem;margin-top:12px;text-align:center;"></div>
   </div>
-  <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);">Connexion valable 30 jours sur cet appareil</p>
+  <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);" data-i18n="login.note">Connexion valable 30 jours sur cet appareil</p>
 </div>
 
 <!-- CHOIX DU RÔLE ACTIF (comptes multi-rôles uniquement) -->
 <div id="roleswitch-screen" style="flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff,#f5f3ff);">
   <div class="role-logo">CERAF <span>Bafoussam</span></div>
-  <div class="role-tagline">Sous quel rôle voulez-vous continuer ?</div>
+  <div class="role-tagline" data-i18n="roleswitch.tagline">Sous quel rôle voulez-vous continuer ?</div>
   <div class="role-cards" id="roleswitch-cards"></div>
 </div>
 
-<div class="offline-banner" id="offline-banner">📵 Hors ligne — Les mises à jour de statut seront synchronisées au retour du réseau</div>
+<div class="offline-banner" id="offline-banner" data-i18n="offline.banner">📵 Hors ligne — Les mises à jour de statut seront synchronisées au retour du réseau</div>
 
 <!-- APP -->
 <div id="app">
@@ -286,8 +290,8 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
     </div>
     <div class="sync-row"><div class="sync-dot" id="sync-dot"></div><span class="sync-lbl" id="sync-lbl">—</span></div>
     <div style="display:flex;gap:6px;">
-      <button class="btn-switch hidden" id="btn-role-switch" onclick="showRoleSwitch()">⇄ Rôle</button>
-      <button class="btn-switch" onclick="doLogout()">⏻ Déconnexion</button>
+      <button class="btn-switch hidden" id="btn-role-switch" onclick="showRoleSwitch()" data-i18n="topbar.roleSwitch.btn">⇄ Rôle</button>
+      <button class="btn-switch" onclick="doLogout()" data-i18n="topbar.logout.btn">⏻ Déconnexion</button>
     </div>
   </div>
   <div class="nav-bar" id="nav-bar"></div>
@@ -296,42 +300,42 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
     <!-- PAGE CHEF -->
     <div class="page" id="page-chef">
-      <div class="page-title">Créer la <span>Consistance</span></div>
-      <div class="page-sub">Chaque publication s'ajoute à la fiche du jour</div>
+      <div class="page-title" data-i18n-html="chef.title">Créer la <span>Consistance</span></div>
+      <div class="page-sub" data-i18n="chef.sub">Chaque publication s'ajoute à la fiche du jour</div>
       <div class="card">
-        <div class="card-title">📋 Informations générales</div>
+        <div class="card-title" data-i18n="chef.card.general">📋 Informations générales</div>
         <div class="form-row">
           <div>
-            <label>Date (JJ/MM/AAAA)</label>
-            <input type="text" id="inp-date" placeholder="JJ/MM/AAAA" maxlength="10" oninput="formatDateInput(this)" inputmode="numeric">
+            <label data-i18n="common.date.label">Date (JJ/MM/AAAA)</label>
+            <input type="text" id="inp-date" placeholder="JJ/MM/AAAA" data-i18n-ph="common.date.ph" maxlength="10" oninput="formatDateInput(this)" inputmode="numeric">
           </div>
           <div>
-            <label>Chef centre</label>
+            <label data-i18n="common.chefCentre.label">Chef centre</label>
             <div class="chef-row">
               <select id="inp-chef-sel" onchange="onChefSelChange(this.value)">
-                <option value="">-- Sélectionner --</option>
+                <option value="" data-i18n="common.select.default">-- Sélectionner --</option>
                 <option value="BENANA Hermann">BENANA Hermann</option>
                 <option value="Godlove NGWANG FOR">Godlove NGWANG FOR</option>
                 <option value="NDZOUALI Joel">NDZOUALI Joel</option>
                 <option value="TENE Eric">TENE Eric</option>
-                <option value="__autre__">Autre...</option>
+                <option value="__autre__" data-i18n="common.other">Autre...</option>
               </select>
-              <input type="text" id="inp-chef-txt" class="chef-extra" placeholder="Nouveau chef" oninput="saveCustomChef(this.value)">
+              <input type="text" id="inp-chef-txt" class="chef-extra" placeholder="Nouveau chef" data-i18n-ph="chef.newChef.ph" oninput="saveCustomChef(this.value)">
             </div>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">➕ Ajouter une intervention</div>
+        <div class="card-title" data-i18n="chef.addInv.title">➕ Ajouter une intervention</div>
         <div class="type-grid">
-          <div class="type-card selected" data-type="etude_ftth"    onclick="selType(this)"><div class="tc-icon">🔍</div><div class="tc-lbl">Étude FTTH</div></div>
-          <div class="type-card"          data-type="install_ftth"  onclick="selType(this)"><div class="tc-icon">🔧</div><div class="tc-lbl">Installation FTTH</div></div>
-          <div class="type-card"          data-type="derang_ftth"   onclick="selType(this)"><div class="tc-icon">⚡</div><div class="tc-lbl">Dérang. FTTH</div></div>
-          <div class="type-card"          data-type="derang_cuivre" onclick="selType(this)"><div class="tc-icon">🪙</div><div class="tc-lbl">Dérang. Cuivre</div></div>
-          <div class="type-card"          data-type="etude_ls"      onclick="selType(this)"><div class="tc-icon">📐</div><div class="tc-lbl">Étude LS</div></div>
-          <div class="type-card"          data-type="derang_ls"     onclick="selType(this)"><div class="tc-icon">🔌</div><div class="tc-lbl">Dérang. LS</div></div>
-          <div class="type-card"          data-type="install_ls"    onclick="selType(this)"><div class="tc-icon">📶</div><div class="tc-lbl">Install. LS</div></div>
+          <div class="type-card selected" data-type="etude_ftth"    onclick="selType(this)"><div class="tc-icon">🔍</div><div class="tc-lbl" data-i18n="type.etude_ftth">Étude FTTH</div></div>
+          <div class="type-card"          data-type="install_ftth"  onclick="selType(this)"><div class="tc-icon">🔧</div><div class="tc-lbl" data-i18n="type.install_ftth">Installation FTTH</div></div>
+          <div class="type-card"          data-type="derang_ftth"   onclick="selType(this)"><div class="tc-icon">⚡</div><div class="tc-lbl" data-i18n="type.derang_ftth">Dérang. FTTH</div></div>
+          <div class="type-card"          data-type="derang_cuivre" onclick="selType(this)"><div class="tc-icon">🪙</div><div class="tc-lbl" data-i18n="type.derang_cuivre">Dérang. Cuivre</div></div>
+          <div class="type-card"          data-type="etude_ls"      onclick="selType(this)"><div class="tc-icon">📐</div><div class="tc-lbl" data-i18n="type.etude_ls">Étude LS</div></div>
+          <div class="type-card"          data-type="derang_ls"     onclick="selType(this)"><div class="tc-icon">🔌</div><div class="tc-lbl" data-i18n="type.derang_ls">Dérang. LS</div></div>
+          <div class="type-card"          data-type="install_ls"    onclick="selType(this)"><div class="tc-icon">📶</div><div class="tc-lbl" data-i18n="type.install_ls">Install. LS</div></div>
         </div>
 
         <div id="autofill-banner" class="hidden"></div>
@@ -339,137 +343,137 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <!-- ÉTUDE FTTH -->
         <div id="fields-etude_ftth">
           <div class="form-row">
-            <div><label>Customer ID</label><input id="f1c" placeholder="Ex: CUST-00123"></div>
-            <div><label>Nom Client</label><input id="f1n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label data-i18n="common.customerId.label">Customer ID</label><input id="f1c" placeholder="Ex: CUST-00123"></div>
+            <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f1n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row">
-            <div><label>Téléphone (9 chiffres)</label><input id="f1t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-            <div><label>Ville</label><select id="f1v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+            <div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f1t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="common.ville.label">Ville</label><select id="f1v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f1')">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f1sec-row"><input id="f1sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f1')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f1sec-row"><input id="f1sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full">
-            <div><label>Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
+            <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
           </div>
         </div>
 
         <!-- INSTALLATION FTTH -->
         <div id="fields-install_ftth" class="hidden">
           <div class="form-row">
-            <div><label>N° FTTH (9 chiffres)</label><input id="f2u" placeholder="233444445" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f2v')" onblur="lookupClientLocal(this.value)"></div>
-            <div><label>Nom Client</label><input id="f2n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label data-i18n="label.numFtth">N° FTTH (9 chiffres)</label><input id="f2u" placeholder="233444445" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f2v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f2n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label>Téléphone (9 chiffres)</label><input id="f2t" placeholder="694561304" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label>Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f2')">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f2sec-row"><input id="f2sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-          <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f2v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f2t" placeholder="694561304" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f2')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f2sec-row"><input id="f2sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f2v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
           <div class="form-row">
-            <div><label>FDT</label><input id="f2fdt" placeholder="Ex: FDT-1"></div>
-            <div><label>FAT</label><input id="f2fat" placeholder="Ex: FAT-12"></div>
+            <div><label data-i18n="label.fdt">FDT</label><input id="f2fdt" placeholder="Ex: FDT-1"></div>
+            <div><label data-i18n="label.fat">FAT</label><input id="f2fat" placeholder="Ex: FAT-12"></div>
           </div>
         </div>
 
         <!-- DÉRANGEMENT FTTH -->
         <div id="fields-derang_ftth" class="hidden">
           <div class="form-row">
-            <div><label>N° FTTH (9 chiffres)</label><input id="f3u" placeholder="233442022" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f3v')" onblur="lookupClientLocal(this.value)"></div>
-            <div><label>Nom Client</label><input id="f3n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label data-i18n="label.numFtth">N° FTTH (9 chiffres)</label><input id="f3u" placeholder="233442022" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f3v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f3n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label>Téléphone (9 chiffres)</label><input id="f3t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label>Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f3')">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f3sec-row"><input id="f3sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-          <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f3v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f3t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f3')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f3sec-row"><input id="f3sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f3v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
         <!-- DÉRANGEMENT CUIVRE -->
         <div id="fields-derang_cuivre" class="hidden">
           <div class="form-row">
-            <div><label>N° Cuivre (9 chiffres)</label><input id="f4u" placeholder="233441164" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f4v')" onblur="lookupClientLocal(this.value)"></div>
-            <div><label>Nom Client</label><input id="f4n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label data-i18n="label.numCuivre">N° Cuivre (9 chiffres)</label><input id="f4u" placeholder="233441164" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f4v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f4n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label>Téléphone (9 chiffres)</label><input id="f4t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label>Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f4')">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f4sec-row"><input id="f4sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-          <div class="form-row full"><div><label>Ville (auto-détectée)</label><select id="f4v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f4t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f4')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f4sec-row"><input id="f4sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f4v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
         <!-- ÉTUDE LS -->
         <div id="fields-etude_ls" class="hidden">
           <div class="form-row full">
-            <div><label>Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label data-i18n="common.nomClientLs.label">Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row">
-            <div><label>Téléphone (9 chiffres)</label><input id="f5t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-            <div><label>Ville</label><select id="f5v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+            <div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f5t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="common.ville.label">Ville</label><select id="f5v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f5')">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f5sec-row"><input id="f5sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-          <div class="form-row full"><div><label>Localité / Quartier</label><input id="f5l" placeholder="Localité"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f5')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f5sec-row"><input id="f5sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f5l" placeholder="Localité" data-i18n-ph="common.localite.ph"></div></div>
         </div>
 
         <!-- DÉRANGEMENT LS -->
         <div id="fields-derang_ls" class="hidden">
           <div class="form-row full">
-            <div><label>Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label data-i18n="common.nomClientLs.label">Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row">
-            <div><label>Téléphone (9 chiffres)</label><input id="f6t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-            <div><label>Ville</label><select id="f6v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+            <div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f6t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="common.ville.label">Ville</label><select id="f6v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f6')">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f6sec-row"><input id="f6sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-          <div class="form-row full"><div><label>Localité / Quartier</label><input id="f6l" placeholder="Localité"></div></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f6')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f6sec-row"><input id="f6sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row full"><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f6l" placeholder="Localité" data-i18n-ph="common.localite.ph"></div></div>
         </div>
 
         <!-- INSTALLATION LS -->
         <div id="fields-install_ls" class="hidden">
           <div class="form-row full">
-            <div><label>Nom Client LS</label><input id="f7n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label data-i18n="common.nomClientLs.label">Nom Client LS</label><input id="f7n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row">
-            <div><label>Téléphone (9 chiffres)</label><input id="f7t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-            <div><label>POP</label>
+            <div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f7t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="label.pop">POP</label>
               <select id="f7p">
-                <option value="">-- Sélectionner POP --</option>
+                <option value="" data-i18n="select.pop.default">-- Sélectionner POP --</option>
                 <option value="POP REGION">POP REGION</option>
                 <option value="POP FAISCEAU">POP FAISCEAU</option>
               </select>
             </div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f7')">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f7sec-row"><input id="f7sec" placeholder="Numéro secondaire (9 chiffres)" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <button type="button" class="btn-addnum" onclick="toggleSecNum('f7')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+          <div class="secnum-row" id="f7sec-row"><input id="f7sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full">
-            <div><label>Ville</label>
-              <select id="f7v"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
+            <div><label data-i18n="common.ville.label">Ville</label>
+              <select id="f7v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
             </div>
           </div>
           <div class="form-row full">
             <div>
-              <label>Coordonnées GPS du client</label>
+              <label data-i18n="label.gpsClient">Coordonnées GPS du client</label>
               <div class="gps-row">
                 <input type="text" id="f7g" placeholder="Ex: 5.476400, 10.419100">
-                <button type="button" class="btn-gps" onclick="getGPSField('f7g',this)">📍 Localiser</button>
+                <button type="button" class="btn-gps" onclick="getGPSField('f7g',this)" data-i18n="btn.locate">📍 Localiser</button>
               </div>
             </div>
           </div>
           <div class="form-row full">
-            <div><label>Coordonnées de la chambre signalée</label><input id="f7c" placeholder="Ex: 5.476123, 10.419456"></div>
+            <div><label data-i18n="label.chambreCoord">Coordonnées de la chambre signalée</label><input id="f7c" placeholder="Ex: 5.476123, 10.419456"></div>
           </div>
           <div class="form-row full">
-            <div><label>Autres informations</label><textarea id="f7x" placeholder="Remarques, détails supplémentaires..."></textarea></div>
+            <div><label data-i18n="label.autresInfos">Autres informations</label><textarea id="f7x" placeholder="Remarques, détails supplémentaires..." data-i18n-ph="ph.remarquesDetails"></textarea></div>
           </div>
         </div>
 
-        <div class="mt-3"><button id="btn-add-inv" class="btn btn-outline" onclick="addInv()">➕ Ajouter à la liste</button></div>
+        <div class="mt-3"><button id="btn-add-inv" class="btn btn-outline" onclick="addInv()" data-i18n="btn.addToList">➕ Ajouter à la liste</button></div>
       </div>
 
       <div id="preview-section" class="hidden">
         <div class="card">
-          <div class="card-title">📄 Aperçu — interventions à publier</div>
+          <div class="card-title" data-i18n="preview.title">📄 Aperçu — interventions à publier</div>
           <div id="preview-content"></div>
           <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
-            <button class="btn btn-primary" id="btn-pub" onclick="publishConsistance()">☁️ Publier</button>
-            <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑️ Effacer</button>
+            <button class="btn btn-primary" id="btn-pub" onclick="publishConsistance()" data-i18n="btn.publish">☁️ Publier</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAll()" data-i18n="btn.clear">🗑️ Effacer</button>
           </div>
         </div>
       </div>
@@ -477,71 +481,71 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
     <!-- PAGE CLIENTS chef -->
     <div class="page" id="page-clients">
-      <div class="page-title">Base <span>Clients</span></div>
-      <div class="page-sub">Annuaire automatique — mis à jour à chaque publication</div>
+      <div class="page-title" data-i18n-html="clients.title">Base <span>Clients</span></div>
+      <div class="page-sub" data-i18n="clients.sub">Annuaire automatique — mis à jour à chaque publication</div>
       <div class="client-search-bar">
-        <input type="text" id="client-search" placeholder="🔍 Rechercher par numéro, nom, localité..." oninput="filterClients()">
-        <button class="btn btn-ghost btn-sm" onclick="refreshClients()">↺ Actualiser</button>
+        <input type="text" id="client-search" placeholder="🔍 Rechercher par numéro, nom, localité..." data-i18n-ph="clients.search.ph" oninput="filterClients()">
+        <button class="btn btn-ghost btn-sm" onclick="refreshClients()" data-i18n="btn.refresh">↺ Actualiser</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
-        <div id="clients-table-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
+        <div id="clients-table-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
       </div>
     </div>
 
     <!-- PAGE CLIENTS technicien -->
     <div class="page" id="page-clients-ro">
-      <div class="page-title">Base <span>Clients</span></div>
-      <div class="page-sub">Consultation de l'annuaire — lecture seule</div>
+      <div class="page-title" data-i18n-html="clients.title">Base <span>Clients</span></div>
+      <div class="page-sub" data-i18n="clients.sub.ro">Consultation de l'annuaire — lecture seule</div>
       <div class="client-search-bar">
-        <input type="text" id="client-search-ro" placeholder="🔍 Rechercher..." oninput="filterClientsRO()">
-        <button class="btn btn-ghost btn-sm" onclick="refreshClientsRO()">↺ Actualiser</button>
+        <input type="text" id="client-search-ro" placeholder="🔍 Rechercher..." data-i18n-ph="clients.search.ro.ph" oninput="filterClientsRO()">
+        <button class="btn btn-ghost btn-sm" onclick="refreshClientsRO()" data-i18n="btn.refresh">↺ Actualiser</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
-        <div id="clients-table-ro-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
+        <div id="clients-table-ro-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
       </div>
     </div>
 
     <!-- PAGE TERRAIN -->
     <div class="page" id="page-terrain">
-      <div class="page-title">Fiche du <span id="terrain-date-title">Jour</span></div>
-      <div class="page-sub" id="terrain-chef-sub">Mettez à jour vos interventions en temps réel</div>
+      <div class="page-title" data-i18n-html="terrain.title.html">Fiche du <span id="terrain-date-title">Jour</span></div>
+      <div class="page-sub" id="terrain-chef-sub" data-i18n="terrain.subUpdate">Mettez à jour vos interventions en temps réel</div>
       <div id="terrain-quartier-summary" class="hidden"></div>
-      <div id="terrain-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
+      <div id="terrain-content"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
     </div>
 
     <!-- PAGE HISTORIQUE -->
     <div class="page" id="page-historique">
-      <div class="page-title"><span>Historique</span> — <span id="histo-month-label">...</span></div>
-      <div class="page-sub">
+      <div class="page-title" data-i18n-html="histo.title.html"><span>Historique</span> — <span id="histo-month-label">...</span></div>
+      <div class="page-sub" data-i18n-html="histo.sub.html">
         Toutes les fiches classées par mois
         <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>
       </div>
       <div id="stats-wrap" class="hidden"><div class="stats-row" id="stats-row"></div></div>
       <div id="quartier-wrap" class="hidden"></div>
-      <div id="historique-content"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
+      <div id="historique-content"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
     </div>
 
     <!-- PAGE ADMIN -->
     <div class="page" id="page-admin">
-      <div class="page-title">Gestion des <span>Utilisateurs</span></div>
-      <div class="page-sub">Créer des comptes chef/technicien, réinitialiser un PIN, désactiver un accès</div>
+      <div class="page-title" data-i18n-html="admin.title">Gestion des <span>Utilisateurs</span></div>
+      <div class="page-sub" data-i18n="admin.sub">Créer des comptes chef/technicien, réinitialiser un PIN, désactiver un accès</div>
       <div class="card">
-        <div class="card-title">➕ Nouvel utilisateur</div>
+        <div class="card-title" data-i18n="admin.newUser">➕ Nouvel utilisateur</div>
         <div class="form-row">
-          <div><label>Nom</label><input id="adm-nom" placeholder="Ex: NDZOUALI Joel"></div>
-          <div><label>PIN (4 à 6 chiffres)</label><input id="adm-pin" maxlength="6" inputmode="numeric" placeholder="1234"></div>
+          <div><label data-i18n="common.name.label">Nom</label><input id="adm-nom" placeholder="Ex: NDZOUALI Joel"></div>
+          <div><label data-i18n="admin.pinLabel">PIN (4 à 6 chiffres)</label><input id="adm-pin" maxlength="6" inputmode="numeric" placeholder="1234"></div>
         </div>
-        <div class="form-row full"><div><label>Rôle(s) — un compte peut cumuler plusieurs rôles</label>
+        <div class="form-row full"><div><label data-i18n="admin.rolesLabel">Rôle(s) — un compte peut cumuler plusieurs rôles</label>
           <div style="display:flex;gap:14px;margin-top:6px;">
-            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="chef" style="width:auto;"> Chef centre</label>
-            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="technicien" style="width:auto;" checked> Technicien</label>
-            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="admin" style="width:auto;"> Administrateur</label>
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="chef" style="width:auto;"> <span data-i18n="common.chefCentre.label">Chef centre</span></label>
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="technicien" style="width:auto;" checked> <span data-i18n="common.technicien.label">Technicien</span></label>
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="admin" style="width:auto;"> <span data-i18n="common.administrateur.label">Administrateur</span></label>
           </div>
         </div></div>
-        <button class="btn btn-primary btn-sm" onclick="adminAddUserUI()">➕ Créer</button>
+        <button class="btn btn-primary btn-sm" onclick="adminAddUserUI()" data-i18n="btn.create">➕ Créer</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden;margin-top:14px;">
-        <div id="admin-users-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div></div>
+        <div id="admin-users-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
       </div>
     </div>
 
@@ -552,12 +556,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 <!-- MODAL UPDATE -->
 <div class="modal-overlay" id="modal-update">
   <div class="modal-box">
-    <div class="modal-title">⚠️ Client déjà enregistré</div>
-    <div class="modal-body">Les informations saisies diffèrent de la fiche client en base. Mettre à jour ?</div>
+    <div class="modal-title" data-i18n="updConfirm.title">⚠️ Client déjà enregistré</div>
+    <div class="modal-body" data-i18n="updConfirm.body">Les informations saisies diffèrent de la fiche client en base. Mettre à jour ?</div>
     <div class="modal-diff" id="modal-diff"></div>
     <div class="flex gap-2" style="flex-wrap:wrap;">
-      <button class="btn btn-green btn-sm" onclick="confirmUpdate(true)">✅ Mettre à jour</button>
-      <button class="btn btn-ghost btn-sm" onclick="confirmUpdate(false)">Garder l'ancienne</button>
+      <button class="btn btn-green btn-sm" onclick="confirmUpdate(true)" data-i18n="updConfirm.update">✅ Mettre à jour</button>
+      <button class="btn btn-ghost btn-sm" onclick="confirmUpdate(false)" data-i18n="updConfirm.keepOld">Garder l'ancienne</button>
     </div>
   </div>
 </div>
@@ -572,6 +576,465 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
 <script>
 // ══════════════════════════════════════════════
+//  I18N — Français / English (langue auto-détectée depuis le système)
+//  NOTE : ceci ne traduit QUE l'affichage. Les valeurs envoyées/stockées côté
+//  backend (Statut, Type/typeLabel, noms de quartiers/villes) restent en
+//  français quelle que soit la langue de l'interface — Code.gs et la clé de
+//  déduplication (nom|num|type) dépendent de ces chaînes exactes.
+// ══════════════════════════════════════════════
+const LANG=(navigator.language||'fr').toLowerCase().startsWith('en')?'en':'fr';
+document.documentElement.lang=LANG;
+
+const I18N={
+fr:{
+  'doc.title':'CERAF Bafoussam — Consistance des Travaux',
+  'setup.title':'⚙️ Configuration initiale',
+  'setup.sub':'À faire <strong>une seule fois</strong> sur chaque appareil.',
+  'setup.step1':"Dans Apps Script → <strong>Déployer → Gérer les déploiements</strong>",
+  'setup.step2':"Copie l'URL <code>https://script.google.com/macros/s/.../exec</code>",
+  'setup.step3':"Colle-la ci-dessous et clique <strong>Enregistrer</strong>",
+  'setup.url.label':'URL Apps Script',
+  'setup.save.btn':'✅ Enregistrer',
+  'login.tagline':'Consistance des Travaux — Connexion',
+  'login.name.ph':'Votre nom',
+  'login.pin.label':'Code PIN',
+  'login.btn':'🔓 Se connecter',
+  'login.btn.loading':'⏳ Connexion...',
+  'login.note':'Connexion valable 30 jours sur cet appareil',
+  'login.err.required':'Nom et PIN requis',
+  'roleswitch.tagline':'Sous quel rôle voulez-vous continuer ?',
+  'offline.banner':'📵 Hors ligne — Les mises à jour de statut seront synchronisées au retour du réseau',
+  'topbar.roleSwitch.btn':'⇄ Rôle',
+  'topbar.logout.btn':'⏻ Déconnexion',
+  'nav.chef':'👷 Consistance','nav.clients':'👥 Clients','nav.historique':'📁 Historique',
+  'nav.admin':'🔑 Utilisateurs','nav.terrain':'📡 Terrain',
+  'badge.chef':'👷 Chef centre','badge.admin':'🔑 Administrateur','badge.technicien':'📡 Technicien',
+  'chef.title':'Créer la <span>Consistance</span>',
+  'chef.sub':"Chaque publication s'ajoute à la fiche du jour",
+  'chef.card.general':'📋 Informations générales',
+  'common.date.label':'Date (JJ/MM/AAAA)',
+  'common.date.ph':'JJ/MM/AAAA',
+  'common.name.label':'Nom',
+  'common.chefCentre.label':'Chef centre',
+  'common.select.default':'-- Sélectionner --',
+  'common.other':'Autre...',
+  'chef.newChef.ph':'Nouveau chef',
+  'chef.addInv.title':'➕ Ajouter une intervention',
+  'type.etude_ftth':'Étude FTTH','type.install_ftth':'Installation FTTH','type.derang_ftth':'Dérang. FTTH',
+  'type.derang_cuivre':'Dérang. Cuivre','type.etude_ls':'Étude LS','type.derang_ls':'Dérang. LS','type.install_ls':'Install. LS',
+  'common.customerId.label':'Customer ID',
+  'common.nomClient.label':'Nom Client',
+  'common.nomClientLs.label':'Nom Client LS',
+  'common.tel.label':'Téléphone (9 chiffres)',
+  'common.ville.label':'Ville',
+  'common.villeAuto.label':'Ville (auto-détectée)',
+  'common.addNum.btn':'+ Ajouter un numéro',
+  'common.numSec.ph':'Numéro secondaire (9 chiffres)',
+  'common.locQuartier.label':'Localité / Quartier',
+  'common.localite.ph':'Localité',
+  'label.numFtth':'N° FTTH (9 chiffres)',
+  'label.numCuivre':'N° Cuivre (9 chiffres)',
+  'label.fdt':'FDT','label.fat':'FAT','label.pop':'POP',
+  'select.pop.default':'-- Sélectionner POP --',
+  'label.gpsClient':'Coordonnées GPS du client',
+  'btn.locate':'📍 Localiser',
+  'label.chambreCoord':'Coordonnées de la chambre signalée',
+  'label.autresInfos':'Autres informations',
+  'ph.remarquesDetails':'Remarques, détails supplémentaires...',
+  'btn.addToList':'➕ Ajouter à la liste',
+  'btn.addToList.fallback':'+ Ajouter',
+  'common.loading':'⏳ Chargement...',
+  'common.loadingP':'Chargement...',
+  'preview.title':'📄 Aperçu — interventions à publier',
+  'btn.publish':'☁️ Publier',
+  'btn.publish.loading':'⏳ Publication...',
+  'btn.clear':'🗑️ Effacer',
+  'clients.title':'Base <span>Clients</span>',
+  'clients.sub':'Annuaire automatique — mis à jour à chaque publication',
+  'clients.sub.ro':"Consultation de l'annuaire — lecture seule",
+  'clients.search.ph':'🔍 Rechercher par numéro, nom, localité...',
+  'clients.search.ro.ph':'🔍 Rechercher...',
+  'btn.refresh':'↺ Actualiser',
+  'clients.th.num':'N° Ligne','clients.th.nom':'Nom','clients.th.tel':'Téléphone','clients.th.tel2':'2ème contact',
+  'clients.th.loc':'Localité','clients.th.ville':'Ville','clients.th.quartier':'Quartier','clients.th.service':'Service','clients.th.gps':'GPS',
+  'clients.empty':'Aucun client enregistré.',
+  'gps.viewLink':'📌 Voir',
+  'terrain.title.html':'Fiche du <span id="terrain-date-title">Jour</span>',
+  'terrain.subUpdate':'Mettez à jour vos interventions en temps réel',
+  'terrain.empty':"Aucune consistance publiée aujourd'hui.",
+  'terrain.offlineCache':'📱 Mode hors ligne — fiche du cache',
+  'terrain.repartition.title':'📍 Répartition par quartier (aujourd\'hui)',
+  'filter.byStatus':'Filtrer par statut',
+  'filter.byType':'Filtrer par type',
+  'common.all':'Tous',
+  'quartier.unidentified':'Quartier non identifié',
+  'quartier.noIntervention':'Aucune intervention dans ce quartier.',
+  'quartier.noVille':'Ville non précisée',
+  'common.today':"aujourd'hui",
+  'common.thisMonth':'ce mois-ci',
+  'btn.close':'Fermer',
+  'btn.cancel':'Annuler',
+  'doublon.title':'⚠️ Intervention déjà en cours',
+  'doublon.body':'Cette intervention semble déjà en cours (créée le {date}, {statut}). Continuer quand même ?',
+  'doublon.continue':'Continuer quand même',
+  'quartierInconnu.title':'⚠️ Quartier non reconnu',
+  'quartierInconnu.body':'Le texte saisi (<strong>"{loc}"</strong>) ne correspond à aucun quartier connu de Bafoussam.',
+  'quartierInconnu.didYouMean':'Vouliez-vous dire :',
+  'quartierInconnu.continueWithout':'Continuer sans quartier',
+  'quartierInconnu.cancelFix':'Annuler / Corriger',
+  'updConfirm.title':'⚠️ Client déjà enregistré',
+  'updConfirm.body':'Les informations saisies diffèrent de la fiche client en base. Mettre à jour ?',
+  'updConfirm.update':'✅ Mettre à jour',
+  'updConfirm.keepOld':"Garder l'ancienne",
+  'diff.nom':'Nom :','diff.tel':'Tél :','diff.loc':'Localité :','diff.ville':'Ville :','diff.detected':'Différence détectée',
+  'badge.transferred':'Transférée',
+  'ph.remarque':'Remarque...',
+  'ph.smallRemark':'Petite remarque...',
+  'ph.gpsCoord':'Coordonnées GPS (ex: 5.4764, 10.4191)',
+  'etude.title':'🔧 Faisabilité raccordement',
+  'ph.fdtEx':'FDT (ex: FDT-1)','ph.fatEx':'FAT (ex: FAT-12)',
+  'ph.distanceEx':'Distance client-FAT (mètres)',
+  'select.conclusion.default':'-- Conclusion --',
+  'conclusion.favorable':'✅ FAVORABLE','conclusion.defavorable':'❌ DÉFAVORABLE',
+  'derang.natureTitle':'⚡ Nature de la panne',
+  'gps.saved':'📌 GPS enregistré',
+  'gps.fromClientCard':' (depuis fiche client)',
+  'btn.openMaps':'Ouvrir sur Maps 🗺️',
+  'btn.updateGps':'💾 Mettre à jour GPS',
+  'common.carriedFrom':'🔄 Reporté depuis le {date}',
+  'common.noRemark':'Aucune remarque saisie.',
+  'common.remarksHeading':'💬 Remarques',
+  'btn.delete':'🗑️ Supprimer',
+  'confirm.deleteInv':'Supprimer définitivement cette intervention ?\n\nCette action est irréversible.',
+  'toast.invDeleted':'🗑️ Intervention supprimée',
+  'warn.selectConclusion':'⚠️ Sélectionnez FAVORABLE ou DÉFAVORABLE avant de conclure',
+  'warn.selectPanne':'⚠️ Déterminez la nature de la panne avant de conclure',
+  'toast.statusOfflineSaved':'📵 Statut sauvegardé — sera synchronisé au retour du réseau',
+  'toast.statusUpdated':'✅ Statut mis à jour',
+  'toast.savedLocally':'⚠️ Sauvegardé localement — sera synchronisé plus tard',
+  'histo.title.html':'<span>Historique</span> — <span id="histo-month-label">...</span>',
+  'histo.sub.html':'Toutes les fiches classées par mois <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>',
+  'stat.interventions':'Interventions','stat.completed':'Réalisées','stat.outstanding':'Instances',
+  'histo.noData':'Aucune donnée.',
+  'histo.noDataMonth':'Aucune donnée pour ce mois.',
+  'histo.repartition.title':'📍 Répartition par quartier — cliquez pour filtrer',
+  'histo.noFilterResult':'Aucune intervention pour ce filtre ce mois-ci.',
+  'histo.resolvedOn':'✅ Résolu le {date}',
+  'histo.lastCarry':'🔄 Dernier report : {date}',
+  'histo.sinceDate':'📅 Depuis le {date}',
+  'histo.firstIteration':'📅 Première itération le {date}',
+  'btn.back':'← Retour',
+  'histo.consistanceHeader':'Consistance — {date}',
+  'admin.title':'Gestion des <span>Utilisateurs</span>',
+  'admin.sub':'Créer des comptes chef/technicien, réinitialiser un PIN, désactiver un accès',
+  'admin.newUser':'➕ Nouvel utilisateur',
+  'admin.pinLabel':'PIN (4 à 6 chiffres)',
+  'admin.rolesLabel':'Rôle(s) — un compte peut cumuler plusieurs rôles',
+  'common.technicien.label':'Technicien',
+  'common.administrateur.label':'Administrateur',
+  'btn.create':'➕ Créer',
+  'admin.th.roles':'Rôle(s)','admin.th.actif':'Actif','admin.th.lastLogin':'Dernière connexion',
+  'admin.noUsers':'Aucun utilisateur.',
+  'btn.editRoles':'✏️ Rôles','btn.resetPin':'🔑 PIN','btn.deactivate':'⛔ Désactiver','btn.activate':'✅ Activer',
+  'valid.nomPinRequired':'⚠️ Nom et PIN (4 à 6 chiffres) requis',
+  'valid.roleRequired':'⚠️ Sélectionnez au moins un rôle',
+  'toast.userCreated':'✅ Utilisateur créé',
+  'prompt.editRoles':'Rôles pour {nom} — séparés par une virgule.\nValeurs possibles : chef, technicien, admin',
+  'valid.atLeastOneRole':'⚠️ Au moins un rôle requis',
+  'toast.rolesUpdated':'✅ Rôles mis à jour',
+  'toast.activated':'✅ Activé','toast.deactivated':'⛔ Désactivé',
+  'prompt.newPin':'Nouveau PIN pour {nom} (4 à 6 chiffres) :',
+  'valid.pinInvalid':'⚠️ PIN invalide',
+  'toast.pinReset':'✅ PIN réinitialisé',
+  'confirm.deleteUser':"Supprimer l'utilisateur {nom} ?",
+  'toast.deleted':'🗑️ Supprimé',
+  'err.prefix':'❌ Erreur : ','err.generic':'Erreur',
+  'err.invalidUrl':'❌ URL invalide',
+  'err.loginFailed':'Connexion impossible',
+  'err.loginNetwork':'Connexion impossible — vérifiez le réseau',
+  'err.sessionExpired':'⚠️ Session expirée — reconnectez-vous',
+  'valid.numRequired':'⚠️ Le numéro de ligne est obligatoire (9 chiffres exactement)',
+  'valid.nomOrCustomerId':'⚠️ Renseignez au moins le nom ou le Customer ID',
+  'valid.villeRequired':'⚠️ Sélectionnez la ville',
+  'valid.9digits':'Le numéro doit contenir exactement 9 chiffres',
+  'valid.lineRequired':'Le numéro de ligne est obligatoire',
+  'valid.9digitsSecondary':'Le numéro secondaire doit contenir exactement 9 chiffres',
+  'valid.dateInvalid':'⚠️ Date invalide — format JJ/MM/AAAA',
+  'valid.chefRequired':'⚠️ Sélectionnez ou saisissez le chef centre',
+  'valid.atLeastOneInv':'⚠️ Ajoutez au moins une intervention',
+  'toast.published':'✅ Publié !',
+  'err.checkConnection':'Vérifiez la connexion',
+  'toast.refreshed':'✅ Actualisé',
+  'err.noGeoloc':'❌ Votre navigateur ne supporte pas la géolocalisation',
+  'err.gpsHttps':"❌ GPS bloqué : la page doit être en HTTPS (vérifiez l'URL)",
+  'toast.position':'✅ Position : {c}',
+  'err.gpsGeneric':'❌ GPS indisponible',
+  'err.gpsPermission':'❌ Permission refusée — autorisez la localisation dans les paramètres du navigateur',
+  'err.gpsUnavailable':'❌ Position indisponible — vérifiez que le GPS du téléphone est activé',
+  'err.gpsTimeout':'❌ Délai dépassé — réessayez, ou saisissez les coordonnées manuellement',
+  'valid.gpsRequired':'⚠️ Obtenez ou saisissez les coordonnées GPS',
+  'toast.gpsSaved':'✅ GPS enregistré',
+  'err.gpsError':'❌ Erreur GPS',
+  'err.invalidCoords':'❌ Coordonnées invalides',
+  'toast.gpsNotedLater':'ℹ️ GPS noté — sera enregistré à la prochaine publication',
+  'toast.editFields':'✏️ Modifiez les champs puis cliquez "Ajouter à la liste"',
+  'confirm.clear':'Effacer ?',
+  'err.displayError':"❌ Erreur d'affichage",
+  'err.corruptData':"❌ Erreur d'affichage de la fiche — données corrompues",
+  'toast.syncedStatuses':'✅ {n} statut(s) synchronisé(s)',
+  'sync.syncing':'Sync...','sync.synced':'Synchronisé','sync.offline':'Hors ligne','sync.loading':'Chargement...',
+  'err.connectionImpossible':'Connexion impossible.',
+  'err.deleteImpossible':'suppression impossible',
+  'role.chef.titre':'Chef centre','role.chef.desc':'Créer et publier la consistance du jour',
+  'role.technicien.titre':'Technicien','role.technicien.desc':'Consulter la fiche et mettre à jour vos interventions',
+  'role.admin.titre':'Administrateur','role.admin.desc':'Gérer les comptes utilisateurs'
+},
+en:{
+  'doc.title':'CERAF Bafoussam — Task Sheet',
+  'setup.title':'⚙️ Initial setup',
+  'setup.sub':'To do <strong>once only</strong> on each device.',
+  'setup.step1':"In Apps Script → <strong>Deploy → Manage deployments</strong>",
+  'setup.step2':"Copy the URL <code>https://script.google.com/macros/s/.../exec</code>",
+  'setup.step3':"Paste it below and click <strong>Save</strong>",
+  'setup.url.label':'Apps Script URL',
+  'setup.save.btn':'✅ Save',
+  'login.tagline':'Task Sheet — Login',
+  'login.name.ph':'Your name',
+  'login.pin.label':'PIN code',
+  'login.btn':'🔓 Log in',
+  'login.btn.loading':'⏳ Logging in...',
+  'login.note':'Login valid for 30 days on this device',
+  'login.err.required':'Name and PIN required',
+  'roleswitch.tagline':'Which role do you want to continue as?',
+  'offline.banner':'📵 Offline — status updates will sync once the network is back',
+  'topbar.roleSwitch.btn':'⇄ Role',
+  'topbar.logout.btn':'⏻ Log out',
+  'nav.chef':'👷 Task Sheet','nav.clients':'👥 Customers','nav.historique':'📁 History',
+  'nav.admin':'🔑 Users','nav.terrain':'📡 Field',
+  'badge.chef':'👷 Center Supervisor','badge.admin':'🔑 Administrator','badge.technicien':'📡 Technician',
+  'chef.title':'Create the <span>Task Sheet</span>',
+  'chef.sub':"Each publication is added to today's sheet",
+  'chef.card.general':'📋 General information',
+  'common.date.label':'Date (DD/MM/YYYY)',
+  'common.date.ph':'DD/MM/YYYY',
+  'common.name.label':'Name',
+  'common.chefCentre.label':'Center Supervisor',
+  'common.select.default':'-- Select --',
+  'common.other':'Other...',
+  'chef.newChef.ph':'New supervisor',
+  'chef.addInv.title':'➕ Add an intervention',
+  'type.etude_ftth':'FTTH Survey','type.install_ftth':'FTTH Installation','type.derang_ftth':'FTTH Fault',
+  'type.derang_cuivre':'Copper Fault','type.etude_ls':'LS Survey','type.derang_ls':'LS Fault','type.install_ls':'LS Installation',
+  'common.customerId.label':'Customer ID',
+  'common.nomClient.label':'Customer Name',
+  'common.nomClientLs.label':'LS Customer Name',
+  'common.tel.label':'Phone (9 digits)',
+  'common.ville.label':'City',
+  'common.villeAuto.label':'City (auto-detected)',
+  'common.addNum.btn':'+ Add a number',
+  'common.numSec.ph':'Secondary number (9 digits)',
+  'common.locQuartier.label':'Location / Neighborhood',
+  'common.localite.ph':'Location',
+  'label.numFtth':'FTTH Number (9 digits)',
+  'label.numCuivre':'Copper Number (9 digits)',
+  'label.fdt':'FDT','label.fat':'FAT','label.pop':'POP',
+  'select.pop.default':'-- Select POP --',
+  'label.gpsClient':'Customer GPS coordinates',
+  'btn.locate':'📍 Locate',
+  'label.chambreCoord':'Reported manhole coordinates',
+  'label.autresInfos':'Additional information',
+  'ph.remarquesDetails':'Remarks, additional details...',
+  'btn.addToList':'➕ Add to list',
+  'btn.addToList.fallback':'+ Add',
+  'common.loading':'⏳ Loading...',
+  'common.loadingP':'Loading...',
+  'preview.title':'📄 Preview — interventions to publish',
+  'btn.publish':'☁️ Publish',
+  'btn.publish.loading':'⏳ Publishing...',
+  'btn.clear':'🗑️ Clear',
+  'clients.title':'Customer <span>Directory</span>',
+  'clients.sub':'Automatic directory — updated on every publication',
+  'clients.sub.ro':'Directory lookup — read-only',
+  'clients.search.ph':'🔍 Search by number, name, location...',
+  'clients.search.ro.ph':'🔍 Search...',
+  'btn.refresh':'↺ Refresh',
+  'clients.th.num':'Line No.','clients.th.nom':'Name','clients.th.tel':'Phone','clients.th.tel2':'2nd contact',
+  'clients.th.loc':'Location','clients.th.ville':'City','clients.th.quartier':'Neighborhood','clients.th.service':'Service','clients.th.gps':'GPS',
+  'clients.empty':'No customers registered.',
+  'gps.viewLink':'📌 View',
+  'terrain.title.html':'Sheet for <span id="terrain-date-title">Today</span>',
+  'terrain.subUpdate':'Update your interventions in real time',
+  'terrain.empty':'No task sheet published today.',
+  'terrain.offlineCache':'📱 Offline mode — sheet from cache',
+  'terrain.repartition.title':"📍 Breakdown by neighborhood (today)",
+  'filter.byStatus':'Filter by status',
+  'filter.byType':'Filter by type',
+  'common.all':'All',
+  'quartier.unidentified':'Unidentified neighborhood',
+  'quartier.noIntervention':'No intervention in this neighborhood.',
+  'quartier.noVille':'City not specified',
+  'common.today':'today',
+  'common.thisMonth':'this month',
+  'btn.close':'Close',
+  'btn.cancel':'Cancel',
+  'doublon.title':'⚠️ Intervention already in progress',
+  'doublon.body':'This intervention seems already in progress (created on {date}, {statut}). Continue anyway?',
+  'doublon.continue':'Continue anyway',
+  'quartierInconnu.title':'⚠️ Neighborhood not recognized',
+  'quartierInconnu.body':'The text entered (<strong>"{loc}"</strong>) does not match any known neighborhood of Bafoussam.',
+  'quartierInconnu.didYouMean':'Did you mean:',
+  'quartierInconnu.continueWithout':'Continue without a neighborhood',
+  'quartierInconnu.cancelFix':'Cancel / Fix',
+  'updConfirm.title':'⚠️ Customer already registered',
+  'updConfirm.body':'The entered information differs from the customer record on file. Update it?',
+  'updConfirm.update':'✅ Update',
+  'updConfirm.keepOld':'Keep the old one',
+  'diff.nom':'Name:','diff.tel':'Phone:','diff.loc':'Location:','diff.ville':'City:','diff.detected':'Difference detected',
+  'badge.transferred':'Transferred',
+  'ph.remarque':'Remark...',
+  'ph.smallRemark':'Short remark...',
+  'ph.gpsCoord':'GPS coordinates (e.g. 5.4764, 10.4191)',
+  'etude.title':'🔧 Connection feasibility',
+  'ph.fdtEx':'FDT (e.g. FDT-1)','ph.fatEx':'FAT (e.g. FAT-12)',
+  'ph.distanceEx':'Customer-FAT distance (meters)',
+  'select.conclusion.default':'-- Conclusion --',
+  'conclusion.favorable':'✅ FAVORABLE','conclusion.defavorable':'❌ UNFAVORABLE',
+  'derang.natureTitle':'⚡ Nature of the fault',
+  'gps.saved':'📌 GPS saved',
+  'gps.fromClientCard':' (from customer record)',
+  'btn.openMaps':'Open in Maps 🗺️',
+  'btn.updateGps':'💾 Update GPS',
+  'common.carriedFrom':'🔄 Carried forward from {date}',
+  'common.noRemark':'No remark entered.',
+  'common.remarksHeading':'💬 Remarks',
+  'btn.delete':'🗑️ Delete',
+  'confirm.deleteInv':'Permanently delete this intervention?\n\nThis action is irreversible.',
+  'toast.invDeleted':'🗑️ Intervention deleted',
+  'warn.selectConclusion':'⚠️ Select FAVORABLE or UNFAVORABLE before concluding',
+  'warn.selectPanne':'⚠️ Determine the nature of the fault before concluding',
+  'toast.statusOfflineSaved':'📵 Status saved — will sync once the network is back',
+  'toast.statusUpdated':'✅ Status updated',
+  'toast.savedLocally':'⚠️ Saved locally — will sync later',
+  'histo.title.html':'<span>History</span> — <span id="histo-month-label">...</span>',
+  'histo.sub.html':'All sheets sorted by month <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>',
+  'stat.interventions':'Interventions','stat.completed':'Completed','stat.outstanding':'Outstanding',
+  'histo.noData':'No data.',
+  'histo.noDataMonth':'No data for this month.',
+  'histo.repartition.title':'📍 Breakdown by neighborhood — click to filter',
+  'histo.noFilterResult':'No intervention for this filter this month.',
+  'histo.resolvedOn':'✅ Resolved on {date}',
+  'histo.lastCarry':'🔄 Last carry-forward: {date}',
+  'histo.sinceDate':'📅 Since {date}',
+  'histo.firstIteration':'📅 First occurrence on {date}',
+  'btn.back':'← Back',
+  'histo.consistanceHeader':'Task Sheet — {date}',
+  'admin.title':'<span>User</span> Management',
+  'admin.sub':'Create supervisor/technician accounts, reset a PIN, disable access',
+  'admin.newUser':'➕ New user',
+  'admin.pinLabel':'PIN (4 to 6 digits)',
+  'admin.rolesLabel':'Role(s) — an account can combine several roles',
+  'common.technicien.label':'Technician',
+  'common.administrateur.label':'Administrator',
+  'btn.create':'➕ Create',
+  'admin.th.roles':'Role(s)','admin.th.actif':'Active','admin.th.lastLogin':'Last login',
+  'admin.noUsers':'No users.',
+  'btn.editRoles':'✏️ Roles','btn.resetPin':'🔑 PIN','btn.deactivate':'⛔ Deactivate','btn.activate':'✅ Activate',
+  'valid.nomPinRequired':'⚠️ Name and PIN (4 to 6 digits) required',
+  'valid.roleRequired':'⚠️ Select at least one role',
+  'toast.userCreated':'✅ User created',
+  'prompt.editRoles':'Roles for {nom} — comma-separated.\nPossible values: chef, technicien, admin',
+  'valid.atLeastOneRole':'⚠️ At least one role required',
+  'toast.rolesUpdated':'✅ Roles updated',
+  'toast.activated':'✅ Activated','toast.deactivated':'⛔ Deactivated',
+  'prompt.newPin':'New PIN for {nom} (4 to 6 digits):',
+  'valid.pinInvalid':'⚠️ Invalid PIN',
+  'toast.pinReset':'✅ PIN reset',
+  'confirm.deleteUser':'Delete user {nom}?',
+  'toast.deleted':'🗑️ Deleted',
+  'err.prefix':'❌ Error: ','err.generic':'Error',
+  'err.invalidUrl':'❌ Invalid URL',
+  'err.loginFailed':'Login failed',
+  'err.loginNetwork':'Login failed — check your network',
+  'err.sessionExpired':'⚠️ Session expired — please log in again',
+  'valid.numRequired':'⚠️ The line number is required (exactly 9 digits)',
+  'valid.nomOrCustomerId':'⚠️ Enter at least the name or the Customer ID',
+  'valid.villeRequired':'⚠️ Select the city',
+  'valid.9digits':'The number must contain exactly 9 digits',
+  'valid.lineRequired':'The line number is required',
+  'valid.9digitsSecondary':'The secondary number must contain exactly 9 digits',
+  'valid.dateInvalid':'⚠️ Invalid date — format DD/MM/YYYY',
+  'valid.chefRequired':'⚠️ Select or enter the center supervisor',
+  'valid.atLeastOneInv':'⚠️ Add at least one intervention',
+  'toast.published':'✅ Published!',
+  'err.checkConnection':'Check your connection',
+  'toast.refreshed':'✅ Refreshed',
+  'err.noGeoloc':'❌ Your browser does not support geolocation',
+  'err.gpsHttps':'❌ GPS blocked: the page must be served over HTTPS (check the URL)',
+  'toast.position':'✅ Position: {c}',
+  'err.gpsGeneric':'❌ GPS unavailable',
+  'err.gpsPermission':'❌ Permission denied — allow location in your browser settings',
+  'err.gpsUnavailable':"❌ Position unavailable — check that the phone's GPS is enabled",
+  'err.gpsTimeout':'❌ Timed out — try again, or enter the coordinates manually',
+  'valid.gpsRequired':'⚠️ Get or enter the GPS coordinates',
+  'toast.gpsSaved':'✅ GPS saved',
+  'err.gpsError':'❌ GPS error',
+  'err.invalidCoords':'❌ Invalid coordinates',
+  'toast.gpsNotedLater':'ℹ️ GPS noted — will be saved at the next publication',
+  'toast.editFields':'✏️ Edit the fields then click "Add to list"',
+  'confirm.clear':'Clear?',
+  'err.displayError':'❌ Display error',
+  'err.corruptData':'❌ Error displaying the sheet — corrupted data',
+  'toast.syncedStatuses':'✅ {n} status(es) synced',
+  'sync.syncing':'Syncing...','sync.synced':'Synced','sync.offline':'Offline','sync.loading':'Loading...',
+  'err.connectionImpossible':'Connection failed.',
+  'err.deleteImpossible':'deletion failed',
+  'role.chef.titre':'Center Supervisor','role.chef.desc':"Create and publish today's task sheet",
+  'role.technicien.titre':'Technician','role.technicien.desc':'View the sheet and update your interventions',
+  'role.admin.titre':'Administrator','role.admin.desc':'Manage user accounts'
+}
+};
+function t(key,vars){
+  let s=(I18N[LANG]&&I18N[LANG][key])!==undefined?I18N[LANG][key]:(I18N.fr[key]!==undefined?I18N.fr[key]:key);
+  if(vars)Object.keys(vars).forEach(k=>{s=s.split('{'+k+'}').join(vars[k]);});
+  return s;
+}
+function applyStaticI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.getAttribute('data-i18n'));});
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>{el.innerHTML=t(el.getAttribute('data-i18n-html'));});
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{el.placeholder=t(el.getAttribute('data-i18n-ph'));});
+  document.title=t('doc.title');
+}
+
+// Traduction de statuts/types pour l'AFFICHAGE uniquement — les valeurs
+// exactes envoyées au backend (Statut, Type/typeLabel) ne changent jamais.
+const SL={
+  fr:{pending:'⏳ En attente',ok:'✅ Réalisé',unreachable:'📵 Injoignable',issue:'⚠️ Problème',transfere:'➡️ Transféré'},
+  en:{pending:'⏳ Pending',ok:'✅ Completed',unreachable:'📵 Unreachable',issue:'⚠️ Issue',transfere:'➡️ Transferred'}
+};
+const ROLE_LBL={fr:{chef:'Chef',technicien:'Technicien',admin:'Admin'},en:{chef:'Supervisor',technicien:'Technician',admin:'Admin'}};
+const TYPE_LABEL_EN={
+  'Études FTTH':'FTTH Surveys','Installations FTTH':'FTTH Installations','Dérangements FTTH':'FTTH Faults',
+  'Dérangements Cuivre':'Copper Faults','Étude LS':'LS Survey','Dérangements LS':'LS Faults','Installation LS':'LS Installation'
+};
+const PANNE_LABEL_EN={
+  'Appui cassé':'Broken pole','Fibre coupée':'Cut fiber','Modem défectueux':'Faulty modem',
+  'Connexion instable':'Unstable connection','Jarretière coupée':'Cut patch cord','Atténuation':'Attenuation',
+  'Problème de voix':'Voice issue','Alimentation défectueuse':'Faulty power supply'
+};
+function trPanne(o){return LANG==='en'?(PANNE_LABEL_EN[o]||o):o;}
+function trType(labelOrKey){
+  const fr=TL[labelOrKey]||labelOrKey;
+  return LANG==='en'?(TYPE_LABEL_EN[fr]||fr):fr;
+}
+function trStatutText(statutFr){
+  const sk=SM[statutFr]||'pending';
+  return SL[LANG][sk].replace(/^\S+\s*/,'').toLowerCase();
+}
+function formatDuree(n){
+  return LANG==='en'?`${n} business day${n>1?'s':''}`:`${n} j. ouvr${n>1?'és':'é'}`;
+}
+
+// ══════════════════════════════════════════════
 //  CONSTANTES
 // ══════════════════════════════════════════════
 const TL={
@@ -583,10 +1046,12 @@ const TI={
   etude_ftth:'🔍', install_ftth:'🔧', derang_ftth:'⚡',
   derang_cuivre:'🪙', etude_ls:'📐', derang_ls:'🔌', install_ls:'📶'
 };
-const SL={pending:'⏳ En attente',ok:'✅ Réalisé',unreachable:'📵 Injoignable',issue:'⚠️ Problème',transfere:'➡️ Transféré'};
 const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',issue:'b-issue',transfere:'b-transfere'};
 const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','Problème':'issue','Transféré':'transfere'};
-const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MONTHS={
+  fr:['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
+  en:['January','February','March','April','May','June','July','August','September','October','November','December']
+};
 const PREFIX_VILLE={'23344':'Bafoussam','23327':'Bandjoun'};
 const VILLE_REQUIRED=['etude_ftth','etude_ls','derang_ls','install_ls'];
 const QUARTIERS_BAFOUSSAM=[
@@ -663,6 +1128,39 @@ function quartierKey(i){
   const v=(i.ville&&i.ville!=='null')?i.ville.trim():'';
   return v?q+' ('+v+')':q;
 }
+// Extrait {quartier, ville} depuis une quartierKey ("QUARTIER (VILLE)" ou juste "QUARTIER")
+function parseQuartierKey(qk){
+  const m=qk.match(/^(.*) \(([^)]+)\)$/);
+  return m?{q:m[1],v:m[2]}:{q:qk,v:''};
+}
+// Regroupe un objet de comptages {quartierKey:count} par ville, pour un
+// affichage textuel "VILLE : quartier1, quartier2…" plutôt qu'une liste plate.
+function groupQuartierCountsByVille(qC){
+  const noVille=t('quartier.noVille');
+  const groups={};
+  Object.entries(qC).forEach(([qk,c])=>{
+    const{q,v}=parseQuartierKey(qk);
+    const label=v||noVille;
+    if(!groups[label])groups[label]=[];
+    groups[label].push([qk,q,c]);
+  });
+  Object.values(groups).forEach(arr=>arr.sort((a,b)=>b[2]-a[2]));
+  return Object.entries(groups).sort((a,b)=>{
+    if(a[0]===noVille)return 1;
+    if(b[0]===noVille)return-1;
+    return a[0].localeCompare(b[0]);
+  });
+}
+// Rend les groupes ville → quartiers sous forme de pastilles cliquables,
+// avec l'en-tête de ville en préfixe (ex: "BAFOUSSAM : KAMKOP, COLACO…")
+function renderQuartierGroupsHTML(villeGroups,activeQ,onclickBuilder){
+  return villeGroups.map(([ville,items])=>{
+    const pills=items.map(([qk,qLabel,c])=>
+      `<span class="qpill${activeQ===qk?' qpill-active':' qpill-clickable'}" onclick="${onclickBuilder(qk)}"> ${qLabel} <b>${c}</b></span>`
+    ).join('');
+    return `<div class="ville-group"><span class="ville-label">🏙️ ${ville} :</span> ${pills}</div>`;
+  }).join('');
+}
 let clientsCache={}, allClientsList=[];
 let activeInterventionsCache={}; // clé: num de ligne → {date,statut} (pour détection doublons)
 let pendingUpdateClient=null, lastLookedNum='';
@@ -699,6 +1197,7 @@ function setTodayDate(){
 //  INIT
 // ══════════════════════════════════════════════
 window.onload=()=>{
+  applyStaticI18n();
   SCRIPT_URL=localStorage.getItem('ceraf_url')||'';
   TOKEN=localStorage.getItem('ceraf_token')||'';
   role=localStorage.getItem('ceraf_role')||'';
@@ -725,9 +1224,9 @@ function show(id,d='flex'){['setup-screen','login-screen','roleswitch-screen','a
 // Écran de choix du rôle actif — affiché après connexion si le compte
 // dispose de plusieurs rôles (ex: chef ET technicien).
 const ROLE_META={
-  chef:{icon:'👷',titre:'Chef centre',desc:'Créer et publier la consistance du jour'},
-  technicien:{icon:'📡',titre:'Technicien',desc:'Consulter la fiche et mettre à jour vos interventions'},
-  admin:{icon:'🔑',titre:'Administrateur',desc:'Gérer les comptes utilisateurs'}
+  chef:{icon:'👷',get titre(){return t('role.chef.titre');},get desc(){return t('role.chef.desc');}},
+  technicien:{icon:'📡',get titre(){return t('role.technicien.titre');},get desc(){return t('role.technicien.desc');}},
+  admin:{icon:'🔑',get titre(){return t('role.admin.titre');},get desc(){return t('role.admin.desc');}}
 };
 function showRoleSwitch(){
   const wrap=document.getElementById('roleswitch-cards');
@@ -781,7 +1280,7 @@ function getChefValue(){
 // ══════════════════════════════════════════════
 function saveSetup(){
   const url=document.getElementById('setup-url').value.trim();
-  if(!url||!url.includes('script.google.com')){showToast('❌ URL invalide');return;}
+  if(!url||!url.includes('script.google.com')){showToast(t('err.invalidUrl'));return;}
   SCRIPT_URL=url;localStorage.setItem('ceraf_url',url);show('login-screen','flex');
 }
 
@@ -792,8 +1291,8 @@ async function doLogin(){
   const pin=document.getElementById('login-pin').value.trim();
   const errEl=document.getElementById('login-error');
   errEl.classList.add('hidden');
-  if(!nom||!pin){errEl.textContent='Nom et PIN requis';errEl.classList.remove('hidden');return;}
-  btn.disabled=true;btn.textContent='⏳ Connexion...';
+  if(!nom||!pin){errEl.textContent=t('login.err.required');errEl.classList.remove('hidden');return;}
+  btn.disabled=true;btn.textContent=t('login.btn.loading');
   try{
     const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'login',nom,pin})});
     const data=JSON.parse(await res.text());
@@ -809,12 +1308,12 @@ async function doLogin(){
         showRoleSwitch();
       }
     } else {
-      errEl.textContent=data.error||'Connexion impossible';errEl.classList.remove('hidden');
+      errEl.textContent=data.error||t('err.loginFailed');errEl.classList.remove('hidden');
     }
   }catch(e){
-    errEl.textContent='Connexion impossible — vérifiez le réseau';errEl.classList.remove('hidden');
+    errEl.textContent=t('err.loginNetwork');errEl.classList.remove('hidden');
   }finally{
-    btn.disabled=false;btn.textContent='🔓 Se connecter';
+    btn.disabled=false;btn.textContent=t('login.btn');
   }
 }
 
@@ -835,29 +1334,29 @@ function handleAuthError(){
   localStorage.removeItem('ceraf_role');
   localStorage.removeItem('ceraf_nom');
   localStorage.removeItem('ceraf_roles');
-  showToast('⚠️ Session expirée — reconnectez-vous');
+  showToast(t('err.sessionExpired'));
   show('login-screen','flex');
 }
 
 function startApp(r){
   show('app','flex');
-  const badgeLbl=r==='chef'?'👷 Chef centre':r==='admin'?'🔑 Administrateur':'📡 Technicien';
+  const badgeLbl=r==='chef'?t('badge.chef'):r==='admin'?t('badge.admin'):t('badge.technicien');
   document.getElementById('role-badge').textContent=badgeLbl+(SESSION_NOM?' — '+SESSION_NOM:'');
   document.getElementById('btn-role-switch').classList.toggle('hidden',AVAILABLE_ROLES.length<=1);
   const nav=document.getElementById('nav-bar');
   if(r==='chef'){
-    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('chef',this)">👷 Consistance</button>
-      <button class="nav-tab" onclick="goPage('clients',this)">👥 Clients</button>
-      <button class="nav-tab" onclick="goPage('historique',this)">📁 Historique</button>`;
+    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('chef',this)">${t('nav.chef')}</button>
+      <button class="nav-tab" onclick="goPage('clients',this)">${t('nav.clients')}</button>
+      <button class="nav-tab" onclick="goPage('historique',this)">${t('nav.historique')}</button>`;
     goPage('chef',nav.querySelector('.nav-tab'),false);
     // Désactiver le bouton Ajouter jusqu'au chargement complet du cache
     _setCacheLoading(true);
     preloadClients().finally(()=>_setCacheLoading(false));
   } else if(r==='admin'){
-    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('admin',this)">🔑 Utilisateurs</button>`;
+    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('admin',this)">${t('nav.admin')}</button>`;
     goPage('admin',nav.querySelector('.nav-tab'),true);
   } else {
-    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">📡 Terrain</button>`;
+    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">${t('nav.terrain')}</button>`;
     goPage('terrain',nav.querySelector('.nav-tab'),true);
   }
 }
@@ -869,10 +1368,10 @@ function _setCacheLoading(loading){
   if(loading){
     btn.disabled=true;
     btn.dataset.origText=btn.textContent;
-    btn.textContent='⏳ Chargement...';
+    btn.textContent=t('common.loading');
   } else {
     btn.disabled=false;
-    btn.textContent=btn.dataset.origText||'+ Ajouter';
+    btn.textContent=btn.dataset.origText||t('btn.addToList.fallback');
   }
 }
 
@@ -899,13 +1398,13 @@ function goPage(p,el,load=true){
 async function loadAdminUsers(){
   const res=await apiGet({action:'adminListUsers'});
   if(res.success) renderAdminUsers(res.users);
-  else document.getElementById('admin-users-wrap').innerHTML='<div class="empty"><p>❌ '+(res.error||'Erreur')+'</p></div>';
+  else document.getElementById('admin-users-wrap').innerHTML='<div class="empty"><p>❌ '+(res.error||t('err.generic'))+'</p></div>';
 }
 function renderAdminUsers(users){
   const wrap=document.getElementById('admin-users-wrap');
-  if(!users||users.length===0){wrap.innerHTML='<div class="empty"><div class="eicon">👤</div><p>Aucun utilisateur.</p></div>';return;}
-  const roleLbl={chef:'Chef',technicien:'Technicien',admin:'Admin'};
-  let h='<table class="clients-table"><thead><tr><th>Nom</th><th>Rôle(s)</th><th>Actif</th><th>Dernière connexion</th><th></th></tr></thead><tbody>';
+  if(!users||users.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">👤</div><p>${t('admin.noUsers')}</p></div>`;return;}
+  const roleLbl=ROLE_LBL[LANG];
+  let h=`<table class="clients-table"><thead><tr><th>${t('common.name.label')}</th><th>${t('admin.th.roles')}</th><th>${t('admin.th.actif')}</th><th>${t('admin.th.lastLogin')}</th><th></th></tr></thead><tbody>`;
   users.forEach(u=>{
     const nomEsc=u.nom.replace(/'/g,"\\'");
     const rolesTxt=(u.roles||[]).map(r=>roleLbl[r]||r).join(', ')||'—';
@@ -915,9 +1414,9 @@ function renderAdminUsers(users){
       <td>${u.actif?'✅':'⛔'}</td>
       <td>${u.derniereConnexion||'—'}</td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" onclick="adminEditRolesUI('${u.id}','${nomEsc}',${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">✏️ Rôles</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminResetPinUI('${u.id}','${nomEsc}')">🔑 PIN</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminToggleActive('${u.id}',${u.actif?'false':'true'})">${u.actif?'⛔ Désactiver':'✅ Activer'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminEditRolesUI('${u.id}','${nomEsc}',${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">${t('btn.editRoles')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminResetPinUI('${u.id}','${nomEsc}')">${t('btn.resetPin')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminToggleActive('${u.id}',${u.actif?'false':'true'})">${u.actif?t('btn.deactivate'):t('btn.activate')}</button>
         <button class="btn btn-danger btn-sm" onclick="adminDeleteUserUI('${u.id}','${nomEsc}')">🗑️</button>
       </td>
     </tr>`;
@@ -929,38 +1428,38 @@ async function adminAddUserUI(){
   const nom=document.getElementById('adm-nom').value.trim();
   const pin=document.getElementById('adm-pin').value.trim();
   const roles=[...document.querySelectorAll('.adm-role-chk:checked')].map(c=>c.value);
-  if(!nom||!/^\d{4,6}$/.test(pin)){showToast('⚠️ Nom et PIN (4 à 6 chiffres) requis');return;}
-  if(roles.length===0){showToast('⚠️ Sélectionnez au moins un rôle');return;}
+  if(!nom||!/^\d{4,6}$/.test(pin)){showToast(t('valid.nomPinRequired'));return;}
+  if(roles.length===0){showToast(t('valid.roleRequired'));return;}
   const res=await apiPost({action:'adminAddUser',nom,pin,roles});
-  if(res.success){showToast('✅ Utilisateur créé');document.getElementById('adm-nom').value='';document.getElementById('adm-pin').value='';loadAdminUsers();}
-  else showToast('❌ '+(res.error||'Erreur'));
+  if(res.success){showToast(t('toast.userCreated'));document.getElementById('adm-nom').value='';document.getElementById('adm-pin').value='';loadAdminUsers();}
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 async function adminEditRolesUI(id,nom,currentRoles){
-  const saisie=prompt('Rôles pour '+nom+' — séparés par une virgule.\nValeurs possibles : chef, technicien, admin',currentRoles.join(','));
+  const saisie=prompt(t('prompt.editRoles',{nom}),currentRoles.join(','));
   if(saisie===null)return;
   const roles=saisie.split(',').map(r=>r.trim()).filter(Boolean);
-  if(roles.length===0){showToast('⚠️ Au moins un rôle requis');return;}
+  if(roles.length===0){showToast(t('valid.atLeastOneRole'));return;}
   const res=await apiPost({action:'adminUpdateUser',id,roles});
-  if(res.success){showToast('✅ Rôles mis à jour');loadAdminUsers();}
-  else showToast('❌ '+(res.error||'Erreur'));
+  if(res.success){showToast(t('toast.rolesUpdated'));loadAdminUsers();}
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 async function adminToggleActive(id,newVal){
   const actif=newVal==='true';
   const res=await apiPost({action:'adminUpdateUser',id,actif});
-  if(res.success){showToast(actif?'✅ Activé':'⛔ Désactivé');loadAdminUsers();}
-  else showToast('❌ '+(res.error||'Erreur'));
+  if(res.success){showToast(actif?t('toast.activated'):t('toast.deactivated'));loadAdminUsers();}
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 async function adminResetPinUI(id,nom){
-  const pin=prompt('Nouveau PIN pour '+nom+' (4 à 6 chiffres) :');
+  const pin=prompt(t('prompt.newPin',{nom}));
   if(!pin)return;
-  if(!/^\d{4,6}$/.test(pin)){showToast('⚠️ PIN invalide');return;}
+  if(!/^\d{4,6}$/.test(pin)){showToast(t('valid.pinInvalid'));return;}
   const res=await apiPost({action:'adminResetPin',id,pin});
-  if(res.success)showToast('✅ PIN réinitialisé');else showToast('❌ '+(res.error||'Erreur'));
+  if(res.success)showToast(t('toast.pinReset'));else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 async function adminDeleteUserUI(id,nom){
-  if(!confirm('Supprimer l\'utilisateur '+nom+' ?'))return;
+  if(!confirm(t('confirm.deleteUser',{nom})))return;
   const res=await apiPost({action:'adminDeleteUser',id});
-  if(res.success){showToast('🗑️ Supprimé');loadAdminUsers();}else showToast('❌ '+(res.error||'Erreur'));
+  if(res.success){showToast(t('toast.deleted'));loadAdminUsers();}else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 
 // ══════════════════════════════════════════════
@@ -1182,7 +1681,7 @@ function validateNumericFields(){
     if(!el)return;
     const val=el.value.trim();
     if(val.length>0 && val.length!==9){
-      el.classList.add('input-error');ok=false;if(!firstError)firstError='Le numéro doit contenir exactement 9 chiffres';
+      el.classList.add('input-error');ok=false;if(!firstError)firstError=t('valid.9digits');
     } else {
       el.classList.remove('input-error');
     }
@@ -1192,7 +1691,7 @@ function validateNumericFields(){
   if(numId){
     const el=document.getElementById(numId);
     if(el && el.value.trim().length===0){
-      el.classList.add('input-error');ok=false;if(!firstError)firstError='Le numéro de ligne est obligatoire';
+      el.classList.add('input-error');ok=false;if(!firstError)firstError=t('valid.lineRequired');
     }
   }
   // Numéro secondaire : optionnel, mais si rempli doit faire 9 chiffres
@@ -1202,7 +1701,7 @@ function validateNumericFields(){
     if(el){
       const val=el.value.trim();
       if(val.length>0 && val.length!==9){
-        el.classList.add('input-error');ok=false;if(!firstError)firstError='Le numéro secondaire doit contenir exactement 9 chiffres';
+        el.classList.add('input-error');ok=false;if(!firstError)firstError=t('valid.9digitsSecondary');
       } else {
         el.classList.remove('input-error');
       }
@@ -1227,12 +1726,12 @@ async function addInv(){
   // Numéro de ligne obligatoire UNIQUEMENT pour ces trois types
   const NUM_OBLIGATOIRE=['install_ftth','derang_ftth','derang_cuivre'];
   if(NUM_OBLIGATOIRE.includes(cType)){
-    if(!f.num||f.num.length!==9){showToast('⚠️ Le numéro de ligne est obligatoire (9 chiffres exactement)');return;}
+    if(!f.num||f.num.length!==9){showToast(t('valid.numRequired'));return;}
   }
 
   // Nom obligatoire pour tous
-  if(!f.nom&&!f.customerId){showToast('⚠️ Renseignez au moins le nom ou le Customer ID');return;}
-  if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast('⚠️ Sélectionnez la ville');return;}
+  if(!f.nom&&!f.customerId){showToast(t('valid.nomOrCustomerId'));return;}
+  if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast(t('valid.villeRequired'));return;}
 
   // ── CACHE INTERVENTIONS ACTIVES — charger si vide ──────────
   // Garantit que le cache est prêt avant la vérification doublon,
@@ -1298,15 +1797,15 @@ function addInvWithQuartier(f,quartier){
 function confirmDoublon(num,dateExistante,statutExistant){
   return new Promise(resolve=>{
     const el=document.getElementById('quartier-modal-content');
-    const statutTxt=(statutExistant||'en attente').toLowerCase();
+    const statutTxt=trStatutText(statutExistant||'En attente');
     el.innerHTML=`
-      <div class="modal-title">⚠️ Intervention déjà en cours</div>
+      <div class="modal-title">${t('doublon.title')}</div>
       <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px;">
-        Cette intervention semble déjà en cours (créée le ${formatDateDisplay(dateExistante)}, ${statutTxt}). Continuer quand même ?
+        ${t('doublon.body',{date:formatDateDisplay(dateExistante),statut:statutTxt})}
       </p>
       <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
-        <button class="btn btn-ghost btn-sm" onclick="window._resolveDoublonModal(false)">Annuler</button>
-        <button class="btn btn-primary btn-sm" onclick="window._resolveDoublonModal(true)">Continuer quand même</button>
+        <button class="btn btn-ghost btn-sm" onclick="window._resolveDoublonModal(false)">${t('btn.cancel')}</button>
+        <button class="btn btn-primary btn-sm" onclick="window._resolveDoublonModal(true)">${t('doublon.continue')}</button>
       </div>`;
     document.getElementById('modal-quartier').classList.add('active');
     window._resolveDoublonModal=(val)=>{
@@ -1323,17 +1822,17 @@ function confirmQuartierInconnu(loc,suggestions){
       `<button class="btn btn-primary btn-sm" style="margin:4px 6px 0 0;" onclick="window._resolveQuartierModal('${q.replace(/'/g,"\\'")}')">${q}</button>`
     ).join('');
     el.innerHTML=`
-      <div class="modal-title">⚠️ Quartier non reconnu</div>
+      <div class="modal-title">${t('quartierInconnu.title')}</div>
       <p style="font-size:.85rem;color:var(--muted);margin-bottom:10px;">
-        Le texte saisi (<strong>"${loc}"</strong>) ne correspond à aucun quartier connu de Bafoussam.
+        ${t('quartierInconnu.body',{loc})}
       </p>
       ${suggestions.length>0?`
-        <p style="font-size:.82rem;font-weight:700;margin-bottom:6px;">Vouliez-vous dire :</p>
+        <p style="font-size:.82rem;font-weight:700;margin-bottom:6px;">${t('quartierInconnu.didYouMean')}</p>
         <div>${sugBtns}</div>
       `:''}
       <div class="mt-3 flex gap-2" style="flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px;margin-top:14px;">
-        <button class="btn btn-ghost btn-sm" onclick="window._resolveQuartierModal('')">Continuer sans quartier</button>
-        <button class="btn btn-ghost btn-sm" onclick="window._resolveQuartierModal(null)">Annuler / Corriger</button>
+        <button class="btn btn-ghost btn-sm" onclick="window._resolveQuartierModal('')">${t('quartierInconnu.continueWithout')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="window._resolveQuartierModal(null)">${t('quartierInconnu.cancelFix')}</button>
       </div>`;
     document.getElementById('modal-quartier').classList.add('active');
     window._resolveQuartierModal=(val)=>{
@@ -1347,11 +1846,11 @@ function askUpdateConfirm(oldC,newF){
   return new Promise(resolve=>{
     const diff=document.getElementById('modal-diff');
     let h='';
-    if(oldC.nom!==newF.nom&&newF.nom)h+=`<div><b>Nom :</b><span class="old">${oldC.nom}</span> → <span class="new">${newF.nom}</span></div>`;
-    if(oldC.tel!==newF.tel&&newF.tel)h+=`<div><b>Tél :</b><span class="old">${oldC.tel}</span> → <span class="new">${newF.tel}</span></div>`;
-    if(oldC.loc!==newF.loc&&newF.loc)h+=`<div><b>Localité :</b><span class="old">${oldC.loc}</span> → <span class="new">${newF.loc}</span></div>`;
-    if(oldC.ville!==newF.ville&&newF.ville)h+=`<div><b>Ville :</b><span class="old">${oldC.ville}</span> → <span class="new">${newF.ville}</span></div>`;
-    diff.innerHTML=h||'<em>Différence détectée</em>';
+    if(oldC.nom!==newF.nom&&newF.nom)h+=`<div><b>${t('diff.nom')}</b><span class="old">${oldC.nom}</span> → <span class="new">${newF.nom}</span></div>`;
+    if(oldC.tel!==newF.tel&&newF.tel)h+=`<div><b>${t('diff.tel')}</b><span class="old">${oldC.tel}</span> → <span class="new">${newF.tel}</span></div>`;
+    if(oldC.loc!==newF.loc&&newF.loc)h+=`<div><b>${t('diff.loc')}</b><span class="old">${oldC.loc}</span> → <span class="new">${newF.loc}</span></div>`;
+    if(oldC.ville!==newF.ville&&newF.ville)h+=`<div><b>${t('diff.ville')}</b><span class="old">${oldC.ville}</span> → <span class="new">${newF.ville}</span></div>`;
+    diff.innerHTML=h||`<em>${t('diff.detected')}</em>`;
     document.getElementById('modal-update').classList.add('active');
     pendingUpdateClient=resolve;
   });
@@ -1401,9 +1900,9 @@ function renderPreview(){
   sec.classList.remove('hidden');
   const g={};pending.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
   let h='';
-  Object.keys(g).forEach(t=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[t]} ${TL[t]}</div>`;
-    g[t].forEach((inv,i)=>{h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}</div>
+  Object.keys(g).forEach(gt=>{
+    h+=`<div class="section-block"><div class="section-title">${TI[gt]} ${trType(gt)}</div>`;
+    g[gt].forEach((inv,i)=>{h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}</div>
       <div class="flex gap-2">
         <button class="btn btn-outline btn-sm" onclick="editInv(${inv.id})">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="remInv(${inv.id})">✕</button>
@@ -1439,24 +1938,24 @@ function editInv(id){
   // Retirer l'ancienne entrée — elle sera recréée à l'ajout
   pending=pending.filter(i=>i.id!==id);
   renderPreview();
-  showToast('✏️ Modifiez les champs puis cliquez "Ajouter à la liste"');
+  showToast(t('toast.editFields'));
   document.querySelector('.card .card-title').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function remInv(id){pending=pending.filter(i=>i.id!==id);renderPreview();}
-function clearAll(){if(confirm('Effacer ?')){pending=[];renderPreview();}}
+function clearAll(){if(confirm(t('confirm.clear'))){pending=[];renderPreview();}}
 
 async function publishConsistance(){
   const date=getDateISO();
   const chef=getChefValue();
-  if(!date){showToast('⚠️ Date invalide — format JJ/MM/AAAA');return;}
-  if(!chef){showToast('⚠️ Sélectionnez ou saisissez le chef centre');return;}
-  if(pending.length===0){showToast('⚠️ Ajoutez au moins une intervention');return;}
+  if(!date){showToast(t('valid.dateInvalid'));return;}
+  if(!chef){showToast(t('valid.chefRequired'));return;}
+  if(pending.length===0){showToast(t('valid.atLeastOneInv'));return;}
   const btn=document.getElementById('btn-pub');
-  btn.disabled=true;btn.textContent='⏳ Publication...';
+  btn.disabled=true;btn.textContent=t('btn.publish.loading');
   const res=await apiPost({action:'saveConsistance',date,chef,interventions:pending});
-  btn.disabled=false;btn.textContent='☁️ Publier';
-  if(res.success){showToast('✅ Publié !');pending=[];renderPreview();preloadClients();}
-  else showToast('❌ Erreur : '+(res.error||'Vérifiez la connexion'));
+  btn.disabled=false;btn.textContent=t('btn.publish');
+  if(res.success){showToast(t('toast.published'));pending=[];renderPreview();preloadClients();}
+  else showToast(t('err.prefix')+(res.error||t('err.checkConnection')));
 }
 
 // ══════════════════════════════════════════════
@@ -1464,11 +1963,11 @@ async function publishConsistance(){
 // ══════════════════════════════════════════════
 async function refreshClients(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-wrap');showToast('✅ Actualisé');}
+  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-wrap');showToast(t('toast.refreshed'));}
 }
 async function refreshClientsRO(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-ro-wrap');showToast('✅ Actualisé');}
+  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-ro-wrap');showToast(t('toast.refreshed'));}
 }
 function filterClients(){
   const q=(document.getElementById('client-search').value||'').toLowerCase();
@@ -1483,9 +1982,9 @@ function svcClass(s){if(s==='FTTH')return'svc-ftth';if(s==='LS')return'svc-ls';i
 
 function renderClientsTable(list,wrapId){
   const wrap=document.getElementById(wrapId);
-  if(!list||list.length===0){wrap.innerHTML='<div class="empty"><div class="eicon">👥</div><p>Aucun client enregistré.</p></div>';return;}
+  if(!list||list.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">👥</div><p>${t('clients.empty')}</p></div>`;return;}
   let h=`<table class="clients-table"><thead><tr>
-    <th>N° Ligne</th><th>Nom</th><th>Téléphone</th><th>2ème contact</th><th>Localité</th><th>Ville</th><th>Quartier</th><th>Service</th><th>GPS</th>
+    <th>${t('clients.th.num')}</th><th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.service')}</th><th>${t('clients.th.gps')}</th>
   </tr></thead><tbody>`;
   list.forEach(c=>{
     // GPS valide = contient des chiffres et une virgule (coordonnées)
@@ -1494,7 +1993,7 @@ function renderClientsTable(list,wrapId){
     const gpsRaw=c.gps&&c.gps!=='null'?String(c.gps).trim():'';
     const gpsValide=gpsRaw!==''&&/\d/.test(gpsRaw)&&/,/.test(gpsRaw)&&!/^(FTTH|LS|CUIVRE)$/i.test(gpsRaw);
     const gpsH=gpsValide
-      ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">📌 Voir</a>`:'—';
+      ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">${t('gps.viewLink')}</a>`:'—';
     const svc=c.service||'';
     const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
     h+=`<tr>
@@ -1514,20 +2013,20 @@ function renderClientsTable(list,wrapId){
 // ══════════════════════════════════════════════
 function getGPSField(fieldId,btn){
   const inp=document.getElementById(fieldId);
-  if(!navigator.geolocation){showToast('❌ Votre navigateur ne supporte pas la géolocalisation');return;}
-  if(!window.isSecureContext){showToast('❌ GPS bloqué : la page doit être en HTTPS (vérifiez l\'URL)');return;}
+  if(!navigator.geolocation){showToast(t('err.noGeoloc'));return;}
+  if(!window.isSecureContext){showToast(t('err.gpsHttps'));return;}
   btn.disabled=true;btn.textContent='⏳...';
   navigator.geolocation.getCurrentPosition(
     pos=>{
       const c=pos.coords.latitude.toFixed(6)+', '+pos.coords.longitude.toFixed(6);
-      inp.value=c;btn.disabled=false;btn.textContent='📍 Localiser';showToast('✅ Position : '+c);
+      inp.value=c;btn.disabled=false;btn.textContent=t('btn.locate');showToast(t('toast.position',{c}));
     },
     err=>{
-      btn.disabled=false;btn.textContent='📍 Localiser';
-      let msg='❌ GPS indisponible';
-      if(err.code===1) msg='❌ Permission refusée — autorisez la localisation dans les paramètres du navigateur';
-      else if(err.code===2) msg='❌ Position indisponible — vérifiez que le GPS du téléphone est activé';
-      else if(err.code===3) msg='❌ Délai dépassé — réessayez, ou saisissez les coordonnées manuellement';
+      btn.disabled=false;btn.textContent=t('btn.locate');
+      let msg=t('err.gpsGeneric');
+      if(err.code===1) msg=t('err.gpsPermission');
+      else if(err.code===2) msg=t('err.gpsUnavailable');
+      else if(err.code===3) msg=t('err.gpsTimeout');
       showToast(msg);
     },
     {enableHighAccuracy:true,timeout:15000,maximumAge:0}
@@ -1537,13 +2036,13 @@ function getGPSField(fieldId,btn){
 async function saveGPS(invId,num){
   const inp=document.getElementById('gps-'+invId);
   const gps=(inp.value||'').trim();
-  if(!gps){showToast('⚠️ Obtenez ou saisissez les coordonnées GPS');return;}
+  if(!gps){showToast(t('valid.gpsRequired'));return;}
   if(num&&num!=='null'&&num!==''){
     const res=await apiPost({action:'updateClientGPS',num,gps});
-    if(res.success){showToast('✅ GPS enregistré');const key=num.replace(/\s/g,'').toLowerCase();if(clientsCache[key])clientsCache[key].gps=gps;}
-    else showToast('❌ Erreur GPS');
+    if(res.success){showToast(t('toast.gpsSaved'));const key=num.replace(/\s/g,'').toLowerCase();if(clientsCache[key])clientsCache[key].gps=gps;}
+    else showToast(t('err.gpsError'));
   } else {
-    showToast('ℹ️ GPS noté — sera enregistré à la prochaine publication');
+    showToast(t('toast.gpsNotedLater'));
   }
 }
 
@@ -1558,9 +2057,23 @@ function setTerrainView(v,el){
 
 async function loadTerrain(){
   const el=document.getElementById('terrain-content');
-  el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
   const now=new Date();
   const iso=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+
+  // Affichage instantané depuis le cache local pendant que le réseau
+  // rafraîchit en arrière-plan (stale-while-revalidate) — évite l'attente
+  // du sablier à chaque visite de l'onglet, surtout utile en réseau faible.
+  let hadCache=false;
+  try{
+    const cached=JSON.parse(localStorage.getItem('ceraf_terrain_cache')||'null');
+    if(cached&&cached.date===iso){
+      terrainData=cached.data;
+      terrainQuartierFilter='';terrainStatutFilter='';terrainTypeFilter='';
+      renderTerrain(cached.data);
+      hadCache=true;
+    }
+  }catch(e){}
+  if(!hadCache) el.innerHTML=`<div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
 
   // Charger la fiche du jour ET le cache clients en parallèle
   const [data] = await Promise.all([
@@ -1569,18 +2082,12 @@ async function loadTerrain(){
   ]);
 
   if(!data.success){
-    terrainData=null;
-    // Essayer le cache localStorage
-    try{
-      const cached=JSON.parse(localStorage.getItem('ceraf_terrain_cache')||'null');
-      if(cached&&cached.date===iso){
-        terrainData=cached.data;
-        renderTerrain(cached.data);
-        showToast('📱 Mode hors ligne — fiche du cache');
-        return;
-      }
-    }catch(e){}
-    el.innerHTML=`<div class="empty"><div class="eicon">📋</div><p>Aucune consistance publiée aujourd'hui.<br><small style="color:var(--muted2)">${data.error||''}</small></p></div>`;
+    if(!hadCache){
+      terrainData=null;
+      el.innerHTML=`<div class="empty"><div class="eicon">📋</div><p>${t('terrain.empty')}<br><small style="color:var(--muted2)">${data.error||''}</small></p></div>`;
+    } else {
+      showToast(t('terrain.offlineCache'));
+    }
     return;
   }
 
@@ -1602,7 +2109,7 @@ function renderTerrain(data){
   terrainInterventionsCache=interventions;
 
   document.getElementById('terrain-date-title').textContent=formatDateDisplay(consist.date);
-  document.getElementById('terrain-chef-sub').textContent='👷 '+consist.chef+' — Mettez à jour vos interventions en temps réel';
+  document.getElementById('terrain-chef-sub').textContent='👷 '+consist.chef+' — '+t('terrain.subUpdate');
 
   const actives=interventions.filter(i=>!i.estTransfere);
   // Pour les compteurs quartier et type : ignorer les Réalisés
@@ -1639,20 +2146,20 @@ function renderTerrain(data){
   }).length;
   const totalActif=nonRealises.length;
 
-  // Répartition par quartier — cliquable
+  // Répartition par quartier ET par ville — cliquable
   const summaryEl=document.getElementById('terrain-quartier-summary');
-  const entries=Object.entries(qC).filter(([q])=>q!=='—').sort((a,b)=>b[1]-a[1]);
+  const qCNoUnknown=Object.fromEntries(Object.entries(qC).filter(([q])=>q!=='—'));
+  const villeGroups=groupQuartierCountsByVille(qCNoUnknown);
   if(actives.length>0){
     summaryEl.classList.remove('hidden');
-    const allQBtn=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">Tous <b>${terrainQuartierFilter===''?totalActif:totalFiltre+(terrainStatutFilter||terrainTypeFilter?'':' / '+totalActif)}</b></span>`.replace('/ '+totalActif,'/ '+totalActif);
-    // Simplifié : "Tous" affiche le total global
-    const allQBtnSimple=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">Tous <b>${totalActif}</b></span>`;
-    const qBtns=entries.map(([q,c])=>`<span class="qpill${terrainQuartierFilter===q?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
+    // "Tous" affiche le total global
+    const allQBtnSimple=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">${t('common.all')} <b>${totalActif}</b></span>`;
+    const qBtns=renderQuartierGroupsHTML(villeGroups,terrainQuartierFilter,qk=>`setTerrainFilter('q','${qk.replace(/'/g,"\\'")}')`);
 
     // Filtre par statut
-    const STATUT_LABELS=[['pending','⏳ En attente'],['ok','✅ Réalisé'],['unreachable','📵 Injoignable'],['issue','⚠️ Problème']];
+    const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
     const totalS=Object.values(sC).reduce((a,b)=>a+b,0);
-    const allSBtn=`<span class="qpill${terrainStatutFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainStatutFilter===''?'var(--blue-mid)':'var(--blue-lt)'};color:${terrainStatutFilter===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="setTerrainFilter('s','')">Tous <b>${totalS}</b></span>`;
+    const allSBtn=`<span class="qpill${terrainStatutFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainStatutFilter===''?'var(--blue-mid)':'var(--blue-lt)'};color:${terrainStatutFilter===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="setTerrainFilter('s','')">${t('common.all')} <b>${totalS}</b></span>`;
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=terrainStatutFilter===sk;
@@ -1663,21 +2170,22 @@ function renderTerrain(data){
 
     // Filtre par type
     const totalT=Object.values(tC).reduce((a,b)=>a+b,0);
-    const allTBtn=`<span class="qpill${terrainTypeFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainTypeFilter===''?'var(--navy)':'#e2e8f0'};color:${terrainTypeFilter===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="setTerrainFilter('t','')">Tous <b>${totalT}</b></span>`;
-    const tBtns=Object.entries(tC).map(([t,c])=>{
-      const active=terrainTypeFilter===t;
-      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="setTerrainFilter('t','${t.replace(/'/g,"\\'")}')"> ${TI[t]||'📋'} ${TL[t]||t} <b>${c}</b></span>`;
+    const allTBtn=`<span class="qpill${terrainTypeFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainTypeFilter===''?'var(--navy)':'#e2e8f0'};color:${terrainTypeFilter===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="setTerrainFilter('t','')">${t('common.all')} <b>${totalT}</b></span>`;
+    const tBtns=Object.entries(tC).map(([gt,c])=>{
+      const active=terrainTypeFilter===gt;
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="setTerrainFilter('t','${gt.replace(/'/g,"\\'")}')"> ${TI[gt]||'📋'} ${trType(gt)} <b>${c}</b></span>`;
     }).join('');
 
     summaryEl.innerHTML=`<div class="card">
-      <div class="card-title">📍 Répartition par quartier (aujourd'hui)</div>
-      <div style="margin-bottom:8px">${allQBtnSimple}${qBtns}</div>
+      <div class="card-title">${t('terrain.repartition.title')}</div>
+      <div style="margin-bottom:6px">${allQBtnSimple}</div>
+      <div style="margin-bottom:8px">${qBtns}</div>
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par statut</div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byStatus')}</div>
         ${allSBtn}${sBtns}
       </div>
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par type</div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byType')}</div>
         ${allTBtn}${tBtns}
       </div>
     </div>`;
@@ -1710,11 +2218,11 @@ function setTerrainFilter(type,val){
 function renderByType(interventions){
   const g={};interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
   let h='';
-  Object.keys(g).forEach(t=>{
+  Object.keys(g).forEach(gt=>{
     // Type mis en évidence comme les quartiers
     h+=`<div class="section-block">
-      <div class="type-header">${TI[t]||'📋'} ${t} <span style="opacity:.6;font-weight:400;font-size:.75rem">(${g[t].length} intervention${g[t].length>1?'s':''})</span></div>`;
-    g[t].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
+      <div class="type-header">${TI[gt]||'📋'} ${trType(gt)} <span style="opacity:.6;font-weight:400;font-size:.75rem">(${g[gt].length} intervention${g[gt].length>1?'s':''})</span></div>`;
+    g[gt].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
     h+='</div>';
   });
   return h;
@@ -1726,11 +2234,11 @@ function renderByQuartier(interventions){
   const keys=Object.keys(g).sort((a,b)=>{if(a==='—')return 1;if(b==='—')return-1;return a.localeCompare(b);});
   let h='';
   keys.forEach(q=>{
-    h+=`<div class="quartier-block"><div class="quartier-header">📌 ${q==='—'?'Quartier non identifié':q} <span style="opacity:.6;font-weight:400">(${g[q].length})</span></div>`;
+    h+=`<div class="quartier-block"><div class="quartier-header">📌 ${q==='—'?t('quartier.unidentified'):q} <span style="opacity:.6;font-weight:400">(${g[q].length})</span></div>`;
     const sg={};g[q].forEach(i=>{if(!sg[i.type])sg[i.type]=[];sg[i.type].push(i);});
-    Object.keys(sg).forEach(t=>{
-      h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[t]||'📋'} ${t}</div>`;
-      sg[t].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
+    Object.keys(sg).forEach(gt=>{
+      h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[gt]||'📋'} ${trType(gt)}</div>`;
+      sg[gt].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
     });
     h+='</div>';
   });
@@ -1745,7 +2253,7 @@ function invRowHTML(inv,idx){
   const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
                 :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps:'';
   const hasGps=gpsValue!=='';
-  const gpsSource=hasGps&&(!inv.gps||inv.gps==='null'||inv.gps==='')?' (depuis fiche client)':'';
+  const gpsSource=hasGps&&(!inv.gps||inv.gps==='null'||inv.gps==='')?t('gps.fromClientCard'):'';
 
   if(inv.estTransfere){
     return`<div class="inv-row" id="row-${inv.id}" style="opacity:.55;background:#f1f5f9;">
@@ -1754,7 +2262,7 @@ function invRowHTML(inv,idx){
         ${buildTags(inv)}
         <div class="inv-report">➡️ ${inv.remarque}</div>
       </div>
-      <span class="badge b-transfere">Transférée</span>
+      <span class="badge b-transfere">${t('badge.transferred')}</span>
     </div>`;
   }
 
@@ -1762,38 +2270,38 @@ function invRowHTML(inv,idx){
   const isEtudeFtth=inv.type===TL.etude_ftth;
   const isDerangFtth=inv.type===TL.derang_ftth;
 
-  let structuredHTML='', rightRemarqueHTML=`<input class="remark-inp" type="text" placeholder="Remarque..." value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}" style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">`;
+  let structuredHTML='', rightRemarqueHTML=`<input class="remark-inp" type="text" placeholder="${t('ph.remarque')}" value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}" style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">`;
 
   if(isEtudeFtth){
     const e=parseEtudeInfo(inv.remarque);
     rightRemarqueHTML='';
     structuredHTML=`
       <div class="etude-fields" style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
-        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">🔧 Faisabilité raccordement</div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">${t('etude.title')}</div>
         <div class="form-row" style="gap:6px;">
-          <div><input type="text" id="fdt-${inv.id}" class="remark-inp" placeholder="FDT (ex: FDT-1)" value="${e.fdt.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
-          <div><input type="text" id="fat-${inv.id}" class="remark-inp" placeholder="FAT (ex: FAT-12)" value="${e.fat.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
+          <div><input type="text" id="fdt-${inv.id}" class="remark-inp" placeholder="${t('ph.fdtEx')}" value="${e.fdt.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
+          <div><input type="text" id="fat-${inv.id}" class="remark-inp" placeholder="${t('ph.fatEx')}" value="${e.fat.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
         </div>
-        <input type="text" id="dist-${inv.id}" class="remark-inp" placeholder="Distance client-FAT (mètres)" inputmode="numeric" value="${e.distance.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
+        <input type="text" id="dist-${inv.id}" class="remark-inp" placeholder="${t('ph.distanceEx')}" inputmode="numeric" value="${e.distance.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
         <select id="conclu-${inv.id}" class="field-sel" style="width:100%;margin-top:7px;" onchange="updStructured('${inv.id}')">
-          <option value="">-- Conclusion --</option>
-          <option value="FAVORABLE" ${e.conclusion==='FAVORABLE'?'selected':''}>✅ FAVORABLE</option>
-          <option value="DEFAVORABLE" ${e.conclusion==='DEFAVORABLE'?'selected':''}>❌ DÉFAVORABLE</option>
+          <option value="">${t('select.conclusion.default')}</option>
+          <option value="FAVORABLE" ${e.conclusion==='FAVORABLE'?'selected':''}>${t('conclusion.favorable')}</option>
+          <option value="DEFAVORABLE" ${e.conclusion==='DEFAVORABLE'?'selected':''}>${t('conclusion.defavorable')}</option>
         </select>
-        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="Petite remarque..." value="${e.note.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
+        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="${t('ph.smallRemark')}" value="${e.note.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
       </div>`;
   } else if(isDerangFtth){
     const p=parsePanneInfo(inv.remarque);
     rightRemarqueHTML='';
-    const options=PANNE_OPTIONS.map(o=>`<option value="${o}" ${p.panne===o?'selected':''}>${o}</option>`).join('');
+    const options=PANNE_OPTIONS.map(o=>`<option value="${o}" ${p.panne===o?'selected':''}>${trPanne(o)}</option>`).join('');
     structuredHTML=`
       <div class="etude-fields" style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
-        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">⚡ Nature de la panne</div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">${t('derang.natureTitle')}</div>
         <select id="panne-${inv.id}" class="field-sel" style="width:100%;" onchange="updStructured('${inv.id}')">
-          <option value="">-- Sélectionner --</option>
+          <option value="">${t('common.select.default')}</option>
           ${options}
         </select>
-        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="Petite remarque..." value="${p.note.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
+        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="${t('ph.smallRemark')}" value="${p.note.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
       </div>`;
   }
 
@@ -1802,23 +2310,23 @@ function invRowHTML(inv,idx){
       <!-- Nom cliquable → ouvre le détail avec remarques -->
       <div class="inv-name" style="cursor:pointer;text-decoration:underline dotted var(--muted2);" onclick="showTerrainInvDetail(decodeURIComponent('${safe}'))">${idx+1}. ${buildLabel(inv)} <span style="font-size:.7rem;color:var(--muted2);">🔍</span></div>
       ${buildTags(inv)}
-      ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
+      ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
       ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
       ${structuredHTML}
       <div class="gps-row" style="margin-top:8px;">
-        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="Coordonnées GPS (ex: 5.4764, 10.4191)" value="${gpsValue}" style="font-size:.75rem;">
+        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="${t('ph.gpsCoord')}" value="${gpsValue}" style="font-size:.75rem;">
         <button class="btn-gps" onclick="getGPSField('gps-${inv.id}',this)">📍</button>
       </div>
-      ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">📌 GPS enregistré${gpsSource} — <button class="btn-gps" style="padding:3px 10px;font-size:.7rem;margin-left:4px;" data-gps="${gpsValue.replace(/"/g,'&quot;')}" onclick="ouvrirMaps(this.dataset.gps)">Ouvrir sur Maps 🗺️</button></div>`:''}
-      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">💾 Mettre à jour GPS</button>
+      ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">${t('gps.saved')}${gpsSource} — <button class="btn-gps" style="padding:3px 10px;font-size:.7rem;margin-left:4px;" data-gps="${gpsValue.replace(/"/g,'&quot;')}" onclick="ouvrirMaps(this.dataset.gps)">${t('btn.openMaps')}</button></div>`:''}
+      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">${t('btn.updateGps')}</button>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
-      <span class="badge ${SC[sk]}">${SL[sk]}</span>
+      <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
       <select class="status-sel" onchange="updStatut('${inv.id}',this.value)">
-        <option value="En attente"  ${inv.statut==='En attente' ?'selected':''}>⏳ En attente</option>
-        <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>✅ Réalisé</option>
-        <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>📵 Injoignable</option>
-        <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>⚠️ Problème</option>
+        <option value="En attente"  ${inv.statut==='En attente' ?'selected':''}>${SL[LANG].pending}</option>
+        <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>${SL[LANG].ok}</option>
+        <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>${SL[LANG].unreachable}</option>
+        <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>${SL[LANG].issue}</option>
       </select>
       ${rightRemarqueHTML}
     </div>
@@ -1872,11 +2380,11 @@ function showQuartierDetail(quartier, context){
   }
 
   let h=`<div class="modal-title">📌 ${quartier}</div>
-    <div class="modal-body">${allInvs.length} intervention${allInvs.length>1?'s':''} ${context==='terrain'?"aujourd'hui":'ce mois-ci'}</div>
+    <div class="modal-body">${allInvs.length} intervention${allInvs.length>1?'s':''} ${context==='terrain'?t('common.today'):t('common.thisMonth')}</div>
     <div style="max-height:60vh;overflow-y:auto;">`;
 
   if(allInvs.length===0){
-    h+=`<div class="empty"><div class="eicon">📭</div><p>Aucune intervention dans ce quartier.</p></div>`;
+    h+=`<div class="empty"><div class="eicon">📭</div><p>${t('quartier.noIntervention')}</p></div>`;
   } else {
     allInvs.forEach((inv,i)=>{
       const sk=SM[inv.statut]||'pending';
@@ -1887,11 +2395,11 @@ function showQuartierDetail(quartier, context){
           ${dateLine}
           ${buildTags(inv)}
         </div>
-        <span class="badge ${SC[sk]}">${SL[sk]}</span>
+        <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
       </div>`;
     });
   }
-  h+=`</div><div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">Fermer</button></div>`;
+  h+=`</div><div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button></div>`;
 
   document.getElementById('quartier-modal-content').innerHTML=h;
   document.getElementById('modal-quartier').classList.add('active');
@@ -1904,31 +2412,31 @@ function closeQuartierModal(){
 function showTerrainInvDetail(json){
   let inv;
   try{ inv=typeof json==='string'?JSON.parse(json):json; }
-  catch(e){ showToast('❌ Erreur');return; }
+  catch(e){ showToast(t('err.generic'));return; }
   const sk=SM[inv.statut]||'pending';
   const row=document.getElementById('row-'+inv.id);
   // Lire la remarque actuelle depuis le champ de saisie (peut avoir été modifiée)
   const remarkeCurrent=row?(row.querySelector('.remark-inp')||{value:inv.remarque||''}).value:(inv.remarque||'');
 
-  let h=`<div class="modal-title">${TI[inv.type]||'📋'} ${TL[inv.type]||inv.type}</div>
+  let h=`<div class="modal-title">${TI[inv.type]||'📋'} ${trType(TL[inv.type]||inv.type)}</div>
     <div class="inv-row" style="border:none;padding:0;margin-bottom:8px;">
       <div class="inv-info">
         <div class="inv-name">${buildLabel(inv)}</div>
         ${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
-          ?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
+          ?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
       </div>
-      <span class="badge ${SC[sk]}">${SL[sk]}</span>
+      <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
     </div>
     <div style="margin-top:10px;">
-      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">💬 Remarques</div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">${t('common.remarksHeading')}</div>
       ${remarkeCurrent&&remarkeCurrent!=='null'&&remarkeCurrent!==''
         ?`<div style="background:var(--blue-lt);border-radius:8px;padding:10px 12px;font-size:.85rem;line-height:1.5;">${remarkeCurrent}</div>`
-        :`<div style="color:var(--muted);font-size:.82rem;font-style:italic;">Aucune remarque saisie.</div>`}
+        :`<div style="color:var(--muted);font-size:.82rem;font-style:italic;">${t('common.noRemark')}</div>`}
     </div>
     <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
-      ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvUI('${inv.id}');closeQuartierModal()">🗑️ Supprimer</button>`:''}
-      <button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">Fermer</button>
+      ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvUI('${inv.id}');closeQuartierModal()">${t('btn.delete')}</button>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button>
     </div>`;
 
   document.getElementById('quartier-modal-content').innerHTML=h;
@@ -1959,7 +2467,7 @@ async function offlineFlushQueue(){
     if(synced>0){
       const remaining=q.slice(synced);
       localStorage.setItem('ceraf_status_queue',JSON.stringify(remaining));
-      showToast('✅ '+synced+' statut(s) synchronisé(s)');
+      showToast(t('toast.syncedStatuses',{n:synced}));
       if(remaining.length===0&&terrainData) loadTerrain();
     }
   }catch(e){}
@@ -1985,12 +2493,12 @@ async function updStatut(invId,statut){
   // nature de la panne déterminée pour un Dérangement FTTH.
   if(statut==='Réalisé'&&structured){
     if(structured.kind==='etude'&&!structured.conclusion){
-      showToast('⚠️ Sélectionnez FAVORABLE ou DÉFAVORABLE avant de conclure');
+      showToast(t('warn.selectConclusion'));
       if(row){const sel=row.querySelector('select[onchange^="updStatut("]');if(sel)sel.value=invRef.statut;}
       return;
     }
     if(structured.kind==='panne'&&!structured.panne){
-      showToast('⚠️ Déterminez la nature de la panne avant de conclure');
+      showToast(t('warn.selectPanne'));
       if(row){const sel=row.querySelector('select[onchange^="updStatut("]');if(sel)sel.value=invRef.statut;}
       return;
     }
@@ -2001,25 +2509,25 @@ async function updStatut(invId,statut){
   // Mise à jour visuelle immédiate (optimiste)
   const sk=SM[statut]||'pending';
   const badge=row?row.querySelector('.badge'):null;
-  if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[sk];}
+  if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[LANG][sk];}
   if(invRef){invRef.statut=statut;invRef.remarque=remarque;}
 
   if(!navigator.onLine){
     offlineEnqueue({action:'updateStatus',invId,statut,remarque});
     saveTerrainCache();
-    showToast('📵 Statut sauvegardé — sera synchronisé au retour du réseau');
+    showToast(t('toast.statusOfflineSaved'));
     return;
   }
 
   const res=await apiPost({action:'updateStatus',invId,statut,remarque});
   if(res.success){
-    showToast('✅ Statut mis à jour');
+    showToast(t('toast.statusUpdated'));
     saveTerrainCache();
   } else {
     // Échec réseau : mettre en file
     offlineEnqueue({action:'updateStatus',invId,statut,remarque});
     saveTerrainCache();
-    showToast('⚠️ Sauvegardé localement — sera synchronisé plus tard');
+    showToast(t('toast.savedLocally'));
   }
 }
 
@@ -2061,16 +2569,16 @@ async function updStructured(invId){
 }
 
 async function deleteInvUI(invId){
-  if(!confirm('Supprimer définitivement cette intervention ?\n\nCette action est irréversible.'))return;
+  if(!confirm(t('confirm.deleteInv')))return;
   const res=await apiPost({action:'deleteIntervention',invId});
   if(res.success){
-    showToast('🗑️ Intervention supprimée');
+    showToast(t('toast.invDeleted'));
     if(terrainData){
       terrainData.interventions=terrainData.interventions.filter(i=>i.id!==invId);
       renderTerrain(terrainData);
     }
   } else {
-    showToast('❌ Erreur : '+(res.error||'suppression impossible'));
+    showToast(t('err.prefix')+(res.error||t('err.deleteImpossible')));
   }
 }
 
@@ -2080,24 +2588,48 @@ async function deleteInvUI(invId){
 let histoAllData=null; // cache complet pour filtrer sans recharger
 let histoSelectedMonth=''; // format "YYYY-MM"
 
+function populateHistoMonthSelect(monthsList,selected){
+  const sel=document.getElementById('histo-month-select');
+  sel.innerHTML=monthsList.map(k=>{
+    const[y,m]=k.split('-');
+    return `<option value="${k}" ${k===selected?'selected':''}>${MONTHS[LANG][parseInt(m)-1]} ${y}</option>`;
+  }).join('');
+}
+
 async function loadHistorique(){
   const el=document.getElementById('historique-content');
   const sw=document.getElementById('stats-wrap');const qw=document.getElementById('quartier-wrap');
-  el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
 
   // Déterminer le mois cible par défaut (mois courant) avant le premier appel réseau
   const now=new Date();
   const currentMonthKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   const targetMonth=histoSelectedMonth||currentMonthKey;
 
+  // Affichage instantané depuis le cache local pendant que le réseau
+  // rafraîchit en arrière-plan (stale-while-revalidate)
+  let hadCache=false;
+  try{
+    const cached=JSON.parse(localStorage.getItem('ceraf_histo_cache_'+targetMonth)||'null');
+    if(cached){
+      histoAllData=cached.data;
+      histoSelectedMonth=targetMonth;
+      populateHistoMonthSelect(cached.availableMonths&&cached.availableMonths.length>0?cached.availableMonths:[targetMonth], targetMonth);
+      renderHistoForMonth();
+      hadCache=true;
+    }
+  }catch(e){}
+  if(!hadCache) el.innerHTML=`<div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
+
   // Charger UNIQUEMENT le mois ciblé — beaucoup plus rapide que tout l'historique
   const data=await apiGet({action:'getAll', month:targetMonth, role});
 
   if(!data.success){
-    sw.classList.add('hidden');qw.classList.add('hidden');
-    el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée.</p></div>';
-    document.getElementById('histo-month-label').textContent='—';
-    document.getElementById('histo-month-select').innerHTML='';
+    if(!hadCache){
+      sw.classList.add('hidden');qw.classList.add('hidden');
+      el.innerHTML=`<div class="empty"><div class="eicon">📁</div><p>${t('histo.noData')}</p></div>`;
+      document.getElementById('histo-month-label').textContent='—';
+      document.getElementById('histo-month-select').innerHTML='';
+    }
     return;
   }
 
@@ -2106,12 +2638,12 @@ async function loadHistorique(){
 
   histoSelectedMonth=monthsList.includes(targetMonth)?targetMonth:monthsList[0];
 
+  try{
+    localStorage.setItem('ceraf_histo_cache_'+histoSelectedMonth, JSON.stringify({data:histoAllData, availableMonths:monthsList}));
+  }catch(e){}
+
   // Peupler le sélecteur (léger : juste des clés de mois, pas les données)
-  const sel=document.getElementById('histo-month-select');
-  sel.innerHTML=monthsList.map(k=>{
-    const[y,m]=k.split('-');
-    return `<option value="${k}" ${k===histoSelectedMonth?'selected':''}>${MONTHS[parseInt(m)-1]} ${y}</option>`;
-  }).join('');
+  populateHistoMonthSelect(monthsList, histoSelectedMonth);
 
   renderHistoForMonth();
 }
@@ -2122,10 +2654,30 @@ async function onHistoMonthChange(val){
   window._histoStatutFilter='';
   window._histoTypeFilter='';
   const el=document.getElementById('historique-content');
-  el.innerHTML='<div class="empty"><div class="eicon">⏳</div><p>Chargement...</p></div>';
+
+  let hadCache=false;
+  try{
+    const cached=JSON.parse(localStorage.getItem('ceraf_histo_cache_'+val)||'null');
+    if(cached){
+      histoAllData=cached.data;
+      renderHistoForMonth();
+      hadCache=true;
+    }
+  }catch(e){}
+  if(!hadCache) el.innerHTML=`<div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
+
   const data=await apiGet({action:'getAll', month:val, role});
-  histoAllData=(data&&data.success)?data.data:[];
-  renderHistoForMonth();
+  if(data&&data.success){
+    histoAllData=data.data;
+    try{
+      const monthsList=(data.availableMonths&&data.availableMonths.length>0)?data.availableMonths:[val];
+      localStorage.setItem('ceraf_histo_cache_'+val, JSON.stringify({data:histoAllData, availableMonths:monthsList}));
+    }catch(e){}
+    renderHistoForMonth();
+  } else if(!hadCache){
+    histoAllData=[];
+    renderHistoForMonth();
+  }
 }
 
 function renderHistoForMonth(){
@@ -2135,7 +2687,7 @@ function renderHistoForMonth(){
   const qw=document.getElementById('quartier-wrap');
 
   const[y,m]=histoSelectedMonth.split('-');
-  document.getElementById('histo-month-label').textContent=MONTHS[parseInt(m)-1]+' '+y;
+  document.getElementById('histo-month-label').textContent=MONTHS[LANG][parseInt(m)-1]+' '+y;
 
   // Les données venant du serveur sont déjà dédupliquées.
   // On collecte toutes les interventions uniques du mois.
@@ -2144,7 +2696,7 @@ function renderHistoForMonth(){
 
   if(allInvs.length===0){
     sw.classList.add('hidden');qw.classList.add('hidden');
-    el.innerHTML='<div class="empty"><div class="eicon">📁</div><p>Aucune donnée pour ce mois.</p></div>';
+    el.innerHTML=`<div class="empty"><div class="eicon">📁</div><p>${t('histo.noDataMonth')}</p></div>`;
     return;
   }
 
@@ -2154,9 +2706,9 @@ function renderHistoForMonth(){
   const ok=allInvs.filter(i=>(SM[i.statut]||'pending')==='ok').length;
   const instances=total-ok;
   document.getElementById('stats-row').innerHTML=`
-    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Interventions</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">Réalisées</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">Instances</div></div>`;
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">${t('stat.interventions')}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">${t('stat.completed')}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">${t('stat.outstanding')}</div></div>`;
 
   // Compteurs croisés pour l'historique
   const activeQ=window._histoQuartierFilter||'';
@@ -2179,21 +2731,21 @@ function renderHistoForMonth(){
   const qC=hCountWith('q');
   const sC=hCountWith('s');
   const tC=hCountWith('t');
-  const topQ=Object.entries(qC).sort((a,b)=>b[1]-a[1]);
+  const villeGroups=groupQuartierCountsByVille(qC);
 
-  if(topQ.length>0){
+  if(villeGroups.length>0){
     qw.classList.remove('hidden');
     const totalQ=Object.values(qC).reduce((a,b)=>a+b,0);
     const totalS=Object.values(sC).reduce((a,b)=>a+b,0);
     const totalT=Object.values(tC).reduce((a,b)=>a+b,0);
 
-    // Filtre quartier
-    const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">Tous <b>${total}</b></span>`;
-    const qBtns=topQ.map(([q,c])=>`<span class="qpill${activeQ===q?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('${q.replace(/'/g,"\\'")}')"> ${q} <b>${c}</b></span>`).join('');
+    // Filtre quartier, regroupé par ville
+    const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">${t('common.all')} <b>${total}</b></span>`;
+    const qBtns=renderQuartierGroupsHTML(villeGroups,activeQ,qk=>`filterHistoByQuartier('${qk.replace(/'/g,"\\'")}')`);
 
     // Filtre statut
-    const STATUT_LABELS=[['pending','⏳ En attente'],['ok','✅ Réalisé'],['unreachable','📵 Injoignable'],['issue','⚠️ Problème']];
-    const allSBtn=`<span class="qpill${activeS===''?' qpill-active':' qpill-clickable'}" style="background:${activeS===''?'var(--blue-mid)':'var(--blue-lt)'};color:${activeS===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="filterHistoByStatut('')">Tous <b>${totalS}</b></span>`;
+    const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
+    const allSBtn=`<span class="qpill${activeS===''?' qpill-active':' qpill-clickable'}" style="background:${activeS===''?'var(--blue-mid)':'var(--blue-lt)'};color:${activeS===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="filterHistoByStatut('')">${t('common.all')} <b>${totalS}</b></span>`;
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=activeS===sk;
@@ -2203,21 +2755,22 @@ function renderHistoForMonth(){
     }).join('');
 
     // Filtre type
-    const allTBtn2=`<span class="qpill${activeT===''?' qpill-active':' qpill-clickable'}" style="background:${activeT===''?'var(--navy)':'#e2e8f0'};color:${activeT===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="filterHistoByType('')">Tous <b>${totalT}</b></span>`;
-    const tBtns2=Object.entries(tC).map(([t,c])=>{
-      const active=activeT===t;
-      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="filterHistoByType('${t.replace(/'/g,"\\'")}')"> ${TI[t]||'📋'} ${TL[t]||t} <b>${c}</b></span>`;
+    const allTBtn2=`<span class="qpill${activeT===''?' qpill-active':' qpill-clickable'}" style="background:${activeT===''?'var(--navy)':'#e2e8f0'};color:${activeT===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="filterHistoByType('')">${t('common.all')} <b>${totalT}</b></span>`;
+    const tBtns2=Object.entries(tC).map(([gt,c])=>{
+      const active=activeT===gt;
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="filterHistoByType('${gt.replace(/'/g,"\\'")}')"> ${TI[gt]||'📋'} ${trType(gt)} <b>${c}</b></span>`;
     }).join('');
 
     qw.innerHTML=`<div class="card">
-      <div class="card-title">📍 Répartition par quartier — cliquez pour filtrer</div>
-      <div style="margin-bottom:8px">${allBtn}${qBtns}</div>
+      <div class="card-title">${t('histo.repartition.title')}</div>
+      <div style="margin-bottom:6px">${allBtn}</div>
+      <div style="margin-bottom:8px">${qBtns}</div>
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par statut</div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byStatus')}</div>
         ${allSBtn}${sBtns}
       </div>
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Filtrer par type</div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byType')}</div>
         ${allTBtn2}${tBtns2}
       </div>
     </div>`;
@@ -2233,7 +2786,7 @@ function renderHistoForMonth(){
     return true;
   });
   if(invsFiltered.length===0){
-    el.innerHTML='<div class="empty"><div class="eicon">📭</div><p>Aucune intervention pour ce filtre ce mois-ci.</p></div>';
+    el.innerHTML=`<div class="empty"><div class="eicon">📭</div><p>${t('histo.noFilterResult')}</p></div>`;
     return;
   }
   invsFiltered.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -2242,14 +2795,14 @@ function renderHistoForMonth(){
 
   let h='';
   Object.keys(byType).forEach(type=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${type}</div>`;
+    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${trType(type)}</div>`;
     byType[type].forEach(inv=>{
       const sk=SM[inv.statut]||'pending';
       const estResolu=sk==='ok'||sk==='issue';
-      const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${inv.duree} j. ouvr${inv.duree>1?'és':'é'}</span>`:'';
+      const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:'';
       const dateTxt=estResolu
-        ?`✅ Résolu le ${formatDateDisplay(inv.date)}`
-        :`🔄 Dernier report : ${formatDateDisplay(inv.date)}`;
+        ?t('histo.resolvedOn',{date:formatDateDisplay(inv.date)})
+        :t('histo.lastCarry',{date:formatDateDisplay(inv.date)});
       const safe=encodeURIComponent(JSON.stringify(inv)).replace(/'/g,'%27');
       h+=`<div class="inv-row" style="cursor:pointer" onclick="showSingleInv(decodeURIComponent('${safe}'))">
         <div class="inv-info">
@@ -2257,10 +2810,10 @@ function renderHistoForMonth(){
           ${buildTags(inv)}
           <div style="font-size:.74rem;color:var(--muted);margin-top:4px;">${dateTxt}</div>
           ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
-            ?`<div class="inv-report">📅 Depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
+            ?`<div class="inv-report">${t('histo.sinceDate',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
-          <span class="badge ${SC[sk]}">${SL[sk]}</span>${dureeTxt}
+          <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>${dureeTxt}
         </div>
       </div>`;
     });
@@ -2272,7 +2825,7 @@ function renderHistoForMonth(){
 function ouvrirMaps(gps){
   const parts=String(gps).replace(/[()]/g,'').split(',').map(s=>s.trim());
   const lat=parts[0],lng=parts[1];
-  if(!lat||!lng){showToast('❌ Coordonnées invalides');return;}
+  if(!lat||!lng){showToast(t('err.invalidCoords'));return;}
   // URL directe qui ouvre Maps immédiatement sans redirection
   window.open('https://maps.google.com/?q='+lat+','+lng,'_blank');
 }
@@ -2295,25 +2848,25 @@ function filterHistoByType(type){
 function showSingleInv(json){
   let invs;
   try{ invs=typeof json==='string'?JSON.parse(json):json; }
-  catch(e){ showToast('❌ Erreur d\'affichage');return; }
+  catch(e){ showToast(t('err.displayError'));return; }
   const inv=Array.isArray(invs)?invs[0]:invs;
   const el=document.getElementById('historique-content');
   const sk=SM[inv.statut]||'pending';
-  const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${inv.duree} j. ouvr${inv.duree>1?'és':'é'}</span>`:'';
-  let h=`<button class="btn btn-ghost btn-sm" onclick="renderHistoForMonth()" style="margin-bottom:14px;">← Retour</button>
+  const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:'';
+  let h=`<button class="btn btn-ghost btn-sm" onclick="renderHistoForMonth()" style="margin-bottom:14px;">${t('btn.back')}</button>
     <div class="card">
-      <div class="card-title">${TI[inv.type]||'📋'} ${inv.type}</div>
+      <div class="card-title">${TI[inv.type]||'📋'} ${trType(inv.type)}</div>
       <div class="inv-row">
         <div class="inv-info">
           <div class="inv-name">${buildLabel(inv)}</div>
           ${buildTags(inv)}
           ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
-            ?`<div class="inv-report">📅 Première itération le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
+            ?`<div class="inv-report">${t('histo.firstIteration',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
           ${displayRemarque(inv.remarque)
             ?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-          <span class="badge ${SC[sk]}">${SL[sk]}</span>
+          <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
           ${dureeTxt}
           ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvFromHisto('${inv.id}')">🗑️</button>`:''}
         </div>
@@ -2327,23 +2880,23 @@ function showDetail(json){
   try{
     c=typeof json==='string'?JSON.parse(json):json;
   }catch(e){
-    showToast('❌ Erreur d\'affichage de la fiche — données corrompues');
+    showToast(t('err.corruptData'));
     return;
   }
   const el=document.getElementById('historique-content');
   const g={};c.interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
-  let h=`<button class="btn btn-ghost btn-sm" onclick="loadHistorique()" style="margin-bottom:14px;">← Retour</button>
-    <div class="consist-header"><div><div class="ch-title">Consistance — ${formatDateDisplay(c.date)}</div></div><div class="ch-chef">👷 ${c.chef}</div></div>`;
-  Object.keys(g).forEach(t=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[t]||'📋'} ${t}</div>`;
-    g[t].forEach((inv,i)=>{
+  let h=`<button class="btn btn-ghost btn-sm" onclick="loadHistorique()" style="margin-bottom:14px;">${t('btn.back')}</button>
+    <div class="consist-header"><div><div class="ch-title">${t('histo.consistanceHeader',{date:formatDateDisplay(c.date)})}</div></div><div class="ch-chef">👷 ${c.chef}</div></div>`;
+  Object.keys(g).forEach(gt=>{
+    h+=`<div class="section-block"><div class="section-title">${TI[gt]||'📋'} ${trType(gt)}</div>`;
+    g[gt].forEach((inv,i)=>{
       const sk=SM[inv.statut]||'pending';
-      const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${inv.duree} j. ouvr${inv.duree>1?'és':'é'}</span>`:'';
+      const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:'';
       h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}
-        ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">🔄 Reporté depuis le ${formatDateDisplay(inv.reporteDepuis)}</div>`:''}
+        ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
         ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
         </div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        <span class="badge ${SC[sk]}">${SL[sk]}</span>
+        <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
         ${dureeTxt}
         ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvFromHisto('${inv.id}')">🗑️</button>`:''}
         </div></div>`;
@@ -2353,13 +2906,13 @@ function showDetail(json){
 }
 
 async function deleteInvFromHisto(invId){
-  if(!confirm('Supprimer définitivement cette intervention ?\n\nCette action est irréversible.'))return;
+  if(!confirm(t('confirm.deleteInv')))return;
   const res=await apiPost({action:'deleteIntervention',invId});
   if(res.success){
-    showToast('🗑️ Intervention supprimée');
+    showToast(t('toast.invDeleted'));
     loadHistorique();
   } else {
-    showToast('❌ Erreur : '+(res.error||'suppression impossible'));
+    showToast(t('err.prefix')+(res.error||t('err.deleteImpossible')));
   }
 }
 
@@ -2368,24 +2921,24 @@ async function deleteInvFromHisto(invId){
 // ══════════════════════════════════════════════
 function setSS(s,m){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-lbl').textContent=m;}
 async function apiPost(payload){
-  setSS('loading','Sync...');
+  setSS('loading',t('sync.syncing'));
   try{
     const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...payload, token:TOKEN, actingRole:role})});
     const data=JSON.parse(await res.text());
     if(data.authError){handleAuthError();return data;}
-    setSS('ok','Synchronisé');return data;
+    setSS('ok',t('sync.synced'));return data;
   }
-  catch(e){setSS('err','Hors ligne');return{success:false,error:e.toString()};}
+  catch(e){setSS('err',t('sync.offline'));return{success:false,error:e.toString()};}
 }
 async function apiGet(params){
-  setSS('loading','Chargement...');
+  setSS('loading',t('sync.loading'));
   try{
     const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams({...params, token:TOKEN, actingRole:role}).toString());
     const data=JSON.parse(await res.text());
     if(data.authError){handleAuthError();return data;}
-    setSS('ok','Synchronisé');return data;
+    setSS('ok',t('sync.synced'));return data;
   }
-  catch(e){setSS('err','Hors ligne');return{success:false,error:'Connexion impossible.'};}
+  catch(e){setSS('err',t('sync.offline'));return{success:false,error:t('err.connectionImpossible')};}
 }
 
 // ══════════════════════════════════════════════
@@ -2439,7 +2992,7 @@ function displayRemarque(r){
 })();
 
 let _tt;
-function showToast(msg){clearTimeout(_tt);const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';_tt=setTimeout(()=>{t.style.display='none';},2800);}
+function showToast(msg){clearTimeout(_tt);const elToast=document.getElementById('toast');elToast.textContent=msg;elToast.style.display='block';_tt=setTimeout(()=>{elToast.style.display='none';},2800);}
 </script>
 </body>
 </html>
