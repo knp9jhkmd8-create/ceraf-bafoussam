@@ -262,8 +262,8 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   <div class="role-logo">CERAF <span>Bafoussam</span></div>
   <div class="role-tagline" data-i18n="login.tagline">Consistance des Travaux — Connexion</div>
   <div class="setup-box" style="max-width:360px;">
-    <label data-i18n="common.name.label">Nom</label>
-    <input type="text" id="login-nom" placeholder="Votre nom" data-i18n-ph="login.name.ph" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
+    <label data-i18n="login.matricule.label">Matricule</label>
+    <input type="text" id="login-matricule" placeholder="Ex: 401569" data-i18n-ph="login.matricule.ph" inputmode="numeric" pattern="[0-9]*" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
     <label data-i18n="login.pin.label">Code PIN</label>
     <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login" data-i18n="login.btn">🔓 Se connecter</button>
@@ -532,9 +532,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <div class="card">
         <div class="card-title" data-i18n="admin.newUser">➕ Nouvel utilisateur</div>
         <div class="form-row">
+          <div><label data-i18n="admin.matriculeLabel">Matricule</label><input id="adm-matricule" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 401569"></div>
           <div><label data-i18n="common.name.label">Nom</label><input id="adm-nom" placeholder="Ex: NDZOUALI Joel"></div>
-          <div><label data-i18n="admin.pinLabel">PIN (4 à 6 chiffres)</label><input id="adm-pin" maxlength="6" inputmode="numeric" placeholder="1234"></div>
         </div>
+        <div class="form-row full"><div><label data-i18n="admin.pinLabel">PIN (défaut 0000)</label><input id="adm-pin" maxlength="6" inputmode="numeric" placeholder="0000"></div></div>
         <div class="form-row full"><div><label data-i18n="admin.rolesLabel">Rôle(s) — un compte peut cumuler plusieurs rôles</label>
           <div style="display:flex;gap:14px;margin-top:6px;">
             <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" class="adm-role-chk" value="chef" style="width:auto;"> <span data-i18n="common.chefCentre.label">Chef centre</span></label>
@@ -597,11 +598,16 @@ fr:{
   'setup.save.btn':'✅ Enregistrer',
   'login.tagline':'Consistance des Travaux — Connexion',
   'login.name.ph':'Votre nom',
+  'login.matricule.label':'Matricule',
+  'login.matricule.ph':'Ex: 401569',
   'login.pin.label':'Code PIN',
   'login.btn':'🔓 Se connecter',
   'login.btn.loading':'⏳ Connexion...',
   'login.note':'Connexion valable 30 jours sur cet appareil',
-  'login.err.required':'Nom et PIN requis',
+  'login.err.required':'Matricule et PIN requis',
+  'pin.propose':'Vous utilisez le mot de passe par défaut (0000). Voulez-vous le modifier maintenant ?',
+  'pin.newPrompt':'Nouveau code PIN (4 à 6 chiffres) :',
+  'pin.changed':'✅ Code PIN modifié',
   'roleswitch.tagline':'Sous quel rôle voulez-vous continuer ?',
   'offline.banner':'📵 Hors ligne — Les mises à jour de statut seront synchronisées au retour du réseau',
   'topbar.roleSwitch.btn':'⇄ Rôle',
@@ -728,15 +734,18 @@ fr:{
   'admin.title':'Gestion des <span>Utilisateurs</span>',
   'admin.sub':'Créer des comptes chef/technicien, réinitialiser un PIN, désactiver un accès',
   'admin.newUser':'➕ Nouvel utilisateur',
-  'admin.pinLabel':'PIN (4 à 6 chiffres)',
+  'admin.matriculeLabel':'Matricule',
+  'admin.pinLabel':'PIN (défaut 0000)',
   'admin.rolesLabel':'Rôle(s) — un compte peut cumuler plusieurs rôles',
   'common.technicien.label':'Technicien',
   'common.administrateur.label':'Administrateur',
   'btn.create':'➕ Créer',
+  'admin.th.matricule':'Matricule',
   'admin.th.roles':'Rôle(s)','admin.th.actif':'Actif','admin.th.lastLogin':'Dernière connexion',
   'admin.noUsers':'Aucun utilisateur.',
   'btn.editRoles':'✏️ Rôles','btn.resetPin':'🔑 PIN','btn.deactivate':'⛔ Désactiver','btn.activate':'✅ Activer',
   'valid.nomPinRequired':'⚠️ Nom et PIN (4 à 6 chiffres) requis',
+  'valid.matriculeNomRequired':'⚠️ Matricule et nom requis',
   'valid.roleRequired':'⚠️ Sélectionnez au moins un rôle',
   'toast.userCreated':'✅ Utilisateur créé',
   'prompt.editRoles':'Rôles pour {nom} — séparés par une virgule.\nValeurs possibles : chef, technicien, admin',
@@ -800,11 +809,16 @@ en:{
   'setup.save.btn':'✅ Save',
   'login.tagline':'Task Sheet — Login',
   'login.name.ph':'Your name',
+  'login.matricule.label':'Staff ID',
+  'login.matricule.ph':'e.g. 401569',
   'login.pin.label':'PIN code',
   'login.btn':'🔓 Log in',
   'login.btn.loading':'⏳ Logging in...',
   'login.note':'Login valid for 30 days on this device',
-  'login.err.required':'Name and PIN required',
+  'login.err.required':'Staff ID and PIN required',
+  'pin.propose':'You are using the default password (0000). Do you want to change it now?',
+  'pin.newPrompt':'New PIN code (4 to 6 digits):',
+  'pin.changed':'✅ PIN code changed',
   'roleswitch.tagline':'Which role do you want to continue as?',
   'offline.banner':'📵 Offline — status updates will sync once the network is back',
   'topbar.roleSwitch.btn':'⇄ Role',
@@ -931,15 +945,18 @@ en:{
   'admin.title':'<span>User</span> Management',
   'admin.sub':'Create supervisor/technician accounts, reset a PIN, disable access',
   'admin.newUser':'➕ New user',
-  'admin.pinLabel':'PIN (4 to 6 digits)',
+  'admin.matriculeLabel':'Staff ID',
+  'admin.pinLabel':'PIN (default 0000)',
   'admin.rolesLabel':'Role(s) — an account can combine several roles',
   'common.technicien.label':'Technician',
   'common.administrateur.label':'Administrator',
   'btn.create':'➕ Create',
+  'admin.th.matricule':'Staff ID',
   'admin.th.roles':'Role(s)','admin.th.actif':'Active','admin.th.lastLogin':'Last login',
   'admin.noUsers':'No users.',
   'btn.editRoles':'✏️ Roles','btn.resetPin':'🔑 PIN','btn.deactivate':'⛔ Deactivate','btn.activate':'✅ Activate',
   'valid.nomPinRequired':'⚠️ Name and PIN (4 to 6 digits) required',
+  'valid.matriculeNomRequired':'⚠️ Staff ID and name required',
   'valid.roleRequired':'⚠️ Select at least one role',
   'toast.userCreated':'✅ User created',
   'prompt.editRoles':'Roles for {nom} — comma-separated.\nPossible values: chef, technicien, admin',
@@ -1287,14 +1304,14 @@ function saveSetup(){
 async function doLogin(){
   const btn=document.getElementById('btn-login');
   if(btn.disabled)return; // garde anti double-tap (fréquent sur mobile)
-  const nom=document.getElementById('login-nom').value.trim();
+  const matricule=document.getElementById('login-matricule').value.trim();
   const pin=document.getElementById('login-pin').value.trim();
   const errEl=document.getElementById('login-error');
   errEl.classList.add('hidden');
-  if(!nom||!pin){errEl.textContent=t('login.err.required');errEl.classList.remove('hidden');return;}
+  if(!matricule||!pin){errEl.textContent=t('login.err.required');errEl.classList.remove('hidden');return;}
   btn.disabled=true;btn.textContent=t('login.btn.loading');
   try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'login',nom,pin})});
+    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'login',matricule,pin})});
     const data=JSON.parse(await res.text());
     if(data.success){
       TOKEN=data.token;SESSION_NOM=data.nom;AVAILABLE_ROLES=data.roles||[];
@@ -1302,6 +1319,8 @@ async function doLogin(){
       localStorage.setItem('ceraf_nom',SESSION_NOM);
       localStorage.setItem('ceraf_roles',JSON.stringify(AVAILABLE_ROLES));
       document.getElementById('login-pin').value='';
+      // PIN encore par défaut (0000) → proposer (sans forcer) de le changer.
+      if(data.mustChangePin){ await proposerChangementPin(); }
       if(AVAILABLE_ROLES.length===1){
         role=AVAILABLE_ROLES[0];localStorage.setItem('ceraf_role',role);startApp(role);
       } else {
@@ -1315,6 +1334,25 @@ async function doLogin(){
   }finally{
     btn.disabled=false;btn.textContent=t('login.btn');
   }
+}
+
+// Proposé après connexion quand le PIN est encore celui par défaut (0000).
+// Non bloquant : l'utilisateur peut refuser et garder 0000. Appelé avant le
+// routage vers le rôle, donc `role` peut ne pas être encore défini — on passe
+// alors le premier rôle disponible comme actingRole (changePin est autorisé
+// pour tous les rôles côté backend).
+async function proposerChangementPin(){
+  if(!confirm(t('pin.propose')))return;
+  const np=prompt(t('pin.newPrompt'));
+  if(np===null)return;
+  if(!/^\d{4,6}$/.test(np.trim())){showToast(t('valid.pinInvalid'));return;}
+  const actingRole=role||AVAILABLE_ROLES[0]||'';
+  try{
+    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'changePin',newPin:np.trim(),token:TOKEN,actingRole})});
+    const data=JSON.parse(await res.text());
+    if(data.success)showToast(t('pin.changed'));
+    else showToast(t('err.prefix')+(data.error||t('err.generic')));
+  }catch(e){showToast(t('err.loginNetwork'));}
 }
 
 async function doLogout(){
@@ -1404,12 +1442,13 @@ function renderAdminUsers(users){
   const wrap=document.getElementById('admin-users-wrap');
   if(!users||users.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">👤</div><p>${t('admin.noUsers')}</p></div>`;return;}
   const roleLbl=ROLE_LBL[LANG];
-  let h=`<table class="clients-table"><thead><tr><th>${t('common.name.label')}</th><th>${t('admin.th.roles')}</th><th>${t('admin.th.actif')}</th><th>${t('admin.th.lastLogin')}</th><th></th></tr></thead><tbody>`;
+  let h=`<table class="clients-table"><thead><tr><th>${t('admin.th.matricule')}</th><th>${t('common.name.label')}</th><th>${t('admin.th.roles')}</th><th>${t('admin.th.actif')}</th><th>${t('admin.th.lastLogin')}</th><th></th></tr></thead><tbody>`;
   users.forEach(u=>{
     const nomEsc=u.nom.replace(/'/g,"\\'");
     const rolesTxt=(u.roles||[]).map(r=>roleLbl[r]||r).join(', ')||'—';
     h+=`<tr>
-      <td><strong>${u.nom}</strong></td>
+      <td><strong>${u.id}</strong></td>
+      <td>${u.nom}</td>
       <td>${rolesTxt}</td>
       <td>${u.actif?'✅':'⛔'}</td>
       <td>${u.derniereConnexion||'—'}</td>
@@ -1425,13 +1464,15 @@ function renderAdminUsers(users){
   wrap.innerHTML=h;
 }
 async function adminAddUserUI(){
+  const matricule=document.getElementById('adm-matricule').value.trim();
   const nom=document.getElementById('adm-nom').value.trim();
-  const pin=document.getElementById('adm-pin').value.trim();
+  const pin=document.getElementById('adm-pin').value.trim()||'0000'; // vide → PIN par défaut
   const roles=[...document.querySelectorAll('.adm-role-chk:checked')].map(c=>c.value);
-  if(!nom||!/^\d{4,6}$/.test(pin)){showToast(t('valid.nomPinRequired'));return;}
+  if(!matricule||!nom){showToast(t('valid.matriculeNomRequired'));return;}
+  if(!/^\d{4,6}$/.test(pin)){showToast(t('valid.pinInvalid'));return;}
   if(roles.length===0){showToast(t('valid.roleRequired'));return;}
-  const res=await apiPost({action:'adminAddUser',nom,pin,roles});
-  if(res.success){showToast(t('toast.userCreated'));document.getElementById('adm-nom').value='';document.getElementById('adm-pin').value='';loadAdminUsers();}
+  const res=await apiPost({action:'adminAddUser',matricule,nom,pin,roles});
+  if(res.success){showToast(t('toast.userCreated'));document.getElementById('adm-matricule').value='';document.getElementById('adm-nom').value='';document.getElementById('adm-pin').value='';loadAdminUsers();}
   else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 async function adminEditRolesUI(id,nom,currentRoles){
