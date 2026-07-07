@@ -1243,7 +1243,20 @@ window.onload=()=>{
 };
 
 function show(id,d='flex'){['setup-screen','login-screen','roleswitch-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});
-  if(id==='login-screen')warmupBackend();
+  if(id==='login-screen'){
+    warmupBackend();
+    // L'auto-remplissage natif du navigateur (autocomplete="username") ne
+    // fonctionne pas de façon fiable sur les PWA iOS installées à l'écran
+    // d'accueil — le champ reste vide mais son placeholder ("Ex: 401569")
+    // ressemble à une vraie valeur, ce qui fait croire à l'utilisateur qu'il
+    // est déjà rempli. On mémorise donc nous-mêmes le dernier matricule.
+    const lastMatricule=localStorage.getItem('ceraf_last_matricule')||'';
+    const champMatricule=document.getElementById('login-matricule');
+    if(lastMatricule && !champMatricule.value){
+      champMatricule.value=lastMatricule;
+      document.getElementById('login-pin').focus();
+    }
+  }
 }
 
 // Réchauffement du backend Apps Script : le premier appel après une période
@@ -1355,6 +1368,7 @@ async function doLogin(){
       localStorage.setItem('ceraf_token',TOKEN);
       localStorage.setItem('ceraf_nom',SESSION_NOM);
       localStorage.setItem('ceraf_roles',JSON.stringify(AVAILABLE_ROLES));
+      localStorage.setItem('ceraf_last_matricule',matricule);
       document.getElementById('login-pin').value='';
       // PIN encore par défaut (0000) → proposer (sans forcer) de le changer.
       if(data.mustChangePin){ await proposerChangementPin(); }
