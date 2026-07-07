@@ -605,6 +605,9 @@ fr:{
   'login.btn.loading':'⏳ Connexion...',
   'login.note':'Connexion valable 30 jours sur cet appareil',
   'login.err.required':'Matricule et PIN requis',
+  'login.err.notFound':'Matricule introuvable',
+  'login.err.badPin':'PIN incorrect',
+  'login.err.disabled':'Compte désactivé',
   'pin.propose':'Vous utilisez le mot de passe par défaut (0000). Voulez-vous le modifier maintenant ?',
   'pin.newPrompt':'Nouveau code PIN (4 à 6 chiffres) :',
   'pin.changed':'✅ Code PIN modifié',
@@ -816,6 +819,9 @@ en:{
   'login.btn.loading':'⏳ Logging in...',
   'login.note':'Login valid for 30 days on this device',
   'login.err.required':'Staff ID and PIN required',
+  'login.err.notFound':'Staff ID not found',
+  'login.err.badPin':'Incorrect PIN',
+  'login.err.disabled':'Account disabled',
   'pin.propose':'You are using the default password (0000). Do you want to change it now?',
   'pin.newPrompt':'New PIN code (4 to 6 digits):',
   'pin.changed':'✅ PIN code changed',
@@ -1301,6 +1307,19 @@ function saveSetup(){
   SCRIPT_URL=url;localStorage.setItem('ceraf_url',url);show('login-screen','flex');
 }
 
+// Traduit les messages d'erreur renvoyés par le backend (toujours en français)
+// vers la langue du système, pour ne pas afficher du français sur une UI EN.
+function localizeAuthError(msg){
+  const map={
+    'Matricule et PIN requis':'login.err.required',
+    'Matricule introuvable':'login.err.notFound',
+    'PIN incorrect':'login.err.badPin',
+    'Compte désactivé':'login.err.disabled',
+    'Session invalide, reconnectez-vous':'err.sessionExpired'
+  };
+  return map[msg]?t(map[msg]):(msg||t('err.loginFailed'));
+}
+
 async function doLogin(){
   const btn=document.getElementById('btn-login');
   if(btn.disabled)return; // garde anti double-tap (fréquent sur mobile)
@@ -1327,7 +1346,7 @@ async function doLogin(){
         showRoleSwitch();
       }
     } else {
-      errEl.textContent=data.error||t('err.loginFailed');errEl.classList.remove('hidden');
+      errEl.textContent=localizeAuthError(data.error);errEl.classList.remove('hidden');
     }
   }catch(e){
     errEl.textContent=t('err.loginNetwork');errEl.classList.remove('hidden');
@@ -3012,6 +3031,13 @@ function displayRemarque(r){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js')
       .catch(err => console.warn('[SW] Erreur:', err));
+    // Quand un nouveau service worker prend le contrôle (après un déploiement),
+    // recharger une seule fois pour afficher tout de suite la nouvelle version
+    // au lieu de rester coincé sur l'ancienne page mise en cache.
+    let _swReloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(_swReloaded)return; _swReloaded=true; location.reload();
+    });
   }
 
   // Bannière hors ligne
