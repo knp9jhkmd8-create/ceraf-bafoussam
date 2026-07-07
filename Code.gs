@@ -544,6 +544,15 @@ function doGet(e) {
   const wanted = e && e.parameter && e.parameter.actingRole;
   let result;
   try {
+    // Réchauffement : appelé en arrière-plan par le front dès l'affichage de
+    // l'écran de connexion, pour que le cold start Apps Script (10-30s) se
+    // produise PENDANT que l'utilisateur tape son matricule et non après le
+    // clic sur "Se connecter". Aucune donnée, aucune session — juste réveiller
+    // le conteneur d'exécution.
+    if (action === 'ping') {
+      return ContentService.createTextOutput(JSON.stringify({ success: true, pong: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     ensureSeeded();
     const session = resolveSession(token);
     if (!session) {

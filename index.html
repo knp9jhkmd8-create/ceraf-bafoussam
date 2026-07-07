@@ -1242,7 +1242,25 @@ window.onload=()=>{
   else             startApp(AVAILABLE_ROLES[0]);
 };
 
-function show(id,d='flex'){['setup-screen','login-screen','roleswitch-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});}
+function show(id,d='flex'){['setup-screen','login-screen','roleswitch-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});
+  if(id==='login-screen')warmupBackend();
+}
+
+// Réchauffement du backend Apps Script : le premier appel après une période
+// d'inactivité subit un cold start de 10-30s. En envoyant un ping léger dès
+// que l'écran de connexion s'affiche, ce cold start se produit pendant que
+// l'utilisateur tape son matricule/PIN au lieu de s'ajouter après le clic
+// sur "Se connecter". Fire-and-forget : ni la réponse ni l'échec ne comptent,
+// seul le réveil du conteneur importe. Throttle 2 min pour ne pas re-pinger
+// à chaque aller-retour d'écran.
+let _lastWarmup=0;
+function warmupBackend(){
+  if(!SCRIPT_URL)return;
+  const now=Date.now();
+  if(now-_lastWarmup<120000)return;
+  _lastWarmup=now;
+  fetch(SCRIPT_URL+'?action=ping').catch(()=>{});
+}
 
 // Écran de choix du rôle actif — affiché après connexion si le compte
 // dispose de plusieurs rôles (ex: chef ET technicien).
