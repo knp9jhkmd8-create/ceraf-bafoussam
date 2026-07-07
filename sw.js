@@ -9,7 +9,7 @@
 //    le cache ne sert plus que de secours hors-ligne.
 // ============================================================
 
-const CACHE_VERSION = 'ceraf-v10';
+const CACHE_VERSION = 'ceraf-v11';
 const CACHE_FILES   = ['./index.html', './manifest.json'];
 
 // ── INSTALLATION ────────────────────────────────────────────
@@ -49,7 +49,12 @@ self.addEventListener('fetch', e => {
       || url.pathname.endsWith('/')) {
     e.respondWith(
       caches.open(CACHE_VERSION).then(cache =>
-        fetch(e.request)
+        // cache:'reload' force le navigateur à ignorer son propre cache HTTP
+        // (pas seulement notre Cache API) — sans ça, une PWA iOS ajoutée à
+        // l'écran d'accueil peut rester bloquée sur une version ancienne
+        // même quand ce fetch "réseau" s'exécute, si le HTTP cache du
+        // WebView sert une réponse périmée.
+        fetch(e.request, { cache: 'reload' })
           .then(response => {
             cache.put(e.request, response.clone());
             return response;
