@@ -1429,13 +1429,11 @@ function reporterInterventionsEnAttente() {
 
       rowIndicesToMark.sort((a,b)=>b-a).forEach(rowIdx => sheet2.deleteRow(rowIdx));
 
-      const iRowsAfter = sheet2.getDataRange().getValues();
-      let remaining = 0;
-      for (let j=1; j<iRowsAfter.length; j++) {
-        if (String(iRowsAfter[j][ii.cid])===consist.id) remaining++;
-      }
-      if (remaining===0) sheet1.deleteRow(consist.rowIndex);
-      else sheet1.getRange(consist.rowIndex, ci.nb+1).setValue(remaining);
+      // NE PAS réécrire Nb_Interventions avec les lignes physiques restantes
+      // (= seulement les réalisées) ni supprimer la fiche vidée : les vrais
+      // compteurs (photo de fin de journée : réalisées + instances) sont
+      // reconstruits par recalculerAgregatsMois() ci-dessous, et la fiche
+      // doit rester dans l'historique même si tout a été reporté.
 
       totalReportees += aReporter.length;
     });
@@ -1628,18 +1626,22 @@ function reparerServiceClients() {
 
 // ============================================================
 //  RECALCULER LES AGRÉGATS PAR JOUR (Réalisées / Instances)
-//  Pour chaque fiche du mois donné :
-//    - Nb_Interventions = total des interventions CRÉÉES ce jour-là
-//    - Realisees        = parmi elles, combien sont (à ce jour) "Réalisé"
-//    - Instances        = Nb_Interventions - Realisees
+//  Pour chaque fiche du mois donné, on reconstitue la PHOTO DE FIN DE
+//  JOURNÉE (minuit, juste avant le report automatique de 1h) :
+//    - Nb_Interventions = interventions présentes sur la fiche ce jour-là
+//                         (créées ce jour + arrivées par report)
+//    - Realisees        = celles réalisées CE jour-là
+//    - Instances        = celles encore ouvertes à la fin de ce jour
+//    → Nb_Interventions = Realisees + Instances, toujours.
 //
-//  Rattachement par DATE D'ORIGINE (Reporté_depuis), PAS par la fiche
-//  à laquelle la ligne est physiquement attachée aujourd'hui. Le report
-//  automatique de 1h déplace chaque intervention non réalisée vers le
-//  jour suivant (supprime la ligne de J, la recrée en J+1) — si on
-//  comptait par attache physique courante, le total du jour J s'effondrait
-//  à chaque report, "falsifiant" rétroactivement une journée déjà passée.
-//  L'origine, elle, ne bouge jamais : le jour J garde son vrai total.
+//  On ne compte PAS les lignes physiques (le report de 1h les déplace,
+//  ce qui effondrerait le total des jours passés au nombre de réalisées).
+//  On reconstruit la présence depuis les dates, qui ne bougent jamais :
+//  une intervention d'origine O (Reporté_depuis) réalisée le jour C est
+//  présente sur chaque fiche de O à C inclus — en instance de O à C-1,
+//  réalisée le jour C. Une intervention encore ouverte est présente en
+//  instance de O jusqu'à aujourd'hui. Les jours passés sont donc stables
+//  ET reconstructibles à tout moment.
 //
 //  Une intervention reportée plusieurs fois existe en plusieurs lignes
 //  physiques (une par report) — on ne garde que son état le plus avancé
@@ -1693,19 +1695,23 @@ function recalculerAgregatsMois(monthKey) {
     }
   }
 
-  // Agrégation par date d'origine
-  const parJour = {};
-  Object.values(deduped).forEach(inv => {
-    if (!parJour[inv.origine]) parJour[inv.origine] = { total: 0, realisees: 0 };
-    parJour[inv.origine].total++;
-    if (inv.statut === 'Réalisé') parJour[inv.origine].realisees++;
-  });
-
+  // Présence par jour : une intervention est présente sur chaque fiche
+  // entre son origine et sa date de fin (= sa date de réalisation, ou
+  // aujourd'hui si toujours ouverte).
+  const todayStr = normDate(new Date());
+  const invs = Object.values(deduped);
   consistsOfMonth.forEach(c => {
-    const agg = parJour[c.date] || { total: 0, realisees: 0 };
-    sheet1.getRange(c.rowIndex, ci.nb+1).setValue(agg.total);
-    sheet1.getRange(c.rowIndex, ci.realisees+1).setValue(agg.realisees);
-    sheet1.getRange(c.rowIndex, ci.instances+1).setValue(agg.total - agg.realisees);
+    let total = 0, realisees = 0;
+    invs.forEach(inv => {
+      const fin = (inv.statut === 'Réalisé') ? inv.date : todayStr;
+      if (inv.origine <= c.date && c.date <= fin) {
+        total++;
+        if (inv.statut === 'Réalisé' && inv.date === c.date) realisees++;
+      }
+    });
+    sheet1.getRange(c.rowIndex, ci.nb+1).setValue(total);
+    sheet1.getRange(c.rowIndex, ci.realisees+1).setValue(realisees);
+    sheet1.getRange(c.rowIndex, ci.instances+1).setValue(total - realisees);
   });
 }
 
