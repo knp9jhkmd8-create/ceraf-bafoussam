@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#1d4ed8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -31,7 +31,7 @@
   --shadow-md:0 4px 24px rgba(30,58,138,.12);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
 
 /* SETUP */
 #setup-screen{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff);}
@@ -72,6 +72,11 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .nav-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;gap:2px;overflow-x:auto;}
 .nav-tab{padding:10px 12px;font-size:.8rem;font-weight:600;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;}
 .nav-tab:hover{color:var(--blue-mid);}.nav-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid);}
+
+#ptr-indicator{position:fixed;left:0;right:0;top:0;display:flex;align-items:flex-end;justify-content:center;height:calc(56px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);margin-top:calc(-56px - env(safe-area-inset-top,0px));z-index:200;pointer-events:none;transition:transform .2s ease,opacity .2s ease;opacity:0;}
+#ptr-indicator .ptr-spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--blue-glow);border-top-color:var(--blue-mid);transition:transform .1s linear;}
+#ptr-indicator.spin .ptr-spinner{animation:ptr-rotate .7s linear infinite;}
+@keyframes ptr-rotate{to{transform:rotate(360deg);}}
 
 .main-content{flex:1;padding:18px 16px;max-width:880px;margin:0 auto;width:100%;}
 .main-content.wide-page{max-width:1400px;}
@@ -229,7 +234,7 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .modal-diff .new{color:var(--green);font-weight:600;}
 
 .hidden{display:none!important;}
-.offline-banner{position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;text-align:center;padding:6px;font-size:.78rem;font-weight:700;z-index:9999;display:none;}
+.offline-banner{position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;text-align:center;padding:6px;padding-top:calc(6px + env(safe-area-inset-top,0px));font-size:.78rem;font-weight:700;z-index:9999;display:none;}
 .offline-banner.visible{display:block;}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
 .empty{text-align:center;padding:40px 20px;color:var(--muted);}
@@ -283,6 +288,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 
 <!-- APP -->
 <div id="app">
+  <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
       <div class="logo-text">CERAF <span>Bafoussam</span></div>
@@ -3089,6 +3095,77 @@ function displayRemarque(r){
 
 let _tt;
 function showToast(msg){clearTimeout(_tt);const elToast=document.getElementById('toast');elToast.textContent=msg;elToast.style.display='block';_tt=setTimeout(()=>{elToast.style.display='none';},2800);}
+
+// ══════════════════════════════════════════════
+//  PULL-TO-REFRESH (tirer depuis le haut pour actualiser)
+// ══════════════════════════════════════════════
+function refreshCurrentPage(){
+  const activeEl=document.querySelector('#app .page.active');
+  const p=activeEl?activeEl.id.replace('page-',''):null;
+  if(p==='terrain')          loadTerrain();
+  else if(p==='historique')  loadHistorique();
+  else if(p==='clients')     refreshClients();
+  else if(p==='clients-ro')  refreshClientsRO();
+  else if(p==='admin')       loadAdminUsers();
+  else                       location.reload();
+}
+(function(){
+  const THRESHOLD=60, MAX_PULL=120;
+  const ind=document.getElementById('ptr-indicator');
+  if(!ind)return;
+  let startY=0, pulling=false, refreshing=false, curPull=0;
+
+  function anyModalOpen(){
+    return !!document.querySelector('.modal-overlay[style*="flex"]');
+  }
+
+  function reset(){
+    pulling=false;curPull=0;
+    ind.style.opacity=0;
+    ind.style.transform='translateY(0)';
+  }
+
+  function release(){
+    if(!pulling||refreshing){pulling=false;return;}
+    pulling=false;
+    if(curPull>=THRESHOLD){
+      refreshing=true;
+      ind.style.transform=`translateY(${THRESHOLD}px)`;
+      ind.style.opacity=1;
+      ind.classList.add('spin');
+      refreshCurrentPage();
+      setTimeout(()=>{
+        refreshing=false;
+        ind.classList.remove('spin');
+        reset();
+      },900);
+    } else {
+      reset();
+    }
+  }
+
+  document.addEventListener('touchstart',e=>{
+    if(refreshing||anyModalOpen())return;
+    if(document.getElementById('app').style.display==='none')return;
+    if(window.scrollY>0)return;
+    startY=e.touches[0].clientY;
+    curPull=0;
+    pulling=true;
+  },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(!pulling||refreshing)return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy<=0||window.scrollY>0){curPull=0;ind.style.opacity=0;ind.style.transform='translateY(0)';return;}
+    curPull=Math.min(dy,MAX_PULL);
+    ind.style.opacity=Math.min(curPull/THRESHOLD,1);
+    ind.style.transform=`translateY(${curPull}px)`;
+    ind.classList.toggle('spin',curPull>=THRESHOLD);
+  },{passive:true});
+
+  document.addEventListener('touchend',release,{passive:true});
+  document.addEventListener('touchcancel',release,{passive:true});
+})();
 </script>
 </body>
 </html>
