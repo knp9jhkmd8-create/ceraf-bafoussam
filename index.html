@@ -3031,13 +3031,10 @@ function displayRemarque(r){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js')
       .catch(err => console.warn('[SW] Erreur:', err));
-    // Quand un nouveau service worker prend le contrôle (après un déploiement),
-    // recharger une seule fois pour afficher tout de suite la nouvelle version
-    // au lieu de rester coincé sur l'ancienne page mise en cache.
-    let _swReloaded=false;
-    navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(_swReloaded)return; _swReloaded=true; location.reload();
-    });
+    // NB : PAS de rechargement automatique sur 'controllerchange' — combiné à
+    // clients.claim(), ça bouclait à l'infini (claim → controllerchange →
+    // reload → claim…). Le network-first du SW suffit à servir la dernière
+    // version dès qu'il y a du réseau.
   }
 
   // Bannière hors ligne
