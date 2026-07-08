@@ -1428,12 +1428,42 @@ function getAll(params) {
 // ============================================================
 //  REPORT AUTOMATIQUE (23h)
 // ============================================================
+// ============================================================
+//  SAUVEGARDE HEBDOMADAIRE
+//  Copie complète du classeur chaque dimanche, créée via
+//  SpreadsheetApp.create (volontairement PAS DriveApp : un nouveau
+//  service ajouterait un scope OAuth et casserait le web app déployé
+//  jusqu'à réautorisation manuelle). Le marqueur anti-doublon vit dans
+//  une feuille cachée _Config car reporterInterventionsEnAttente est
+//  appelé à chaque getByDate, pas seulement par le trigger de 1h.
+//  Les copies s'accumulent dans le Drive du propriétaire (racine) —
+//  purge manuelle de temps en temps.
+// ============================================================
+function sauvegardeHebdoSiDimanche(force) {
+  const now = new Date();
+  if (!force && now.getDay() !== 0) return; // dimanche uniquement
+  const ss = getSS();
+  let cfg = ss.getSheetByName('_Config');
+  if (!cfg) { cfg = ss.insertSheet('_Config'); cfg.hideSheet(); }
+  const aujourd = normDate(now);
+  if (String(cfg.getRange('B1').getValue()) === 'sauvegarde:' + aujourd) return; // déjà faite
+  const backup = SpreadsheetApp.create('CERAF BD — sauvegarde ' + aujourd);
+  ss.getSheets().forEach(function(sh) {
+    if (sh.getName() === '_Config') return;
+    sh.copyTo(backup).setName(sh.getName());
+  });
+  backup.deleteSheet(backup.getSheets()[0]); // feuille vide créée par défaut
+  cfg.getRange('B1').setValue('sauvegarde:' + aujourd);
+  return backup.getUrl();
+}
+
 function reporterInterventionsEnAttente() {
   const lock = LockService.getScriptLock();
   const gotLock = lock.tryLock(3000);
   if (!gotLock) return;
 
   try {
+    try { sauvegardeHebdoSiDimanche(); } catch(e) { Logger.log('Sauvegarde: ' + e); }
     const sheet1 = s1(), sheet2 = s2();
     const ci = getConsistIdx(sheet1);
     const ii = getInvIdx(sheet2);

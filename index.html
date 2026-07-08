@@ -518,6 +518,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
     <div class="page" id="page-terrain">
       <div class="page-title" data-i18n-html="terrain.title.html">Fiche du <span id="terrain-date-title">Jour</span></div>
       <div class="page-sub" id="terrain-chef-sub" data-i18n="terrain.subUpdate">Mettez à jour vos interventions en temps réel</div>
+      <input type="text" id="terrain-search" placeholder="🔎 Rechercher (nom, numéro, tél...)" data-i18n-ph="terrain.search.ph" oninput="onTerrainSearch(this.value)" style="margin-bottom:12px;">
       <div id="terrain-quartier-summary" class="hidden"></div>
       <div id="terrain-content"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
     </div>
@@ -735,6 +736,8 @@ fr:{
   'histo.title.html':'<span>Historique</span> — <span id="histo-month-label">...</span>',
   'histo.sub.html':'Toutes les fiches classées par mois <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>',
   'stat.interventions':'Interventions','stat.completed':'Réalisées','stat.outstanding':'Instances',
+  'stat.taux':'Taux de réalisation','stat.dureeMoy':'Durée moy. de résolution','filter.byPanne':'Filtrer par panne',
+  'terrain.search.ph':'🔎 Rechercher (nom, numéro, tél...)',
   'histo.noData':'Aucune donnée.',
   'histo.noDataMonth':'Aucune donnée pour ce mois.',
   'histo.repartition.title':'📍 Répartition par quartier — cliquez pour filtrer',
@@ -951,6 +954,8 @@ en:{
   'histo.title.html':'<span>History</span> — <span id="histo-month-label">...</span>',
   'histo.sub.html':'All sheets sorted by month <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>',
   'stat.interventions':'Interventions','stat.completed':'Completed','stat.outstanding':'Outstanding',
+  'stat.taux':'Completion rate','stat.dureeMoy':'Avg. resolution time','filter.byPanne':'Filter by fault',
+  'terrain.search.ph':'🔎 Search (name, number, phone...)',
   'histo.noData':'No data.',
   'histo.noDataMonth':'No data for this month.',
   'histo.repartition.title':'📍 Breakdown by neighborhood — click to filter',
@@ -1152,7 +1157,7 @@ function composePanneRemarque(panne,note){
 let role='',cType='etude_ftth',pending=[],SCRIPT_URL='';
 let TOKEN='',SESSION_NOM='',AVAILABLE_ROLES=[];
 let terrainData=null,currentTerrainView='type';
-let terrainQuartierFilter='', terrainStatutFilter='', terrainTypeFilter='';
+let terrainQuartierFilter='', terrainStatutFilter='', terrainTypeFilter='', terrainTextFilter='';
 let terrainInterventionsCache=[]; // pour la vue détail quartier côté terrain
 
 // Deux villes différentes peuvent avoir un quartier du même nom : on regroupe
@@ -2244,6 +2249,9 @@ async function loadTerrain(){
   terrainQuartierFilter='';
   terrainStatutFilter='';
   terrainTypeFilter='';
+  terrainTextFilter='';
+  const searchInp=document.getElementById('terrain-search');
+  if(searchInp)searchInp.value='';
   renderTerrain(data);
 }
 
@@ -2343,11 +2351,16 @@ function renderTerrain(data){
 }
 
 function applyTerrainFilters(interventions){
+  const q=terrainTextFilter.trim().toLowerCase();
   return interventions.filter(i=>{
     if(i.estTransfere)return false;
     if(terrainQuartierFilter&&quartierKey(i)!==terrainQuartierFilter)return false;
     if(terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return false;
     if(terrainTypeFilter&&i.type!==terrainTypeFilter)return false;
+    if(q){
+      const hay=[i.nom,i.num,i.customerId,i.tel,i.telSec,i.quartier,i.loc,i.ville].map(x=>String(x||'')).join(' ').toLowerCase();
+      if(!hay.includes(q))return false;
+    }
     return true;
   });
 }
@@ -2356,6 +2369,11 @@ function setTerrainFilter(type,val){
   if(type==='q') terrainQuartierFilter=val;
   else if(type==='s') terrainStatutFilter=val;
   else terrainTypeFilter=val;
+  if(terrainData) renderTerrain(terrainData);
+}
+
+function onTerrainSearch(val){
+  terrainTextFilter=val||'';
   if(terrainData) renderTerrain(terrainData);
 }
 
@@ -2817,27 +2835,38 @@ function renderHistoForMonth(){
   // Stats
   sw.classList.remove('hidden');
   const total=allInvs.length;
-  const ok=allInvs.filter(i=>(SM[i.statut]||'pending')==='ok').length;
+  const realiseesList=allInvs.filter(i=>(SM[i.statut]||'pending')==='ok');
+  const ok=realiseesList.length;
   const instances=total-ok;
+  const taux=total>0?Math.round(ok*100/total):0;
+  const tauxColor=taux>=80?'var(--green)':taux>=50?'var(--yellow)':'var(--red)';
+  const dureeMoy=ok>0?realiseesList.reduce((a,i)=>a+(Number(i.duree)||0),0)/ok:null;
+  const dureeMoyTxt=dureeMoy===null?'—':(Math.round(dureeMoy*10)/10)+'&nbsp;j';
   document.getElementById('stats-row').innerHTML=`
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">${t('stat.interventions')}</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--green)">${ok}</div><div class="stat-lbl">${t('stat.completed')}</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">${t('stat.outstanding')}</div></div>`;
+    <div class="stat-card"><div class="stat-num" style="color:var(--purple)">${instances}</div><div class="stat-lbl">${t('stat.outstanding')}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:${tauxColor}">${taux}%</div><div class="stat-lbl">${t('stat.taux')}</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--teal)">${dureeMoyTxt}</div><div class="stat-lbl">${t('stat.dureeMoy')}</div></div>`;
 
   // Compteurs croisés pour l'historique
   const activeQ=window._histoQuartierFilter||'';
   const activeS=window._histoStatutFilter||'';
   const activeT=window._histoTypeFilter||'';
+  const activeP=window._histoPanneFilter||'';
 
+  function panneKey(i){return (i.panne&&i.panne!=='null')?i.panne:'';}
   function hCountWith(ignore){
     const res={};
     allInvs.forEach(i=>{
       if(ignore!=='q'&&activeQ&&quartierKey(i)!==activeQ)return;
       if(ignore!=='s'&&activeS&&(SM[i.statut]||'pending')!==activeS)return;
       if(ignore!=='t'&&activeT&&i.type!==activeT)return;
+      if(ignore!=='p'&&activeP&&panneKey(i)!==activeP)return;
       if(ignore==='q') { const qk=quartierKey(i); if(qk!=='—') res[qk]=(res[qk]||0)+1; }
       else if(ignore==='s') { const sk=SM[i.statut]||'pending'; res[sk]=(res[sk]||0)+1; }
       else if(ignore==='t') res[i.type]=(res[i.type]||0)+1;
+      else if(ignore==='p') { const pk=panneKey(i); if(pk) res[pk]=(res[pk]||0)+1; }
     });
     return res;
   }
@@ -2845,6 +2874,7 @@ function renderHistoForMonth(){
   const qC=hCountWith('q');
   const sC=hCountWith('s');
   const tC=hCountWith('t');
+  const pC=hCountWith('p');
   const villeGroups=groupQuartierCountsByVille(qC);
 
   if(villeGroups.length>0){
@@ -2887,16 +2917,29 @@ function renderHistoForMonth(){
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byType')}</div>
         ${allTBtn2}${tBtns2}
       </div>
+      ${Object.keys(pC).length>0?(()=>{
+        const totalP=Object.values(pC).reduce((a,b)=>a+b,0);
+        const allPBtn=`<span class="qpill${activeP===''?' qpill-active':' qpill-clickable'}" style="background:${activeP===''?'var(--orange)':'var(--orange-lt)'};color:${activeP===''?'#fff':'var(--orange)'};border-color:var(--orange)" onclick="filterHistoByPanne('')">${t('common.all')} <b>${totalP}</b></span>`;
+        const pBtns=Object.entries(pC).sort((a,b)=>b[1]-a[1]).map(([pk,c])=>{
+          const active=activeP===pk;
+          return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--orange);color:#fff;border-color:var(--orange)':'background:var(--orange-lt);color:var(--orange);border-color:var(--orange)'}" onclick="filterHistoByPanne('${pk.replace(/'/g,"\\'")}')">🔧 ${trPanne(pk)} <b>${c}</b></span>`;
+        }).join('');
+        return`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+          <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byPanne')}</div>
+          ${allPBtn}${pBtns}
+        </div>`;
+      })():''}
     </div>`;
   } else {
     qw.classList.add('hidden');
   }
 
-  // Appliquer les trois filtres
+  // Appliquer les filtres
   const invsFiltered=allInvs.filter(i=>{
     if(activeQ&&quartierKey(i)!==activeQ)return false;
     if(activeS&&(SM[i.statut]||'pending')!==activeS)return false;
     if(activeT&&i.type!==activeT)return false;
+    if(activeP&&panneKey(i)!==activeP)return false;
     return true;
   });
   if(invsFiltered.length===0){
@@ -2956,6 +2999,11 @@ function filterHistoByStatut(statut){
 
 function filterHistoByType(type){
   window._histoTypeFilter=type;
+  renderHistoForMonth();
+}
+
+function filterHistoByPanne(panne){
+  window._histoPanneFilter=panne;
   renderHistoForMonth();
 }
 
