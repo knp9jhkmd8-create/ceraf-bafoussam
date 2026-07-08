@@ -627,6 +627,7 @@ fr:{
   'nav.chef':'👷 Consistance','nav.clients':'👥 Clients','nav.historique':'📁 Historique',
   'nav.admin':'🔑 Utilisateurs','nav.terrain':'📡 Terrain',
   'terrain.publishedBy':'Publié par {nom}','terrain.statusBy':'Statut par {nom}',
+  'clients.histBtn':'Historique du client','clientHist.count':'{n} intervention(s) au total','clientHist.empty':'Aucune intervention pour ce client',
   'badge.chef':'👷 Chef centre','badge.admin':'🔑 Administrateur','badge.technicien':'📡 Technicien',
   'chef.title':'Créer la <span>Consistance</span>',
   'chef.sub':"Chaque publication s'ajoute à la fiche du jour",
@@ -842,6 +843,7 @@ en:{
   'nav.chef':'👷 Task Sheet','nav.clients':'👥 Customers','nav.historique':'📁 History',
   'nav.admin':'🔑 Users','nav.terrain':'📡 Field',
   'terrain.publishedBy':'Published by {nom}','terrain.statusBy':'Status by {nom}',
+  'clients.histBtn':'Client history','clientHist.count':'{n} intervention(s) total','clientHist.empty':'No interventions for this client',
   'badge.chef':'👷 Center Supervisor','badge.admin':'🔑 Administrator','badge.technicien':'📡 Technician',
   'chef.title':'Create the <span>Task Sheet</span>',
   'chef.sub':"Each publication is added to today's sheet",
@@ -2086,8 +2088,9 @@ function svcClass(s){if(s==='FTTH')return'svc-ftth';if(s==='LS')return'svc-ls';i
 function renderClientsTable(list,wrapId){
   const wrap=document.getElementById(wrapId);
   if(!list||list.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">👥</div><p>${t('clients.empty')}</p></div>`;return;}
+  const showHist=role==='chef';
   let h=`<table class="clients-table"><thead><tr>
-    <th>${t('clients.th.num')}</th><th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.service')}</th><th>${t('clients.th.gps')}</th>
+    <th>${t('clients.th.num')}</th><th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.service')}</th><th>${t('clients.th.gps')}</th>${showHist?`<th></th>`:''}
   </tr></thead><tbody>`;
   list.forEach(c=>{
     // GPS valide = contient des chiffres et une virgule (coordonnées)
@@ -2106,9 +2109,47 @@ function renderClientsTable(list,wrapId){
       <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
       <td>${svc?`<span class="service-badge ${svcClass(svc)}">${svc}</span>`:'—'}</td>
       <td>${gpsH}</td>
+      ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('${String(c.num).replace(/'/g,"\\'")}','${String(c.nom||'').replace(/'/g,"\\'")}')">📜</button></td>`:''}
     </tr>`;
   });
   h+='</tbody></table>';wrap.innerHTML=h;
+}
+
+// ══════════════════════════════════════════════
+//  HISTORIQUE D'UN CLIENT (page Clients du chef)
+//  Liste simple : date, type, statut, panne, durée.
+// ══════════════════════════════════════════════
+async function showClientHistory(num,nom){
+  const content=document.getElementById('quartier-modal-content');
+  content.innerHTML=`<div class="modal-title">📜 ${nom||num}</div><div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
+  document.getElementById('modal-quartier').classList.add('active');
+
+  const res=await apiGet({action:'getClientHistory',num});
+  if(!res.success){content.innerHTML=`<div class="modal-title">📜 ${nom||num}</div><div class="empty"><p>❌ ${res.error||t('err.generic')}</p></div><div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button></div>`;return;}
+
+  let h=`<div class="modal-title">📜 ${nom||num}</div>
+    <div class="modal-body">${t('clientHist.count',{n:res.history.length})}</div>
+    <div style="max-height:60vh;overflow-y:auto;">`;
+  if(res.history.length===0){
+    h+=`<div class="empty"><div class="eicon">📭</div><p>${t('clientHist.empty')}</p></div>`;
+  } else {
+    res.history.forEach(inv=>{
+      const sk=SM[inv.statut]||'pending';
+      h+=`<div class="inv-row">
+        <div class="inv-info">
+          <div class="inv-name">${TI[inv.type]||'📋'} ${trType(inv.type)}</div>
+          <div style="font-size:.74rem;color:var(--muted);margin-top:3px;">📅 ${formatDateDisplay(inv.date)}</div>
+          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+          <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
+          ${inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:''}
+        </div>
+      </div>`;
+    });
+  }
+  h+=`</div><div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button></div>`;
+  content.innerHTML=h;
 }
 
 // ══════════════════════════════════════════════
@@ -2369,7 +2410,6 @@ function invRowHTML(inv,idx){
     </div>`;
   }
 
-  const safe=encodeURIComponent(JSON.stringify(inv)).replace(/'/g,'%27');
   const isEtudeFtth=inv.type===TL.etude_ftth;
   const isDerangFtth=inv.type===TL.derang_ftth;
 
@@ -2411,8 +2451,7 @@ function invRowHTML(inv,idx){
 
   return`<div class="inv-row" id="row-${inv.id}">
     <div class="inv-info">
-      <!-- Nom cliquable → ouvre le détail avec remarques -->
-      <div class="inv-name" style="cursor:pointer;text-decoration:underline dotted var(--muted2);" onclick="showTerrainInvDetail(decodeURIComponent('${safe}'))">${idx+1}. ${buildLabel(inv)} <span style="font-size:.7rem;color:var(--muted2);">🔍</span></div>
+      <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
       ${buildTags(inv)}
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
       ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
@@ -2513,41 +2552,6 @@ function showQuartierDetail(quartier, context){
 
 function closeQuartierModal(){
   document.getElementById('modal-quartier').classList.remove('active');
-}
-
-function showTerrainInvDetail(json){
-  let inv;
-  try{ inv=typeof json==='string'?JSON.parse(json):json; }
-  catch(e){ showToast(t('err.generic'));return; }
-  const sk=SM[inv.statut]||'pending';
-  const row=document.getElementById('row-'+inv.id);
-  // Lire la remarque actuelle depuis le champ de saisie (peut avoir été modifiée)
-  const remarkeCurrent=row?(row.querySelector('.remark-inp')||{value:inv.remarque||''}).value:(inv.remarque||'');
-
-  let h=`<div class="modal-title">${TI[inv.type]||'📋'} ${trType(TL[inv.type]||inv.type)}</div>
-    <div class="inv-row" style="border:none;padding:0;margin-bottom:8px;">
-      <div class="inv-info">
-        <div class="inv-name">${buildLabel(inv)}</div>
-        ${buildTags(inv)}
-        ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
-          ?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
-        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
-      </div>
-      <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
-    </div>
-    <div style="margin-top:10px;">
-      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">${t('common.remarksHeading')}</div>
-      ${remarkeCurrent&&remarkeCurrent!=='null'&&remarkeCurrent!==''
-        ?`<div style="background:var(--blue-lt);border-radius:8px;padding:10px 12px;font-size:.85rem;line-height:1.5;">${remarkeCurrent}</div>`
-        :`<div style="color:var(--muted);font-size:.82rem;font-style:italic;">${t('common.noRemark')}</div>`}
-    </div>
-    <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
-      ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvUI('${inv.id}');closeQuartierModal()">${t('btn.delete')}</button>`:''}
-      <button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button>
-    </div>`;
-
-  document.getElementById('quartier-modal-content').innerHTML=h;
-  document.getElementById('modal-quartier').classList.add('active');
 }
 
 // ── File d'attente hors ligne ───────────────────────────────
@@ -2913,14 +2917,14 @@ function renderHistoForMonth(){
       const dateTxt=estResolu
         ?t('histo.resolvedOn',{date:formatDateDisplay(inv.date)})
         :t('histo.lastCarry',{date:formatDateDisplay(inv.date)});
-      const safe=encodeURIComponent(JSON.stringify(inv)).replace(/'/g,'%27');
-      h+=`<div class="inv-row" style="cursor:pointer" onclick="showSingleInv(decodeURIComponent('${safe}'))">
+      h+=`<div class="inv-row">
         <div class="inv-info">
           <div class="inv-name">${buildLabel(inv)}</div>
           ${buildTags(inv)}
           <div style="font-size:.74rem;color:var(--muted);margin-top:4px;">${dateTxt}</div>
           ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
             ?`<div class="inv-report">${t('histo.sinceDate',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
+          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
           <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>${dureeTxt}
@@ -2953,37 +2957,6 @@ function filterHistoByStatut(statut){
 function filterHistoByType(type){
   window._histoTypeFilter=type;
   renderHistoForMonth();
-}
-
-function showSingleInv(json){
-  let invs;
-  try{ invs=typeof json==='string'?JSON.parse(json):json; }
-  catch(e){ showToast(t('err.displayError'));return; }
-  const inv=Array.isArray(invs)?invs[0]:invs;
-  const el=document.getElementById('historique-content');
-  const sk=SM[inv.statut]||'pending';
-  const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:'';
-  let h=`<button class="btn btn-ghost btn-sm" onclick="renderHistoForMonth()" style="margin-bottom:14px;">${t('btn.back')}</button>
-    <div class="card">
-      <div class="card-title">${TI[inv.type]||'📋'} ${trType(inv.type)}</div>
-      <div class="inv-row">
-        <div class="inv-info">
-          <div class="inv-name">${buildLabel(inv)}</div>
-          ${buildTags(inv)}
-          ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
-            ?`<div class="inv-report">${t('histo.firstIteration',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
-          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
-          ${displayRemarque(inv.remarque)
-            ?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-          <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
-          ${dureeTxt}
-          ${role==='chef'?`<button class="btn btn-danger btn-sm" onclick="deleteInvFromHisto('${inv.id}')">🗑️</button>`:''}
-        </div>
-      </div>
-    </div>`;
-  el.innerHTML=h;
 }
 
 function showDetail(json){

@@ -898,6 +898,7 @@ function getClientHistory(params) {
 
     const entry = {
       id: String(rows[j][ii.id]), type, statut, remarque, date: rowDate, origine,
+      panne: ii.panne >= 0 ? String(rows[j][ii.panne] || '') : '',
       ville: String(rows[j][ii.ville] || ''), quartier: String(rows[j][ii.quartier] || '')
     };
 
