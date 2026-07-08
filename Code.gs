@@ -1430,15 +1430,16 @@ function getAll(params) {
 // ============================================================
 // ============================================================
 //  SAUVEGARDE HEBDOMADAIRE
-//  Copie complète du classeur chaque dimanche, créée via
-//  SpreadsheetApp.create (volontairement PAS DriveApp : un nouveau
-//  service ajouterait un scope OAuth et casserait le web app déployé
-//  jusqu'à réautorisation manuelle). Le marqueur anti-doublon vit dans
+//  Copie complète du classeur chaque dimanche, rangée dans le dossier
+//  Drive "CERAF Bafoussam/autosave". Le marqueur anti-doublon vit dans
 //  une feuille cachée _Config car reporterInterventionsEnAttente est
 //  appelé à chaque getByDate, pas seulement par le trigger de 1h.
-//  Les copies s'accumulent dans le Drive du propriétaire (racine) —
-//  purge manuelle de temps en temps.
+//  Le déplacement DriveApp est isolé dans son propre try/catch : si le
+//  scope Drive n'a pas (encore) été autorisé, la sauvegarde reste à la
+//  racine du Drive au lieu d'échouer.
 // ============================================================
+const AUTOSAVE_FOLDER_ID = '145BjForGkB1RRaMHDqOqJHf0rACqy3lU'; // CERAF Bafoussam/autosave
+
 function sauvegardeHebdoSiDimanche(force) {
   const now = new Date();
   if (!force && now.getDay() !== 0) return; // dimanche uniquement
@@ -1454,7 +1455,21 @@ function sauvegardeHebdoSiDimanche(force) {
   });
   backup.deleteSheet(backup.getSheets()[0]); // feuille vide créée par défaut
   cfg.getRange('B1').setValue('sauvegarde:' + aujourd);
+  try {
+    DriveApp.getFileById(backup.getId()).moveTo(DriveApp.getFolderById(AUTOSAVE_FOLDER_ID));
+  } catch(e) { Logger.log('Déplacement autosave impossible (autorisation Drive ?) : ' + e); }
   return backup.getUrl();
+}
+
+// À exécuter UNE FOIS depuis l'éditeur Apps Script (déclenche la demande
+// d'autorisation Drive) : range dans "CERAF Bafoussam/autosave" les
+// sauvegardes déjà créées à la racine du Drive.
+function rangerSauvegardesExistantes() {
+  const dossier = DriveApp.getFolderById(AUTOSAVE_FOLDER_ID);
+  const fichiers = DriveApp.searchFiles("title contains 'CERAF BD — sauvegarde' and 'root' in parents");
+  let n = 0;
+  while (fichiers.hasNext()) { fichiers.next().moveTo(dossier); n++; }
+  Logger.log(n + ' sauvegarde(s) déplacée(s) vers autosave.');
 }
 
 function reporterInterventionsEnAttente() {
