@@ -20,9 +20,9 @@ function getOrCreateSheet(ss, name) {
       sheet.appendRow(['ID_Consistance','Date','Chef','Nb_Interventions','Créé_le','Realisees','Instances']);
       sheet.getRange(1,1,1,7).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
     } else if (name === SHEET_INTERVENTIONS) {
-      sheet.appendRow(['ID_Intervention','ID_Consistance','Date','Chef',
-        'Type','Numero_Ligne','Nom_Client','Tel_Client','Localite',
-        'Statut','Remarque','Reporté_depuis','Mis_à_jour_le','Ville','Quartier','Duree_Jours']);
+      sheet.appendRow(['ID_Intervention','ID_Consistance','Date',
+        'Type','Numero_Ligne','Nom_Client',
+        'Statut','Panne','Remarque','Reporté_depuis','Mis_à_jour_le','Ville','Quartier','Duree_Jours','Publié_par','Statut_par']);
       sheet.getRange(1,1,1,16).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
     } else if (name === SHEET_CLIENTS) {
       sheet.appendRow(['Numero','Nom','Telephone','Localite','Ville','Quartier','Service','GPS','Derniere_MAJ']);
@@ -697,19 +697,17 @@ function getInvIdx(sheet) {
     id:           h['ID_Intervention']  !== undefined ? h['ID_Intervention']  : 0,
     cid:          h['ID_Consistance']   !== undefined ? h['ID_Consistance']   : 1,
     date:         h['Date']             !== undefined ? h['Date']             : 2,
-    chef:         h['Chef']             !== undefined ? h['Chef']             : 3,
-    type:         h['Type']             !== undefined ? h['Type']             : 4,
-    num:          h['Numero_Ligne']     !== undefined ? h['Numero_Ligne']     : 5,
-    nom:          h['Nom_Client']       !== undefined ? h['Nom_Client']       : 6,
-    tel:          h['Tel_Client']       !== undefined ? h['Tel_Client']       : 7,
-    loc:          h['Localite']         !== undefined ? h['Localite']         : 8,
-    statut:       h['Statut']           !== undefined ? h['Statut']           : 9,
-    remarque:     h['Remarque']         !== undefined ? h['Remarque']         : 10,
-    reporteDepuis:h['Reporté_depuis']   !== undefined ? h['Reporté_depuis']   : 11,
-    maj:          h['Mis_à_jour_le']    !== undefined ? h['Mis_à_jour_le']    : 12,
-    ville:        h['Ville']            !== undefined ? h['Ville']            : 13,
-    quartier:     h['Quartier']         !== undefined ? h['Quartier']         : 14,
-    duree:        h['Duree_Jours']      !== undefined ? h['Duree_Jours']      : 15,
+    type:         h['Type']             !== undefined ? h['Type']             : 3,
+    num:          h['Numero_Ligne']     !== undefined ? h['Numero_Ligne']     : 4,
+    nom:          h['Nom_Client']       !== undefined ? h['Nom_Client']       : 5,
+    statut:       h['Statut']           !== undefined ? h['Statut']           : 6,
+    panne:        h['Panne']            !== undefined ? h['Panne']            : -1,
+    remarque:     h['Remarque']         !== undefined ? h['Remarque']         : 8,
+    reporteDepuis:h['Reporté_depuis']   !== undefined ? h['Reporté_depuis']   : 9,
+    maj:          h['Mis_à_jour_le']    !== undefined ? h['Mis_à_jour_le']    : 10,
+    ville:        h['Ville']            !== undefined ? h['Ville']            : 11,
+    quartier:     h['Quartier']         !== undefined ? h['Quartier']         : 12,
+    duree:        h['Duree_Jours']      !== undefined ? h['Duree_Jours']      : 13,
     // Colonnes d'audit (absentes des anciennes feuilles → -1, toujours garder
     // l'accès derrière un test >= 0). Créées au besoin par ensureInvAuditCols().
     publiePar:    h['Publié_par']       !== undefined ? h['Publié_par']       : -1,
@@ -718,14 +716,36 @@ function getInvIdx(sheet) {
   };
 }
 
-// Ajoute les colonnes d'audit (Publié_par / Statut_par) en fin de feuille
-// Interventions si elles manquent. Appelé sur les chemins d'écriture.
+// Ajoute les colonnes manquantes de la feuille Interventions : Panne
+// (insérée juste après Statut) et l'audit Publié_par / Statut_par (en fin
+// de feuille). Appelé sur les chemins d'écriture.
 function ensureInvAuditCols(sheet) {
-  const h = getColMap(sheet);
+  let h = getColMap(sheet);
+  if (h['Panne'] === undefined && h['Statut'] !== undefined) {
+    sheet.insertColumnAfter(h['Statut'] + 1);
+    sheet.getRange(1, h['Statut'] + 2).setValue('Panne');
+    h = getColMap(sheet);
+  }
   const manquantes = ['Publié_par','Statut_par'].filter(c => h[c] === undefined);
   if (manquantes.length === 0) return;
   let col = sheet.getLastColumn();
   manquantes.forEach(c => { col++; sheet.getRange(1, col).setValue(c); });
+}
+
+// Jointure Clients : numéro nettoyé → {tel, loc}. Les colonnes Tel_Client
+// et Localite ont été retirées de la feuille Interventions — la fiche
+// Client est la seule source de ces informations à la lecture.
+function getClientsJoinMap() {
+  const sheet3 = s3();
+  const c = getClientsIdx(sheet3);
+  const rows = sheet3.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < rows.length; i++) {
+    const num = String(rows[i][c.num] || '').trim().replace(/\s/g,'');
+    if (!num) continue;
+    map[num] = { tel: String(rows[i][c.tel] || ''), loc: String(rows[i][c.loc] || '') };
+  }
+  return map;
 }
 
 // Feuille Consistances
@@ -1059,12 +1079,9 @@ function saveConsistance(data, session) {
     rowInv[ii.id]           = invId;
     rowInv[ii.cid]          = consistId;
     rowInv[ii.date]         = date;
-    rowInv[ii.chef]         = chef;
     rowInv[ii.type]         = inv.typeLabel || inv.type;
     rowInv[ii.num]          = inv.customerId ? inv.customerId : (inv.num||'');
     rowInv[ii.nom]          = inv.nom  || '';
-    rowInv[ii.tel]          = inv.tel  || '';
-    rowInv[ii.loc]          = inv.loc  || '';
     rowInv[ii.statut]       = 'En attente';
     // Installation FTTH : le chef renseigne FDT/FAT (déterminés lors de l'étude
     // préalable) — encodés dans Remarque au même format que la fiche technicien.
@@ -1077,6 +1094,13 @@ function saveConsistance(data, session) {
     if (inv.gps) remarqueParts.push('GPS: ' + String(inv.gps).trim());
     if (inv.chambre) remarqueParts.push('Chambre: ' + String(inv.chambre).trim());
     if (inv.extra) remarqueParts.push('Remarque: ' + String(inv.extra).trim());
+    // Sans numéro de ligne il n'y a pas de fiche Client pour porter le
+    // téléphone/la localité (colonnes retirées d'Interventions) — les
+    // conserver dans la remarque pour ne pas les perdre.
+    if (!(inv.num && String(inv.num).trim())) {
+      if (inv.tel) remarqueParts.push('Tel: ' + String(inv.tel).trim());
+      if (inv.loc) remarqueParts.push('Localité: ' + String(inv.loc).trim());
+    }
     rowInv[ii.remarque]     = remarqueParts.join(' • ');
     rowInv[ii.reporteDepuis]= inv.reporteDepuis || '';
     rowInv[ii.maj]          = now;
@@ -1152,6 +1176,16 @@ function updateStatus(data, session) {
       sheet.getRange(i+1, ii.remarque+1).setValue(remarque||'');
       sheet.getRange(i+1, ii.maj+1).setValue(new Date().toLocaleString('fr-FR'));
       if (ii.statutPar >= 0 && session) sheet.getRange(i+1, ii.statutPar+1).setValue(session.nom);
+      if (ii.panne >= 0) {
+        let panne = data.panne;
+        if (panne === undefined) {
+          // Ancien client en cache : la panne arrive encore composée dans la
+          // remarque ("Panne: X • …") — l'extraire pour remplir la colonne.
+          const m = /(?:^|• )Panne: ([^•]+)/.exec(String(remarque || ''));
+          panne = m ? m[1].trim() : undefined;
+        }
+        if (panne !== undefined) sheet.getRange(i+1, ii.panne+1).setValue(String(panne));
+      }
       const colors = {'Réalisé':'#dcfce7','Injoignable':'#fee2e2','Problème':'#ede9fe','En attente':'#ffffff'};
       sheet.getRange(i+1, 1, 1, ii.total).setBackground(colors[statut]||'#ffffff');
       const dateStr = normDate(rows[i][ii.date]);
@@ -1184,6 +1218,7 @@ function getByDate(params) {
   if (!consist) return { success:false, error:'Aucune consistance pour le '+date };
 
   const iRows = sheet2.getDataRange().getValues();
+  const joinMap = getClientsJoinMap();
   const interventions = [];
   for (let i = 1; i < iRows.length; i++) {
     if (String(iRows[i][ii.cid]) === consist.id) {
@@ -1191,14 +1226,17 @@ function getByDate(params) {
       const reporteDepuis = normDate(iRows[i][ii.reporteDepuis]);
       const statut        = String(iRows[i][ii.statut]);
       const dateLigne      = normDate(iRows[i][ii.date]);
+      const numClean      = String(iRows[i][ii.num] || '').trim().replace(/\s/g,'');
+      const cli           = joinMap[numClean] || { tel: '', loc: '' };
       interventions.push({
         id:           String(iRows[i][ii.id]),
         type:         String(iRows[i][ii.type]),
         num:          String(iRows[i][ii.num]),
         nom:          String(iRows[i][ii.nom]),
-        tel:          String(iRows[i][ii.tel]),
-        loc:          String(iRows[i][ii.loc]),
+        tel:          cli.tel,
+        loc:          cli.loc,
         statut,
+        panne:        ii.panne >= 0 ? String(iRows[i][ii.panne] || '') : '',
         remarque,
         reporteDepuis,
         ville:        String(iRows[i][ii.ville]    || ''),
@@ -1245,12 +1283,15 @@ function getAll(params) {
   }
 
   const allInvsMois = [];
+  const joinMap = getClientsJoinMap();
   for (let j = 1; j < iRows.length; j++) {
     const cid    = String(iRows[j][ii.cid]);
     const consist = consistMap[cid];
     if (!consist) continue;
     if (monthFilter && consist.date.substring(0,7) !== monthFilter) continue;
     const remarque = String(iRows[j][ii.remarque]);
+    const numClean = String(iRows[j][ii.num] || '').trim().replace(/\s/g,'');
+    const cli      = joinMap[numClean] || { tel: '', loc: '' };
     allInvsMois.push({
       id:           String(iRows[j][ii.id]),
       cid,
@@ -1259,9 +1300,10 @@ function getAll(params) {
       type:         String(iRows[j][ii.type]),
       num:          String(iRows[j][ii.num]),
       nom:          String(iRows[j][ii.nom]),
-      tel:          String(iRows[j][ii.tel]),
-      loc:          String(iRows[j][ii.loc]),
+      tel:          cli.tel,
+      loc:          cli.loc,
       statut:       String(iRows[j][ii.statut]),
+      panne:        ii.panne >= 0 ? String(iRows[j][ii.panne] || '') : '',
       remarque,
       reporteDepuis:normDate(iRows[j][ii.reporteDepuis]),
       ville:        String(iRows[j][ii.ville]    || ''),
@@ -1390,9 +1432,8 @@ function reporterInterventionsEnAttente() {
             type:         String(iRows[i][ii.type]),
             num:          String(iRows[i][ii.num]),
             nom:          String(iRows[i][ii.nom]),
-            tel:          String(iRows[i][ii.tel]),
-            loc:          String(iRows[i][ii.loc]),
             remarque:     String(iRows[i][ii.remarque]||''),
+            panne:        ii.panne >= 0 ? String(iRows[i][ii.panne]||'') : '',
             reporteDepuis:normDate(iRows[i][ii.reporteDepuis])||consist.date,
             ville:        String(iRows[i][ii.ville]    ||''),
             quartier:     String(iRows[i][ii.quartier] ||''),
@@ -1432,13 +1473,11 @@ function reporterInterventionsEnAttente() {
         rowInv[ii.id]           = nextId+'_R'+(Date.now()+idx)+'_'+idx;
         rowInv[ii.cid]          = nextId;
         rowInv[ii.date]         = targetDate;
-        rowInv[ii.chef]         = consist.chef;
         rowInv[ii.type]         = inv.type;
         rowInv[ii.num]          = inv.num;
         rowInv[ii.nom]          = inv.nom;
-        rowInv[ii.tel]          = inv.tel;
-        rowInv[ii.loc]          = inv.loc;
         rowInv[ii.statut]       = 'En attente';
+        if (ii.panne >= 0) rowInv[ii.panne] = inv.panne || '';
         rowInv[ii.remarque]     = remarque;
         rowInv[ii.reporteDepuis]= inv.reporteDepuis||consist.date;
         rowInv[ii.maj]          = now;
@@ -1534,10 +1573,10 @@ function reparerEnTetes() {
     const firstCell = String(sheet2.getRange(1,1).getValue());
     if (firstCell !== 'ID_Intervention') {
       sheet2.insertRowBefore(1);
-      sheet2.getRange(1,1,1,17).setValues([[
-        'ID_Intervention','ID_Consistance','Date','Chef',
-        'Type','Numero_Ligne','Nom_Client','Tel_Client','Localite',
-        'Statut','Remarque','Reporté_depuis','Mis_à_jour_le','Ville','Quartier','GPS','Duree_Jours'
+      sheet2.getRange(1,1,1,16).setValues([[
+        'ID_Intervention','ID_Consistance','Date',
+        'Type','Numero_Ligne','Nom_Client',
+        'Statut','Panne','Remarque','Reporté_depuis','Mis_à_jour_le','Ville','Quartier','Duree_Jours','Publié_par','Statut_par'
       ]]).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
       fixed.push('Interventions (en-tête ajoutée)');
     }
@@ -2172,12 +2211,10 @@ function reparerInterventionsCoincees() {
     if (consistDate && consistDate < todayStr && !remarque.startsWith('➡️ Reporté au')) {
       aDeplacer.push({
         rowIndex: i+1, consistId: cid,
-        chef:     String(iRows[i][ii.chef]),
         type:     String(iRows[i][ii.type]),
         num:      String(iRows[i][ii.num]),
         nom:      String(iRows[i][ii.nom]),
-        tel:      String(iRows[i][ii.tel]),
-        loc:      String(iRows[i][ii.loc]),
+        panne:    ii.panne >= 0 ? String(iRows[i][ii.panne]||'') : '',
         reporteDepuis: normDate(iRows[i][ii.reporteDepuis]) || consistDate,
         ville:    String(iRows[i][ii.ville]    || ''),
         quartier: String(iRows[i][ii.quartier] || ''),
@@ -2198,7 +2235,12 @@ function reparerInterventionsCoincees() {
   for (let i=1; i<cRows2.length; i++) {
     if (String(cRows2[i][ci.id])===nextId) { exists=true; exRow=i+1; exNb=Number(cRows2[i][ci.nb])||0; chefDuJour=String(cRows2[i][ci.chef]); break; }
   }
-  if (!chefDuJour) chefDuJour = aDeplacer[0].chef;
+  if (!chefDuJour) {
+    // Chef du jour inconnu : reprendre celui de la fiche d'origine la plus récente
+    for (let i=1; i<cRows2.length; i++) {
+      if (String(cRows2[i][ci.id])===aDeplacer[0].consistId) { chefDuJour=String(cRows2[i][ci.chef]); break; }
+    }
+  }
 
   if (!exists) {
     const row1 = new Array(ci.total).fill('');
@@ -2214,12 +2256,10 @@ function reparerInterventionsCoincees() {
     rowInv[ii.id]           = nextId+'_FIX'+(Date.now()+idx)+'_'+idx;
     rowInv[ii.cid]          = nextId;
     rowInv[ii.date]         = todayStr;
-    rowInv[ii.chef]         = inv.chef;
     rowInv[ii.type]         = inv.type;
     rowInv[ii.num]          = inv.num;
     rowInv[ii.nom]          = inv.nom;
-    rowInv[ii.tel]          = inv.tel;
-    rowInv[ii.loc]          = inv.loc;
+    if (ii.panne >= 0) rowInv[ii.panne] = inv.panne || '';
     rowInv[ii.statut]       = 'En attente';
     rowInv[ii.remarque]     = '(Réparé — reporté du '+formatDateFr(inv.reporteDepuis)+')';
     rowInv[ii.reporteDepuis]= inv.reporteDepuis;
@@ -2250,6 +2290,47 @@ function reparerInterventionsCoincees() {
   });
 
   notify('✅ '+aDeplacer.length+' intervention(s) déplacée(s) vers la fiche d\'aujourd\'hui ('+formatDateFr(todayStr)+').');
+}
+
+// ============================================================
+//  MIGRATION — feuille Interventions (à exécuter UNE FOIS)
+//  1. Insère la colonne Panne après Statut
+//  2. Déplace "Panne: X" des remarques vers la colonne Panne
+//  3. Supprime les colonnes Chef, Tel_Client, Localite
+// ============================================================
+function migrerColonnesInterventions() {
+  const sheet = s2();
+  ensureInvAuditCols(sheet); // crée Panne (après Statut) + audit si absents
+
+  // Extraction des "Panne: X" contenus dans les remarques
+  let h = getColMap(sheet);
+  const rows = sheet.getDataRange().getValues();
+  let extraites = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const rem = String(rows[i][h['Remarque']] || '');
+    if (rem.indexOf('Panne: ') === -1) continue;
+    let panne = '';
+    const rest = [];
+    rem.split(' • ').forEach(seg => {
+      if (seg.trim().indexOf('Panne: ') === 0) panne = seg.trim().slice(7).trim();
+      else rest.push(seg);
+    });
+    if (panne) {
+      sheet.getRange(i+1, h['Panne']+1).setValue(panne);
+      sheet.getRange(i+1, h['Remarque']+1).setValue(rest.join(' • '));
+      extraites++;
+    }
+  }
+
+  // Suppression des colonnes encombrantes (relire la position après chaque
+  // suppression : les index se décalent)
+  const supprimees = [];
+  ['Chef','Tel_Client','Localite'].forEach(nom => {
+    const hh = getColMap(sheet);
+    if (hh[nom] !== undefined) { sheet.deleteColumn(hh[nom]+1); supprimees.push(nom); }
+  });
+
+  return { success: true, pannesExtraites: extraites, colonnesSupprimees: supprimees };
 }
 
 // ============================================================

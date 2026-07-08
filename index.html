@@ -1141,11 +1141,10 @@ function parsePanneInfo(remarque){
   });
   return r;
 }
+// La panne a désormais sa propre colonne (envoyée séparément dans le champ
+// `panne` d'updateStatus) — la remarque ne porte plus que la note libre.
 function composePanneRemarque(panne,note){
-  const parts=[];
-  if(panne) parts.push('Panne: '+panne);
-  if(note) parts.push('Remarque: '+note.trim());
-  return parts.join(' • ');
+  return note?note.trim():'';
 }
 
 let role='',cType='etude_ftth',pending=[],SCRIPT_URL='';
@@ -2396,8 +2395,9 @@ function invRowHTML(inv,idx){
       </div>`;
   } else if(isDerangFtth){
     const p=parsePanneInfo(inv.remarque);
+    const panneSel=(inv.panne&&inv.panne!=='null')?inv.panne:p.panne; // colonne Panne, repli ancienne remarque composée
     rightRemarqueHTML='';
-    const options=PANNE_OPTIONS.map(o=>`<option value="${o}" ${p.panne===o?'selected':''}>${trPanne(o)}</option>`).join('');
+    const options=PANNE_OPTIONS.map(o=>`<option value="${o}" ${panneSel===o?'selected':''}>${trPanne(o)}</option>`).join('');
     structuredHTML=`
       <div class="etude-fields" style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">${t('derang.natureTitle')}</div>
@@ -2531,6 +2531,7 @@ function showTerrainInvDetail(json){
         ${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
           ?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
+        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
       </div>
       <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
     </div>
@@ -2611,27 +2612,28 @@ async function updStatut(invId,statut){
   }
 
   const remarque=structured?composeStructuredRemarque(structured):(row?(row.querySelector('.remark-inp')||{value:''}).value:'');
+  const panne=structured&&structured.kind==='panne'?structured.panne:undefined; // undefined = non envoyé (JSON le retire)
 
   // Mise à jour visuelle immédiate (optimiste)
   const sk=SM[statut]||'pending';
   const badge=row?row.querySelector('.badge'):null;
   if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[LANG][sk];}
-  if(invRef){invRef.statut=statut;invRef.remarque=remarque;}
+  if(invRef){invRef.statut=statut;invRef.remarque=remarque;if(panne!==undefined)invRef.panne=panne;}
 
   if(!navigator.onLine){
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque});
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
     saveTerrainCache();
     showToast(t('toast.statusOfflineSaved'));
     return;
   }
 
-  const res=await apiPost({action:'updateStatus',invId,statut,remarque});
+  const res=await apiPost({action:'updateStatus',invId,statut,remarque,panne});
   if(res.success){
     showToast(t('toast.statusUpdated'));
     saveTerrainCache();
   } else {
     // Échec réseau : mettre en file
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque});
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
     saveTerrainCache();
     showToast(t('toast.savedLocally'));
   }
@@ -2663,15 +2665,17 @@ async function updStructured(invId){
   const statut=row?(row.querySelector('select[onchange^="updStatut("]')||{value:invRef.statut}).value:invRef.statut;
   const structured=readStructuredFields(invId,invRef.type);
   const remarque=composeStructuredRemarque(structured);
+  const panne=structured&&structured.kind==='panne'?structured.panne:undefined;
   invRef.remarque=remarque;
+  if(panne!==undefined)invRef.panne=panne;
 
   if(!navigator.onLine){
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque});
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
     saveTerrainCache();
     return;
   }
-  const res=await apiPost({action:'updateStatus',invId,statut,remarque});
-  if(!res.success){offlineEnqueue({action:'updateStatus',invId,statut,remarque});saveTerrainCache();}
+  const res=await apiPost({action:'updateStatus',invId,statut,remarque,panne});
+  if(!res.success){offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});saveTerrainCache();}
 }
 
 async function deleteInvUI(invId){
@@ -2968,6 +2972,7 @@ function showSingleInv(json){
           ${buildTags(inv)}
           ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
             ?`<div class="inv-report">${t('histo.firstIteration',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
+          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
           ${displayRemarque(inv.remarque)
             ?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
         </div>
@@ -3000,6 +3005,7 @@ function showDetail(json){
       const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:'';
       h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
+        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
         ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
         </div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
