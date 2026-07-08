@@ -621,8 +621,8 @@ function doPost(e) {
       }
       else if (data.action === 'logout')             result = logoutUser(data);
       else if (data.action === 'changePin')          result = changePin(data, session);
-      else if (data.action === 'saveConsistance')    result = saveConsistance(data);
-      else if (data.action === 'updateStatus')       result = updateStatus(data);
+      else if (data.action === 'saveConsistance')    result = saveConsistance(data, session);
+      else if (data.action === 'updateStatus')       result = updateStatus(data, session);
       else if (data.action === 'getByDate')          result = getByDate(data);
       else if (data.action === 'getAll')             result = getAll(data);
       else if (data.action === 'getClients')         result = getClients();
@@ -710,8 +710,22 @@ function getInvIdx(sheet) {
     ville:        h['Ville']            !== undefined ? h['Ville']            : 13,
     quartier:     h['Quartier']         !== undefined ? h['Quartier']         : 14,
     duree:        h['Duree_Jours']      !== undefined ? h['Duree_Jours']      : 15,
+    // Colonnes d'audit (absentes des anciennes feuilles → -1, toujours garder
+    // l'accès derrière un test >= 0). Créées au besoin par ensureInvAuditCols().
+    publiePar:    h['Publié_par']       !== undefined ? h['Publié_par']       : -1,
+    statutPar:    h['Statut_par']       !== undefined ? h['Statut_par']       : -1,
     total:        sheet.getLastColumn()
   };
+}
+
+// Ajoute les colonnes d'audit (Publié_par / Statut_par) en fin de feuille
+// Interventions si elles manquent. Appelé sur les chemins d'écriture.
+function ensureInvAuditCols(sheet) {
+  const h = getColMap(sheet);
+  const manquantes = ['Publié_par','Statut_par'].filter(c => h[c] === undefined);
+  if (manquantes.length === 0) return;
+  let col = sheet.getLastColumn();
+  manquantes.forEach(c => { col++; sheet.getRange(1, col).setValue(c); });
 }
 
 // Feuille Consistances
@@ -1003,11 +1017,12 @@ function deleteClient(data) {
 //  ENREGISTRER UNE CONSISTANCE
 //  Correction : upsert client même pour le premier enregistrement
 // ============================================================
-function saveConsistance(data) {
+function saveConsistance(data, session) {
   const sheet1 = s1(), sheet2 = s2(), sheet3 = s3();
   const { date, chef, interventions } = data;
   const now = new Date().toLocaleString('fr-FR');
   const ci  = getConsistIdx(sheet1);
+  ensureInvAuditCols(sheet2);
   const ii  = getInvIdx(sheet2);
 
   // Trouver ou créer la fiche du jour
@@ -1068,6 +1083,7 @@ function saveConsistance(data) {
     rowInv[ii.ville]        = inv.ville    || '';
     rowInv[ii.quartier]     = inv.quartier || '';
     rowInv[ii.duree]        = 0; // 0 à la création
+    if (ii.publiePar >= 0) rowInv[ii.publiePar] = session ? session.nom : (chef || '');
     sheet2.appendRow(rowInv);
 
     // Upsert clients uniquement pour les interventions avec numéro de ligne réel
@@ -1123,9 +1139,10 @@ function saveConsistance(data) {
 // ============================================================
 //  METTRE À JOUR STATUT
 // ============================================================
-function updateStatus(data) {
+function updateStatus(data, session) {
   const sheet = s2();
   const { invId, statut, remarque } = data;
+  ensureInvAuditCols(sheet);
   const rows = sheet.getDataRange().getValues();
   const ii   = getInvIdx(sheet);
 
@@ -1134,6 +1151,7 @@ function updateStatus(data) {
       sheet.getRange(i+1, ii.statut+1).setValue(statut);
       sheet.getRange(i+1, ii.remarque+1).setValue(remarque||'');
       sheet.getRange(i+1, ii.maj+1).setValue(new Date().toLocaleString('fr-FR'));
+      if (ii.statutPar >= 0 && session) sheet.getRange(i+1, ii.statutPar+1).setValue(session.nom);
       const colors = {'Réalisé':'#dcfce7','Injoignable':'#fee2e2','Problème':'#ede9fe','En attente':'#ffffff'};
       sheet.getRange(i+1, 1, 1, ii.total).setBackground(colors[statut]||'#ffffff');
       const dateStr = normDate(rows[i][ii.date]);
@@ -1187,7 +1205,9 @@ function getByDate(params) {
         quartier:     String(iRows[i][ii.quartier] || ''),
         gps:          '',
         duree:        calculerDuree(reporteDepuis, dateLigne, statut),
-        estTransfere: remarque.startsWith('➡️ Reporté au')
+        estTransfere: remarque.startsWith('➡️ Reporté au'),
+        publiePar:    ii.publiePar >= 0 ? String(iRows[i][ii.publiePar] || '') : '',
+        statutPar:    ii.statutPar >= 0 ? String(iRows[i][ii.statutPar] || '') : ''
       });
     }
   }
@@ -1376,7 +1396,8 @@ function reporterInterventionsEnAttente() {
             reporteDepuis:normDate(iRows[i][ii.reporteDepuis])||consist.date,
             ville:        String(iRows[i][ii.ville]    ||''),
             quartier:     String(iRows[i][ii.quartier] ||''),
-            duree:        Number(iRows[i][ii.duree]    ||0)
+            duree:        Number(iRows[i][ii.duree]    ||0),
+            publiePar:    ii.publiePar >= 0 ? String(iRows[i][ii.publiePar]||'') : ''
           });
           rowIndicesToMark.push(i+1);
         }
@@ -1424,6 +1445,7 @@ function reporterInterventionsEnAttente() {
         rowInv[ii.ville]        = inv.ville;
         rowInv[ii.quartier]     = inv.quartier;
         rowInv[ii.duree]        = nouvelleDuree;
+        if (ii.publiePar >= 0) rowInv[ii.publiePar] = inv.publiePar || '';
         sheet2.appendRow(rowInv);
       });
 

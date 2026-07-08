@@ -626,6 +626,7 @@ fr:{
   'topbar.logout.btn':'⏻ Déconnexion',
   'nav.chef':'👷 Consistance','nav.clients':'👥 Clients','nav.historique':'📁 Historique',
   'nav.admin':'🔑 Utilisateurs','nav.terrain':'📡 Terrain',
+  'terrain.publishedBy':'Publié par {nom}','terrain.statusBy':'Statut par {nom}',
   'badge.chef':'👷 Chef centre','badge.admin':'🔑 Administrateur','badge.technicien':'📡 Technicien',
   'chef.title':'Créer la <span>Consistance</span>',
   'chef.sub':"Chaque publication s'ajoute à la fiche du jour",
@@ -840,6 +841,7 @@ en:{
   'topbar.logout.btn':'⏻ Log out',
   'nav.chef':'👷 Task Sheet','nav.clients':'👥 Customers','nav.historique':'📁 History',
   'nav.admin':'🔑 Users','nav.terrain':'📡 Field',
+  'terrain.publishedBy':'Published by {nom}','terrain.statusBy':'Status by {nom}',
   'badge.chef':'👷 Center Supervisor','badge.admin':'🔑 Administrator','badge.technicien':'📡 Technician',
   'chef.title':'Create the <span>Task Sheet</span>',
   'chef.sub':"Each publication is added to today's sheet",
@@ -1051,7 +1053,7 @@ const TYPE_LABEL_EN={
 const PANNE_LABEL_EN={
   'Appui cassé':'Broken pole','Fibre coupée':'Cut fiber','Modem défectueux':'Faulty modem',
   'Connexion instable':'Unstable connection','Jarretière coupée':'Cut patch cord','Atténuation':'Attenuation',
-  'Problème de voix':'Voice issue','Alimentation défectueuse':'Faulty power supply'
+  'Problème de voix':'Voice issue','Alimentation défectueuse':'Faulty power supply','Service OKAY':'Service OKAY'
 };
 function trPanne(o){return LANG==='en'?(PANNE_LABEL_EN[o]||o):o;}
 function trType(labelOrKey){
@@ -1098,7 +1100,7 @@ const QUARTIERS_BAFOUSSAM=[
 const CHEFS_DEFAUT=['BENANA Hermann','Godlove NGWANG FOR','NDZOUALI Joel','TENE Eric'];
 
 // Options de "nature de la panne" pour les Dérangements FTTH
-const PANNE_OPTIONS=['Appui cassé','Fibre coupée','Modem défectueux','Connexion instable','Jarretière coupée','Atténuation','Problème de voix','Alimentation défectueuse'];
+const PANNE_OPTIONS=['Appui cassé','Fibre coupée','Modem défectueux','Connexion instable','Jarretière coupée','Atténuation','Problème de voix','Alimentation défectueuse','Service OKAY'];
 
 // ── Étude FTTH : FDT/FAT + distance + conclusion, encodés dans la Remarque ──
 function parseEtudeInfo(remarque){
@@ -1451,7 +1453,8 @@ function startApp(r){
     _setCacheLoading(true);
     preloadClients().finally(()=>_setCacheLoading(false));
   } else if(r==='admin'){
-    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('admin',this)">${t('nav.admin')}</button>`;
+    nav.innerHTML=`<button class="nav-tab active" onclick="goPage('admin',this)">${t('nav.admin')}</button>
+      <button class="nav-tab" onclick="goPage('terrain',this)">${t('nav.terrain')}</button>`;
     goPage('admin',nav.querySelector('.nav-tab'),true);
   } else {
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">${t('nav.terrain')}</button>`;
@@ -2413,6 +2416,7 @@ function invRowHTML(inv,idx){
       ${buildTags(inv)}
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
       ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
+      ${role==='admin'&&(inv.publiePar||inv.statutPar)?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${inv.publiePar?'🖊️ '+t('terrain.publishedBy',{nom:inv.publiePar}):''}${inv.publiePar&&inv.statutPar?' — ':''}${inv.statutPar?'🔄 '+t('terrain.statusBy',{nom:inv.statutPar}):''}</div>`:''}
       ${structuredHTML}
       <div class="gps-row" style="margin-top:8px;">
         <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="${t('ph.gpsCoord')}" value="${gpsValue}" style="font-size:.75rem;">
@@ -2430,6 +2434,7 @@ function invRowHTML(inv,idx){
         <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>${SL[LANG].issue}</option>
       </select>
       ${rightRemarqueHTML}
+      ${role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteInvUI('${inv.id}')">🗑️ ${t('btn.delete')}</button>`:''}
     </div>
   </div>`;
 }
