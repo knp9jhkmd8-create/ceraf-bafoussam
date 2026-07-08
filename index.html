@@ -3044,6 +3044,11 @@ function displayRemarque(r){
   if(!r||r==='null')return'';
   let s=String(r).trim();
   if(/^\(?\s*(Reporté\s+(du|au)|Réparé)/i.test(s))return'';
+  // Les segments Tel/Tel2/Localité (interventions sans fiche Client) sont
+  // réextraits par le backend et affichés comme de vrais champs — ne pas
+  // les répéter dans la remarque.
+  s=s.split(' • ').filter(seg=>!/^(Tel|Tel2|Localité):\s/.test(seg.trim())).join(' • ');
+  if(!s.trim())return'';
   return s.replace(/[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}\s\d{2}:\d{2}:\d{2}\sGMT[+-]\d{4}\s\([^)]*\)/g,m=>{
     const d=new Date(m);if(isNaN(d.getTime()))return m;
     return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();

@@ -732,6 +732,17 @@ function ensureInvAuditCols(sheet) {
   manquantes.forEach(c => { col++; sheet.getRange(1, col).setValue(c); });
 }
 
+// Ajoute la colonne Tel_Secondaire (après Telephone) à la feuille Clients
+// si elle manque — sans elle, le numéro secondaire finissait combiné dans
+// Telephone ("tel/telSec"). Appelé sur les chemins d'écriture.
+function ensureClientsCols(sheet) {
+  const h = getColMap(sheet);
+  if (h['Tel_Secondaire'] === undefined && h['Telephone'] !== undefined) {
+    sheet.insertColumnAfter(h['Telephone'] + 1);
+    sheet.getRange(1, h['Telephone'] + 2).setValue('Tel_Secondaire');
+  }
+}
+
 // Jointure Clients : numéro nettoyé → {tel, loc}. Les colonnes Tel_Client
 // et Localite ont été retirées de la feuille Interventions — la fiche
 // Client est la seule source de ces informations à la lecture.
@@ -743,9 +754,27 @@ function getClientsJoinMap() {
   for (let i = 1; i < rows.length; i++) {
     const num = String(rows[i][c.num] || '').trim().replace(/\s/g,'');
     if (!num) continue;
-    map[num] = { tel: String(rows[i][c.tel] || ''), loc: String(rows[i][c.loc] || '') };
+    map[num] = {
+      tel:    String(rows[i][c.tel] || ''),
+      telSec: c.telSec >= 0 ? String(rows[i][c.telSec] || '') : '',
+      loc:    String(rows[i][c.loc] || '')
+    };
   }
   return map;
+}
+
+// Repli pour les interventions sans fiche Client (aucun numéro de ligne ni
+// Customer ID) : le contact a été conservé dans la remarque à la publication
+// ("Tel: … • Tel2: … • Localité: …") — le réextraire pour l'affichage.
+function contactDepuisRemarque(remarque) {
+  const r = { tel: '', telSec: '', loc: '' };
+  String(remarque || '').split(' • ').forEach(function(seg) {
+    const s = seg.trim();
+    if (s.indexOf('Tel: ') === 0)           r.tel    = s.slice(5).trim();
+    else if (s.indexOf('Tel2: ') === 0)     r.telSec = s.slice(6).trim();
+    else if (s.indexOf('Localité: ') === 0) r.loc    = s.slice(10).trim();
+  });
+  return r;
 }
 
 // Feuille Consistances
@@ -1044,6 +1073,7 @@ function saveConsistance(data, session) {
   const now = new Date().toLocaleString('fr-FR');
   const ci  = getConsistIdx(sheet1);
   ensureInvAuditCols(sheet2);
+  ensureClientsCols(sheet3);
   const ii  = getInvIdx(sheet2);
 
   // Trouver ou créer la fiche du jour
@@ -1095,12 +1125,17 @@ function saveConsistance(data, session) {
     if (inv.gps) remarqueParts.push('GPS: ' + String(inv.gps).trim());
     if (inv.chambre) remarqueParts.push('Chambre: ' + String(inv.chambre).trim());
     if (inv.extra) remarqueParts.push('Remarque: ' + String(inv.extra).trim());
-    // Sans numéro de ligne il n'y a pas de fiche Client pour porter le
-    // téléphone/la localité (colonnes retirées d'Interventions) — les
-    // conserver dans la remarque pour ne pas les perdre.
-    if (!(inv.num && String(inv.num).trim())) {
-      if (inv.tel) remarqueParts.push('Tel: ' + String(inv.tel).trim());
-      if (inv.loc) remarqueParts.push('Localité: ' + String(inv.loc).trim());
+    // Clé de la fiche Client : numéro de ligne, sinon Customer ID (études
+    // FTTH — pas encore de ligne). La jointure de lecture retrouve le
+    // contact par cette même clé (rowInv[ii.num] contient déjà customerId).
+    const numKey = (inv.num && String(inv.num).trim()) ? String(inv.num).trim()
+                 : (inv.customerId ? String(inv.customerId).trim() : '');
+    // Sans aucune clé il n'y a pas de fiche Client pour porter le contact
+    // (colonnes retirées d'Interventions) — le conserver dans la remarque.
+    if (!numKey) {
+      if (inv.tel)    remarqueParts.push('Tel: ' + String(inv.tel).trim());
+      if (inv.numSec) remarqueParts.push('Tel2: ' + String(inv.numSec).trim());
+      if (inv.loc)    remarqueParts.push('Localité: ' + String(inv.loc).trim());
     }
     rowInv[ii.remarque]     = remarqueParts.join(' • ');
     rowInv[ii.reporteDepuis]= inv.reporteDepuis || '';
@@ -1111,16 +1146,18 @@ function saveConsistance(data, session) {
     if (ii.publiePar >= 0) rowInv[ii.publiePar] = session ? session.nom : (chef || '');
     sheet2.appendRow(rowInv);
 
-    // Upsert clients uniquement pour les interventions avec numéro de ligne réel
-    if (inv.num && inv.num.trim()) {
-      const numClean = inv.num.trim().replace(/\s/g,'');
+    // Upsert clients pour toute intervention identifiable (numéro de ligne
+    // réel, ou Customer ID pour les études) — c'est la fiche Client qui
+    // porte le contact affiché aux techniciens.
+    if (numKey) {
+      const numClean = numKey.replace(/\s/g,'');
       const service  = typeToService(inv.typeLabel || inv.type);
       const cliRows  = sheet3.getDataRange().getValues();
       const c        = getClientsIdx(sheet3);
 
       function buildClientRow() {
         const row = new Array(c.total).fill('');
-        row[c.num]      = inv.num;
+        row[c.num]      = numKey;
         row[c.nom]      = inv.nom || '';
         if (c.telSec >= 0) {
           row[c.tel]    = inv.tel    || '';
@@ -1144,6 +1181,9 @@ function saveConsistance(data, session) {
             sheet3.getRange(i+1, 1, 1, c.total).setValues([buildClientRow()]);
           } else {
             sheet3.getRange(i+1, c.service+1).setValue(service);
+            // Le numéro secondaire saisi doit persister même sans mise à
+            // jour complète de la fiche (il n'était écrit qu'à la création).
+            if (inv.numSec && c.telSec >= 0) sheet3.getRange(i+1, c.telSec+1).setValue(String(inv.numSec).trim());
             sheet3.getRange(i+1, c.maj+1).setValue(now);
           }
           found = true; break;
@@ -1228,13 +1268,14 @@ function getByDate(params) {
       const statut        = String(iRows[i][ii.statut]);
       const dateLigne      = normDate(iRows[i][ii.date]);
       const numClean      = String(iRows[i][ii.num] || '').trim().replace(/\s/g,'');
-      const cli           = joinMap[numClean] || { tel: '', loc: '' };
+      const cli           = joinMap[numClean] || contactDepuisRemarque(remarque);
       interventions.push({
         id:           String(iRows[i][ii.id]),
         type:         String(iRows[i][ii.type]),
         num:          String(iRows[i][ii.num]),
         nom:          String(iRows[i][ii.nom]),
         tel:          cli.tel,
+        telSec:       cli.telSec || '',
         loc:          cli.loc,
         statut,
         panne:        ii.panne >= 0 ? String(iRows[i][ii.panne] || '') : '',
@@ -1292,7 +1333,7 @@ function getAll(params) {
     if (monthFilter && consist.date.substring(0,7) !== monthFilter) continue;
     const remarque = String(iRows[j][ii.remarque]);
     const numClean = String(iRows[j][ii.num] || '').trim().replace(/\s/g,'');
-    const cli      = joinMap[numClean] || { tel: '', loc: '' };
+    const cli      = joinMap[numClean] || contactDepuisRemarque(remarque);
     allInvsMois.push({
       id:           String(iRows[j][ii.id]),
       cid,
@@ -1302,6 +1343,7 @@ function getAll(params) {
       num:          String(iRows[j][ii.num]),
       nom:          String(iRows[j][ii.nom]),
       tel:          cli.tel,
+      telSec:       cli.telSec || '',
       loc:          cli.loc,
       statut:       String(iRows[j][ii.statut]),
       panne:        ii.panne >= 0 ? String(iRows[j][ii.panne] || '') : '',
