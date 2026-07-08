@@ -99,6 +99,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
 input,select,textarea{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:.87rem;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border .2s;}
 input:focus,select:focus,textarea:focus{border-color:var(--blue-mid);background:#fff;box-shadow:0 0 0 3px var(--blue-glow);}
+input::placeholder,textarea::placeholder{color:var(--muted2);font-style:italic;opacity:.75;}
 input.autofilled{border-color:var(--green)!important;background:#f0fdf4!important;}
 select{cursor:pointer;}
 textarea{resize:vertical;min-height:60px;}
@@ -270,7 +271,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   <div class="role-tagline" data-i18n="login.tagline">Consistance des Travaux — Connexion</div>
   <div class="setup-box" style="max-width:360px;">
     <label data-i18n="login.matricule.label">Matricule</label>
-    <input type="text" id="login-matricule" placeholder="Ex: 401569" data-i18n-ph="login.matricule.ph" inputmode="numeric" pattern="[0-9]*" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
+    <input type="text" id="login-matricule" placeholder="Tapez votre matricule ici…" data-i18n-ph="login.matricule.ph" inputmode="numeric" pattern="[0-9]*" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
     <label data-i18n="login.pin.label">Code PIN</label>
     <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login" data-i18n="login.btn">🔓 Se connecter</button>
@@ -607,7 +608,7 @@ fr:{
   'login.tagline':'Consistance des Travaux — Connexion',
   'login.name.ph':'Votre nom',
   'login.matricule.label':'Matricule',
-  'login.matricule.ph':'Ex: 401569',
+  'login.matricule.ph':'Tapez votre matricule ici…',
   'login.pin.label':'Code PIN',
   'login.btn':'🔓 Se connecter',
   'login.btn.loading':'⏳ Connexion...',
@@ -821,7 +822,7 @@ en:{
   'login.tagline':'Task Sheet — Login',
   'login.name.ph':'Your name',
   'login.matricule.label':'Staff ID',
-  'login.matricule.ph':'e.g. 401569',
+  'login.matricule.ph':'Type your staff ID here…',
   'login.pin.label':'PIN code',
   'login.btn':'🔓 Log in',
   'login.btn.loading':'⏳ Logging in...',
