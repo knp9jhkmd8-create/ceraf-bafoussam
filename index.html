@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1d4ed8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -102,7 +102,10 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .form-row.three{grid-template-columns:1fr 1fr 1fr;}
 @media(max-width:560px){.form-row.three{grid-template-columns:1fr;}}
 label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
-input,select,textarea{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:.87rem;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border .2s;}
+/* font-size 16px minimum sur les champs : en dessous, iOS Safari zoome
+   automatiquement sur le champ au focus (et le zoom reste après) — c'est la
+   cause racine, le viewport user-scalable=no ne suffit pas seul sur iPhone. */
+input,select,textarea{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:16px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;transition:border .2s;}
 input:focus,select:focus,textarea:focus{border-color:var(--blue-mid);background:#fff;box-shadow:0 0 0 3px var(--blue-glow);}
 input::placeholder,textarea::placeholder{color:var(--muted2);font-style:italic;opacity:.75;}
 input.autofilled{border-color:var(--green)!important;background:#f0fdf4!important;}
@@ -199,7 +202,7 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .duree-badge{display:inline-flex;align-items:center;gap:4px;background:#fefce8;color:#854d0e;border:1px solid #fde68a;border-radius:10px;padding:2px 8px;font-size:.7rem;font-weight:700;}
 
 .status-sel,.field-sel{background:var(--surface);border:1.5px solid var(--border);border-radius:7px;color:var(--text);padding:5px 8px;font-size:.77rem;cursor:pointer;outline:none;font-family:'Plus Jakarta Sans',sans-serif;}
-.remark-inp{width:100%;margin-top:7px;background:var(--surface);border:1.5px solid var(--border);border-radius:7px;color:var(--text);padding:6px 10px;font-size:.79rem;font-family:'Plus Jakarta Sans',sans-serif;outline:none;}
+.remark-inp{width:100%;margin-top:7px;background:var(--surface);border:1.5px solid var(--border);border-radius:7px;color:var(--text);padding:6px 10px;font-size:16px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;}
 .remark-inp:focus{border-color:var(--blue-mid);}
 
 .consist-header{background:linear-gradient(135deg,var(--navy),var(--blue-mid));border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;color:#fff;}
@@ -533,7 +536,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <div class="page-title" data-i18n-html="histo.title.html"><span>Historique</span> — <span id="histo-month-label">...</span></div>
       <div class="page-sub" data-i18n-html="histo.sub.html">
         Toutes les fiches classées par mois
-        <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>
+        <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:16px;"></select>
       </div>
       <div id="stats-wrap" class="hidden"><div class="stats-row" id="stats-row"></div></div>
       <div id="quartier-wrap" class="hidden"></div>
@@ -739,7 +742,7 @@ fr:{
   'toast.statusUpdated':'✅ Statut mis à jour',
   'toast.savedLocally':'⚠️ Sauvegardé localement — sera synchronisé plus tard',
   'histo.title.html':'<span>Historique</span> — <span id="histo-month-label">...</span>',
-  'histo.sub.html':'Toutes les fiches classées par mois <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>',
+  'histo.sub.html':'Toutes les fiches classées par mois <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:16px;"></select>',
   'stat.interventions':'Interventions','stat.completed':'Réalisées','stat.outstanding':'Instances',
   'stat.taux':'Taux de réalisation','stat.dureeMoy':'Durée moy. de résolution','filter.byPanne':'Filtrer par panne',
   'terrain.search.ph':'🔎 Rechercher (nom, numéro, tél...)',
@@ -957,7 +960,7 @@ en:{
   'toast.statusUpdated':'✅ Status updated',
   'toast.savedLocally':'⚠️ Saved locally — will sync later',
   'histo.title.html':'<span>History</span> — <span id="histo-month-label">...</span>',
-  'histo.sub.html':'All sheets sorted by month <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:.78rem;"></select>',
+  'histo.sub.html':'All sheets sorted by month <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:16px;"></select>',
   'stat.interventions':'Interventions','stat.completed':'Completed','stat.outstanding':'Outstanding',
   'stat.taux':'Completion rate','stat.dureeMoy':'Avg. resolution time','filter.byPanne':'Filter by fault',
   'terrain.search.ph':'🔎 Search (name, number, phone...)',
@@ -2481,7 +2484,7 @@ function invRowHTML(inv,idx){
       ${role==='admin'&&(inv.publiePar||inv.statutPar)?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${inv.publiePar?'🖊️ '+t('terrain.publishedBy',{nom:inv.publiePar}):''}${inv.publiePar&&inv.statutPar?' — ':''}${inv.statutPar?'🔄 '+t('terrain.statusBy',{nom:inv.statutPar}):''}</div>`:''}
       ${structuredHTML}
       <div class="gps-row" style="margin-top:8px;">
-        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="${t('ph.gpsCoord')}" value="${gpsValue}" style="font-size:.75rem;">
+        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="${t('ph.gpsCoord')}" value="${gpsValue}">
         <button class="btn-gps" onclick="getGPSField('gps-${inv.id}',this)">📍</button>
       </div>
       ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">${t('gps.saved')}${gpsSource} — <button class="btn-gps" style="padding:3px 10px;font-size:.7rem;margin-left:4px;" data-gps="${gpsValue.replace(/"/g,'&quot;')}" onclick="ouvrirMaps(this.dataset.gps)">${t('btn.openMaps')}</button></div>`:''}
