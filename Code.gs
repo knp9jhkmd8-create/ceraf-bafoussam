@@ -562,10 +562,11 @@ function doGet(e) {
     } else {
       const role = wanted;
       // Actions réservées au chef centre / admin
-      if ((action === 'getAll' || action === 'getClients' || action === 'getClientHistory') && role === 'technicien') {
+      if ((action === 'getAll' || action === 'getClients' || action === 'getClientHistory' || action === 'genererKpi') && role === 'technicien') {
         result = { success: false, error: 'Accès réservé au chef centre' };
       }
       else if (action === 'getByDate')  result = getByDate(e.parameter);
+      else if (action === 'genererKpi') result = genererRapportKpi(e.parameter.month);
       else if (action === 'getAll')     result = getAll(e.parameter);
       else if (action === 'getClients') result = getClients();
       else if (action === 'findClient') result = findClient(e.parameter);
@@ -1472,6 +1473,189 @@ function rangerSauvegardesExistantes() {
   Logger.log(n + ' sauvegarde(s) déplacée(s) vers autosave.');
 }
 
+// ============================================================
+//  RAPPORT KPI MENSUEL
+//  À chaque fin de mois (à partir de juillet 2026), un onglet
+//  "<MOIS> <ANNEE>" est ajouté au classeur KPI du dossier Drive
+//  "CERAF Bafoussam/KPI", au même format que les onglets
+//  historiques (JANVIER 2026 → JUIN 2026) :
+//  réseaux FTTH et CUIVRE × (ETUDES / INSTALLATION / DERANGEMENTS /
+//  RESILIATIONS) × (REPORTS / SIGNALES / TRAITES / INSTANCES),
+//  par localité + ligne RECAPITULATIF.
+//  Les chiffres sortent de getAll(mois) — la même déduplication que
+//  l'Historique de l'app. Sémantique des colonnes :
+//    REPORTS   = origine (Reporté_depuis) antérieure au 1er du mois
+//    SIGNALES  = origine dans le mois
+//    TRAITES   = statut Réalisé
+//    INSTANCES = tout le reste (En attente / Injoignable / Problème)
+//  → REPORTS + SIGNALES = TRAITES + INSTANCES.
+//  Non suivis dans l'app, donc à 0 : RESILIATIONS, ETUDES et
+//  INSTALLATIONS Cuivre. Les types LS sont hors périmètre du fichier
+//  (« KPI des lignes FTTH et Cuivre »).
+// ============================================================
+const KPI_FOLDER_ID = '1SafHiZpobh9TVphdtNFScFw3rSOQ0YJl'; // CERAF Bafoussam/KPI
+const KPI_MOIS_FR = ['JANVIER','FEVRIER','MARS','AVRIL','MAI','JUIN',
+                     'JUILLET','AOUT','SEPTEMBRE','OCTOBRE','NOVEMBRE','DECEMBRE'];
+
+// Le classeur KPI d'origine est un .xlsx : SpreadsheetApp ne peut pas y
+// écrire. Au premier appel, il est converti en Google Sheets (l'original
+// est conservé tel quel) et l'ID du classeur converti est mémorisé dans
+// _Config!B2 pour les mois suivants.
+function getKpiSpreadsheet_() {
+  const ss = getSS();
+  let cfg = ss.getSheetByName('_Config');
+  if (!cfg) { cfg = ss.insertSheet('_Config'); cfg.hideSheet(); }
+  const stored = String(cfg.getRange('B2').getValue() || '');
+  if (stored) {
+    try { return SpreadsheetApp.openById(stored); } catch(e) { /* supprimé → re-résoudre */ }
+  }
+  const dossier = DriveApp.getFolderById(KPI_FOLDER_ID);
+  const gsheets = dossier.getFilesByType(MimeType.GOOGLE_SHEETS);
+  if (gsheets.hasNext()) {
+    const f = gsheets.next();
+    cfg.getRange('B2').setValue(f.getId());
+    return SpreadsheetApp.openById(f.getId());
+  }
+  const xls = dossier.getFilesByType(MimeType.MICROSOFT_EXCEL);
+  if (!xls.hasNext()) throw new Error('Aucun classeur KPI (.xlsx ou Google Sheets) dans le dossier KPI');
+  const src = xls.next();
+  const copie = Drive.Files.copy(
+    { name: src.getName().replace(/\.xlsx?$/i, ''), mimeType: MimeType.GOOGLE_SHEETS, parents: [KPI_FOLDER_ID] },
+    src.getId()
+  );
+  cfg.getRange('B2').setValue(copie.id);
+  return SpreadsheetApp.openById(copie.id);
+}
+
+function sansAccents_(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function genererRapportKpi(mois) { // mois au format 'YYYY-MM'
+  mois = String(mois || '');
+  if (!/^\d{4}-\d{2}$/.test(mois)) return { success:false, error:'Paramètre month attendu au format YYYY-MM' };
+
+  const all = getAll({ month: mois });
+  const debut = mois + '-01';
+
+  // Type stocké → [réseau, catégorie du tableau]. Matching insensible aux
+  // accents/majuscules car les libellés historiques ont varié.
+  function categorie(type) {
+    const t = sansAccents_(type).toLowerCase();
+    if (t.indexOf('cuivre') !== -1) {
+      if (t.indexOf('derang')  !== -1) return ['CUIVRE','DERANGEMENTS'];
+      if (t.indexOf('etude')   !== -1) return ['CUIVRE','ETUDES'];
+      if (t.indexOf('install') !== -1) return ['CUIVRE','INSTALLATIONS'];
+      return null;
+    }
+    if (t.indexOf('ftth') !== -1) {
+      if (t.indexOf('etude')   !== -1) return ['FTTH','ETUDES'];
+      if (t.indexOf('install') !== -1) return ['FTTH','INSTALLATION'];
+      if (t.indexOf('derang')  !== -1) return ['FTTH','DERANGEMENTS'];
+    }
+    return null; // LS et types inconnus : hors périmètre de ce rapport
+  }
+
+  const VILLES = ['BAFOUSSAM','BANDJOUN','BAHAM','FOUMBOT'];
+  const CATS = [['FTTH','ETUDES'],['FTTH','INSTALLATION'],['FTTH','DERANGEMENTS'],['FTTH','RESILIATIONS'],
+                ['CUIVRE','ETUDES'],['CUIVRE','INSTALLATIONS'],['CUIVRE','DERANGEMENTS'],['CUIVRE','RESILIATIONS']];
+  const compte = {};
+  VILLES.forEach(v => {
+    compte[v] = {};
+    CATS.forEach(c => { compte[v][c.join('|')] = { rep:0, sig:0, tra:0, inst:0 }; });
+  });
+
+  let nb = 0;
+  (all.data || []).forEach(fiche => fiche.interventions.forEach(inv => {
+    const cat = categorie(inv.type);
+    if (!cat) return;
+    let ville = sansAccents_(inv.ville).toUpperCase().trim();
+    if (VILLES.indexOf(ville) === -1) ville = 'BAFOUSSAM';
+    const c = compte[ville][cat.join('|')];
+    const origine = (inv.reporteDepuis && inv.reporteDepuis !== 'null' && inv.reporteDepuis !== '')
+      ? inv.reporteDepuis : inv.date;
+    if (origine < debut) c.rep++; else c.sig++;
+    if (inv.statut === 'Réalisé') c.tra++; else c.inst++;
+    nb++;
+  }));
+
+  // ── Écriture de l'onglet (régénération idempotente) ──
+  const annee   = Number(mois.substring(0,4));
+  const moisNum = Number(mois.substring(5,7));
+  const nomOnglet = KPI_MOIS_FR[moisNum-1] + ' ' + annee;
+  const kss = getKpiSpreadsheet_();
+  const ancien = kss.getSheetByName(nomOnglet);
+  if (ancien) kss.deleteSheet(ancien);
+  const sh = kss.insertSheet(nomOnglet, kss.getSheets().length);
+
+  const NC = 33; // colonne A + 8 catégories × 4 indicateurs
+  function ligneVide() { return new Array(NC).fill(''); }
+
+  const l1 = ligneVide(); l1[0] = nomOnglet + ' KPI DES LIGNES FTTH ET CUIVRE';
+  const l2 = ligneVide(); l2[0] = 'ANNEE ' + annee; l2[8] = 'MOIS ' + nomOnglet;
+  const l3 = ligneVide(); l3[0] = 'CERAF / LOCALITE'; l3[1] = 'RESEAU : FTTH'; l3[17] = 'RESEAU : CUIVRE';
+  const l4 = ligneVide();
+  CATS.forEach((c,i) => { l4[1 + i*4] = c[1]; });
+  const l5 = ligneVide();
+  CATS.forEach((c,i) => {
+    l5[1 + i*4] = 'REPORTS'; l5[2 + i*4] = 'SIGNALES'; l5[3 + i*4] = 'TRAITES'; l5[4 + i*4] = 'INSTANCES';
+  });
+
+  const lignesVilles = VILLES.map(v => {
+    const l = ligneVide(); l[0] = v;
+    CATS.forEach((c,i) => {
+      const x = compte[v][c.join('|')];
+      l[1+i*4] = x.rep; l[2+i*4] = x.sig; l[3+i*4] = x.tra; l[4+i*4] = x.inst;
+    });
+    return l;
+  });
+  const lRecap = ligneVide(); lRecap[0] = 'RECAPITULATIF';
+  for (let col = 1; col < NC; col++) {
+    lRecap[col] = lignesVilles.reduce((s,l) => s + (Number(l[col]) || 0), 0);
+  }
+
+  const donnees = [l1, l2, l3, l4, l5].concat(lignesVilles).concat([lRecap]);
+  sh.getRange(1, 1, donnees.length, NC).setValues(donnees);
+
+  // ── Mise en forme ──
+  const nbLignes = donnees.length;
+  sh.getRange(1,1,1,NC).merge().setFontWeight('bold').setFontSize(13)
+    .setHorizontalAlignment('center').setBackground('#1e3a8a').setFontColor('#ffffff');
+  sh.getRange(3,1,3,1).merge();
+  sh.getRange(3,2,1,16).merge().setBackground('#dbeafe');
+  sh.getRange(3,18,1,16).merge().setBackground('#ffedd5');
+  CATS.forEach((c,i) => { sh.getRange(4, 2+i*4, 1, 4).merge(); });
+  sh.getRange(3,1,3,NC).setFontWeight('bold').setHorizontalAlignment('center');
+  sh.getRange(5,2,1,NC-1).setFontSize(8);
+  sh.getRange(4,2,1,16).setBackground('#eff6ff');
+  sh.getRange(4,18,1,16).setBackground('#fff7ed');
+  sh.getRange(6,1,VILLES.length+1,1).setFontWeight('bold');
+  sh.getRange(nbLignes,1,1,NC).setFontWeight('bold').setBackground('#e2e8f0');
+  sh.getRange(3,1,nbLignes-2,NC).setBorder(true,true,true,true,true,true);
+  sh.getRange(6,2,VILLES.length+1,NC-1).setHorizontalAlignment('center');
+  sh.setColumnWidth(1, 130);
+  for (let col = 2; col <= NC; col++) sh.setColumnWidth(col, 58);
+  sh.setFrozenRows(5);
+
+  return { success:true, mois:mois, onglet:nomOnglet, interventions:nb, url:kss.getUrl() };
+}
+
+// Appelée par le trigger nocturne : au premier passage dans un nouveau
+// mois, génère l'onglet KPI du mois qui vient de se terminer.
+// Marqueur anti-doublon dans _Config!B3. Premier rapport : juillet 2026.
+function genererKpiMoisPrecedentSiBesoin_() {
+  const now = new Date();
+  const prec = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const mois = normDate(prec).substring(0,7);
+  if (mois < '2026-07') return;
+  const ss = getSS();
+  let cfg = ss.getSheetByName('_Config');
+  if (!cfg) { cfg = ss.insertSheet('_Config'); cfg.hideSheet(); }
+  if (String(cfg.getRange('B3').getValue()) === 'kpi:' + mois) return;
+  genererRapportKpi(mois);
+  cfg.getRange('B3').setValue('kpi:' + mois);
+}
+
 function reporterInterventionsEnAttente() {
   const lock = LockService.getScriptLock();
   const gotLock = lock.tryLock(3000);
@@ -1479,6 +1663,7 @@ function reporterInterventionsEnAttente() {
 
   try {
     try { sauvegardeHebdoSiDimanche(); } catch(e) { Logger.log('Sauvegarde: ' + e); }
+    try { genererKpiMoisPrecedentSiBesoin_(); } catch(e) { Logger.log('KPI: ' + e); }
     const sheet1 = s1(), sheet2 = s2();
     const ci = getConsistIdx(sheet1);
     const ii = getInvIdx(sheet2);

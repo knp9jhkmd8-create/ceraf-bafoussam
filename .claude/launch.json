@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ceraf-static",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": ["C:\\Users\\gille\\AppData\\Roaming\\npm\\node_modules\\http-server\\bin\\http-server", ".", "-p", "8080", "-c-1"],
+      "port": 8080
+    }
+  ]
+}
