@@ -31,7 +31,7 @@
   --shadow-md:0 4px 24px rgba(30,58,138,.12);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
 
 /* SETUP */
 #setup-screen{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eff6ff,#f0f4ff);}
@@ -58,7 +58,12 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 
 /* APP */
 #app{display:none;flex-direction:column;flex:1;}
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(30,58,138,.08);}
+/* Le padding-top env(safe-area-inset-top) vit ICI (pas sur body) : la barre est
+   sticky, donc au défilement elle se colle à top:0 du viewport — sous la barre
+   d'état iOS/Android (heure, batterie). Son propre padding garantit que son
+   contenu ne chevauche jamais cette zone, et min-height (au lieu de height fixe)
+   laisse la barre grandir si le badge de rôle passe sur plusieurs lignes. */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;padding-top:env(safe-area-inset-top,0px);min-height:calc(52px + env(safe-area-inset-top,0px));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(30,58,138,.08);}
 .logo-text{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);}
 .logo-text span{color:var(--blue-mid);}
 .role-badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700;background:var(--blue-lt);color:var(--blue-mid);border:1px solid var(--blue-glow);}
@@ -3147,6 +3152,7 @@ function refreshCurrentPage(){
   else if(p==='clients')     refreshClients();
   else if(p==='clients-ro')  refreshClientsRO();
   else if(p==='admin')       loadAdminUsers();
+  else if(p==='chef')        return; // jamais de reload : on perdrait les interventions saisies non publiées
   else                       location.reload();
 }
 (function(){
@@ -3187,6 +3193,10 @@ function refreshCurrentPage(){
   document.addEventListener('touchstart',e=>{
     if(refreshing||anyModalOpen())return;
     if(document.getElementById('app').style.display==='none')return;
+    // Pas de pull-to-refresh sur la création de consistance : un rechargement
+    // effacerait les interventions ajoutées mais pas encore publiées
+    const actPage=document.querySelector('#app .page.active');
+    if(actPage&&actPage.id==='page-chef')return;
     if(window.scrollY>0)return;
     startY=e.touches[0].clientY;
     curPull=0;
