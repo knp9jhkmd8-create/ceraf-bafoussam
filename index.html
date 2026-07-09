@@ -350,8 +350,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <div class="type-card"          data-type="install_ftth"  onclick="selType(this)"><div class="tc-icon">🔧</div><div class="tc-lbl" data-i18n="type.install_ftth">Installation FTTH</div></div>
           <div class="type-card"          data-type="derang_ftth"   onclick="selType(this)"><div class="tc-icon">⚡</div><div class="tc-lbl" data-i18n="type.derang_ftth">Dérang. FTTH</div></div>
           <div class="type-card"          data-type="derang_cuivre" onclick="selType(this)"><div class="tc-icon">🪙</div><div class="tc-lbl" data-i18n="type.derang_cuivre">Dérang. Cuivre</div></div>
-          <div class="type-card"          data-type="resiliation_ftth" onclick="selType(this)"><div class="tc-icon">🚫</div><div class="tc-lbl" data-i18n="type.resiliation_ftth">Résiliation FTTH</div></div>
-          <div class="type-card"          data-type="resiliation_cuivre" onclick="selType(this)"><div class="tc-icon">🚫</div><div class="tc-lbl" data-i18n="type.resiliation_cuivre">Résiliation Cuivre</div></div>
+          <div class="type-card"          data-type="resiliation" onclick="selType(this)"><div class="tc-icon">🚫</div><div class="tc-lbl" data-i18n="type.resiliation">Résiliation</div></div>
           <div class="type-card"          data-type="etude_ls"      onclick="selType(this)"><div class="tc-icon">📐</div><div class="tc-lbl" data-i18n="type.etude_ls">Étude LS</div></div>
           <div class="type-card"          data-type="derang_ls"     onclick="selType(this)"><div class="tc-icon">🔌</div><div class="tc-lbl" data-i18n="type.derang_ls">Dérang. LS</div></div>
           <div class="type-card"          data-type="install_ls"    onclick="selType(this)"><div class="tc-icon">📶</div><div class="tc-lbl" data-i18n="type.install_ls">Install. LS</div></div>
@@ -416,28 +415,17 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f4v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
-        <!-- RÉSILIATION FTTH -->
-        <div id="fields-resiliation_ftth" class="hidden">
+        <!-- RÉSILIATION -->
+        <div id="fields-resiliation" class="hidden">
           <div class="form-row">
-            <div><label data-i18n="label.numFtth">N° FTTH (9 chiffres)</label><input id="f8u" placeholder="233442022" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f8v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label data-i18n="label.numLigne">N° de ligne (9 chiffres)</label><input id="f8u" placeholder="233442022" maxlength="9" inputmode="numeric" oninput="filterDigits(this)" onblur="lookupClientLocal(this.value)"></div>
             <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f8n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f8t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f8l" placeholder="MARCHE A"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f8')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f8sec-row"><input id="f8sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f8v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
-        </div>
-
-        <!-- RÉSILIATION CUIVRE -->
-        <div id="fields-resiliation_cuivre" class="hidden">
-          <div class="form-row">
-            <div><label data-i18n="label.numCuivre">N° Cuivre (9 chiffres)</label><input id="f9u" placeholder="233441164" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f9v')" onblur="lookupClientLocal(this.value)"></div>
-            <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f9n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="form-row full">
+            <div><label data-i18n="label.reseau">Réseau</label>
+              <select id="f8net"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option value="FTTH">FTTH</option><option value="Cuivre">Cuivre</option></select>
+            </div>
           </div>
-          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="f9t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f9l" placeholder="KAMPOP"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f9')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f9sec-row"><input id="f9sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
-          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f9v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
         <!-- ÉTUDE LS -->
@@ -677,7 +665,8 @@ fr:{
   'chef.addInv.title':'➕ Ajouter une intervention',
   'type.etude_ftth':'Étude FTTH','type.install_ftth':'Installation FTTH','type.derang_ftth':'Dérang. FTTH',
   'type.derang_cuivre':'Dérang. Cuivre','type.etude_ls':'Étude LS','type.derang_ls':'Dérang. LS','type.install_ls':'Install. LS',
-  'type.resiliation_ftth':'Résiliation FTTH','type.resiliation_cuivre':'Résiliation Cuivre',
+  'type.resiliation':'Résiliation',
+  'label.numLigne':'N° de ligne (9 chiffres)','label.reseau':'Réseau',
   'common.customerId.label':'Customer ID',
   'common.nomClient.label':'Nom Client',
   'common.nomClientLs.label':'Nom Client LS',
@@ -817,6 +806,7 @@ fr:{
   'valid.numRequired':'⚠️ Le numéro de ligne est obligatoire (9 chiffres exactement)',
   'valid.nomOrCustomerId':'⚠️ Renseignez au moins le nom ou le Customer ID',
   'valid.villeRequired':'⚠️ Sélectionnez la ville',
+  'valid.reseauRequired':'⚠️ Sélectionnez le réseau (FTTH ou Cuivre)',
   'valid.9digits':'Le numéro doit contenir exactement 9 chiffres',
   'valid.lineRequired':'Le numéro de ligne est obligatoire',
   'valid.9digitsSecondary':'Le numéro secondaire doit contenir exactement 9 chiffres',
@@ -896,7 +886,8 @@ en:{
   'chef.addInv.title':'➕ Add an intervention',
   'type.etude_ftth':'FTTH Survey','type.install_ftth':'FTTH Installation','type.derang_ftth':'FTTH Fault',
   'type.derang_cuivre':'Copper Fault','type.etude_ls':'LS Survey','type.derang_ls':'LS Fault','type.install_ls':'LS Installation',
-  'type.resiliation_ftth':'FTTH Cancellation','type.resiliation_cuivre':'Copper Cancellation',
+  'type.resiliation':'Cancellation',
+  'label.numLigne':'Line number (9 digits)','label.reseau':'Network',
   'common.customerId.label':'Customer ID',
   'common.nomClient.label':'Customer Name',
   'common.nomClientLs.label':'LS Customer Name',
@@ -1036,6 +1027,7 @@ en:{
   'valid.numRequired':'⚠️ The line number is required (exactly 9 digits)',
   'valid.nomOrCustomerId':'⚠️ Enter at least the name or the Customer ID',
   'valid.villeRequired':'⚠️ Select the city',
+  'valid.reseauRequired':'⚠️ Select the network (FTTH or Copper)',
   'valid.9digits':'The number must contain exactly 9 digits',
   'valid.lineRequired':'The line number is required',
   'valid.9digitsSecondary':'The secondary number must contain exactly 9 digits',
@@ -1691,8 +1683,7 @@ function getFieldIds(){
   if(cType==='install_ftth')  return{num:'f2u',nom:'f2n',tel:'f2t',loc:'f2l',vil:'f2v',sec:'f2sec'};
   if(cType==='derang_ftth')   return{num:'f3u',nom:'f3n',tel:'f3t',loc:'f3l',vil:'f3v',sec:'f3sec'};
   if(cType==='derang_cuivre') return{num:'f4u',nom:'f4n',tel:'f4t',loc:'f4l',vil:'f4v',sec:'f4sec'};
-  if(cType==='resiliation_ftth')   return{num:'f8u',nom:'f8n',tel:'f8t',loc:'f8l',vil:'f8v',sec:'f8sec'};
-  if(cType==='resiliation_cuivre') return{num:'f9u',nom:'f9n',tel:'f9t',loc:'f9l',vil:'f9v',sec:'f9sec'};
+  if(cType==='resiliation')   return{num:'f8u',nom:'f8n'};
   if(cType==='etude_ls')      return{nom:'f5n',tel:'f5t',loc:'f5l',vil:'f5v',sec:'f5sec'};
   if(cType==='derang_ls')     return{nom:'f6n',tel:'f6t',loc:'f6l',vil:'f6v',sec:'f6sec'};
   if(cType==='install_ls')    return{nom:'f7n',tel:'f7t',loc:null,vil:'f7v',sec:'f7sec'};
@@ -1809,8 +1800,14 @@ function gf(){
   if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),numSec:v('f2sec'),gps:'',fdt:v('f2fdt'),fat:v('f2fat')};
   if(cType==='derang_ftth')   return{num:v('f3u'),nom:vUp('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),numSec:v('f3sec'),gps:''};
   if(cType==='derang_cuivre') return{num:v('f4u'),nom:vUp('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),numSec:v('f4sec'),gps:''};
-  if(cType==='resiliation_ftth')   return{num:v('f8u'),nom:vUp('f8n'),tel:v('f8t'),loc:v('f8l'),ville:v('f8v'),numSec:v('f8sec'),gps:''};
-  if(cType==='resiliation_cuivre') return{num:v('f9u'),nom:vUp('f9n'),tel:v('f9t'),loc:v('f9l'),ville:v('f9v'),numSec:v('f9sec'),gps:''};
+  if(cType==='resiliation'){
+    // Num+nom seulement à l'écran — tel/loc/ville sont repris en silence
+    // depuis la fiche client existante (si trouvée) pour ne pas fausser la
+    // répartition par localité du KPI, sans imposer ces champs au chef.
+    const numVal=v('f8u');
+    const cached=clientsCache[numVal.replace(/\s/g,'').toLowerCase()];
+    return{num:numVal,nom:vUp('f8n'),tel:cached?cached.tel:'',loc:cached?cached.loc:'',ville:cached?cached.ville:'',numSec:cached?cached.telSec:'',gps:'',reseau:v('f8net')};
+  }
   if(cType==='etude_ls')      return{num:'',nom:vUp('f5n'),tel:v('f5t'),loc:v('f5l'),ville:v('f5v'),numSec:v('f5sec'),gps:''};
   if(cType==='derang_ls')     return{num:'',nom:vUp('f6n'),tel:v('f6t'),loc:v('f6l'),ville:v('f6v'),numSec:v('f6sec'),gps:''};
   if(cType==='install_ls')    return{num:'',nom:vUp('f7n'),tel:v('f7t'),pop:v('f7p'),ville:v('f7v'),numSec:v('f7sec'),gps:v('f7g'),chambre:v('f7c'),extra:v('f7x'),loc:''};
@@ -1867,7 +1864,7 @@ function cf(){
    'f3u','f3n','f3t','f3l','f3v','f3sec','f4u','f4n','f4t','f4l','f4v','f4sec',
    'f5n','f5u','f5t','f5l','f5v','f5sec','f6n','f6u','f6t','f6l','f6v','f6sec',
    'f7n','f7u','f7t','f7p','f7v','f7sec','f7g','f7c','f7x',
-   'f8u','f8n','f8t','f8l','f8v','f8sec','f9u','f9n','f9t','f9l','f9v','f9sec']
+   'f8u','f8n','f8net']
   .forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('autofilled');el.classList.remove('input-error');}});
   document.querySelectorAll('.secnum-row').forEach(r=>r.classList.remove('visible'));
   hideBanner();lastLookedNum='';
@@ -1877,7 +1874,7 @@ async function addInv(){
   const f=gf();
 
   // Numéro de ligne obligatoire UNIQUEMENT pour ces trois types
-  const NUM_OBLIGATOIRE=['install_ftth','derang_ftth','derang_cuivre','resiliation_ftth','resiliation_cuivre'];
+  const NUM_OBLIGATOIRE=['install_ftth','derang_ftth','derang_cuivre','resiliation'];
   if(NUM_OBLIGATOIRE.includes(cType)){
     if(!f.num||f.num.length!==9){showToast(t('valid.numRequired'));return;}
   }
@@ -1885,6 +1882,7 @@ async function addInv(){
   // Nom obligatoire pour tous
   if(!f.nom&&!f.customerId){showToast(t('valid.nomOrCustomerId'));return;}
   if(VILLE_REQUIRED.includes(cType)&&!f.ville){showToast(t('valid.villeRequired'));return;}
+  if(cType==='resiliation'&&!f.reseau){showToast(t('valid.reseauRequired'));return;}
 
   // ── CACHE INTERVENTIONS ACTIVES — charger si vide ──────────
   // Garantit que le cache est prêt avant la vérification doublon,
@@ -1930,7 +1928,10 @@ function addInvWithQuartier(f,quartier){
       }
     }
     const isEtude = cType==='etude_ftth'||cType==='etude_ls';
-    pending.push({type:cType,typeLabel:TL[cType],status:'pending',...f,quartier,updateClient,isEtude,id:Date.now()});
+    // Résiliation : un seul type à l'écran, le réseau choisi (FTTH/Cuivre)
+    // détermine le type réel stocké (résolu par le backend via ce libellé).
+    const realType = cType==='resiliation' ? (f.reseau==='Cuivre'?'resiliation_cuivre':'resiliation_ftth') : cType;
+    pending.push({type:realType,typeLabel:TL[realType],status:'pending',...f,quartier,updateClient,isEtude,id:Date.now()});
     // Mettre à jour le cache local immédiatement pour détecter les doublons
     // saisis dans la même session (avant publication)
     if(f.num&&f.num.trim()){
@@ -2069,8 +2070,11 @@ function renderPreview(){
 function editInv(id){
   const inv=pending.find(i=>i.id===id);
   if(!inv)return;
-  // Sélectionner le bon type
-  const card=document.querySelector('.type-card[data-type="'+inv.type+'"]');
+  // Sélectionner le bon type — les deux réseaux de Résiliation partagent
+  // une seule carte/un seul jeu de champs à l'écran.
+  const isResiliation = inv.type==='resiliation_ftth'||inv.type==='resiliation_cuivre';
+  const cardType = isResiliation ? 'resiliation' : inv.type;
+  const card=document.querySelector('.type-card[data-type="'+cardType+'"]');
   if(card) selType(card);
 
   // Remplir les champs selon le type
@@ -2079,14 +2083,13 @@ function editInv(id){
   if(inv.type==='install_ftth'){setIf('f2u',inv.num);setIf('f2n',inv.nom);setIf('f2t',inv.tel);setIf('f2l',inv.loc);setIf('f2v',inv.ville);setIf('f2sec',inv.numSec);setIf('f2fdt',inv.fdt);setIf('f2fat',inv.fat);}
   if(inv.type==='derang_ftth'){setIf('f3u',inv.num);setIf('f3n',inv.nom);setIf('f3t',inv.tel);setIf('f3l',inv.loc);setIf('f3v',inv.ville);setIf('f3sec',inv.numSec);}
   if(inv.type==='derang_cuivre'){setIf('f4u',inv.num);setIf('f4n',inv.nom);setIf('f4t',inv.tel);setIf('f4l',inv.loc);setIf('f4v',inv.ville);setIf('f4sec',inv.numSec);}
-  if(inv.type==='resiliation_ftth'){setIf('f8u',inv.num);setIf('f8n',inv.nom);setIf('f8t',inv.tel);setIf('f8l',inv.loc);setIf('f8v',inv.ville);setIf('f8sec',inv.numSec);}
-  if(inv.type==='resiliation_cuivre'){setIf('f9u',inv.num);setIf('f9n',inv.nom);setIf('f9t',inv.tel);setIf('f9l',inv.loc);setIf('f9v',inv.ville);setIf('f9sec',inv.numSec);}
+  if(isResiliation){setIf('f8u',inv.num);setIf('f8n',inv.nom);setIf('f8net',inv.type==='resiliation_cuivre'?'Cuivre':'FTTH');}
   if(inv.type==='etude_ls'){setIf('f5u',inv.num);setIf('f5n',inv.nom);setIf('f5t',inv.tel);setIf('f5l',inv.loc);setIf('f5v',inv.ville);setIf('f5sec',inv.numSec);}
   if(inv.type==='derang_ls'){setIf('f6u',inv.num);setIf('f6n',inv.nom);setIf('f6t',inv.tel);setIf('f6l',inv.loc);setIf('f6v',inv.ville);setIf('f6sec',inv.numSec);}
   if(inv.type==='install_ls'){setIf('f7u',inv.num);setIf('f7n',inv.nom);setIf('f7t',inv.tel);setIf('f7p',inv.pop);setIf('f7v',inv.ville);setIf('f7sec',inv.numSec);setIf('f7g',inv.gps);setIf('f7c',inv.chambre);setIf('f7x',inv.extra);}
 
   // Afficher le champ secondaire si rempli
-  const prefixMap={etude_ftth:'f1',install_ftth:'f2',derang_ftth:'f3',derang_cuivre:'f4',etude_ls:'f5',derang_ls:'f6',install_ls:'f7',resiliation_ftth:'f8',resiliation_cuivre:'f9'};
+  const prefixMap={etude_ftth:'f1',install_ftth:'f2',derang_ftth:'f3',derang_cuivre:'f4',etude_ls:'f5',derang_ls:'f6',install_ls:'f7'};
   const prefix=prefixMap[inv.type];
   if(prefix && inv.numSec){const row=document.getElementById(prefix+'sec-row');if(row)row.classList.add('visible');}
 
