@@ -828,9 +828,41 @@ function getClients() {
   const sheet3 = s3();
   const rows3  = sheet3.getDataRange().getValues();
   const c      = getClientsIdx(sheet3);
+
+  // Interventions actives (non Réalisées) — pour détection doublons côté front.
+  // Au passage, on repère les numéros ayant une Résiliation Réalisée : ils sont
+  // exclus des clients actifs ci-dessous. Dérivé à la lecture depuis
+  // Interventions (jamais stocké sur la fiche Client), pour ne jamais diverger —
+  // même logique que calculerDuree(). Résiliation = définitive (pas de
+  // réactivation) : voir genererRapportKpi/categorie() pour la même détection
+  // de type insensible aux accents/majuscules.
+  const sheet2 = s2();
+  const rows2  = sheet2.getDataRange().getValues();
+  const ii     = getInvIdx(sheet2);
+  const activeInterventions = [];
+  const resilies = {};
+  for (let i = 1; i < rows2.length; i++) {
+    const num = String(rows2[i][ii.num] || '').trim();
+    if (!num) continue;
+    const statutInv = String(rows2[i][ii.statut]);
+    const numKey = num.replace(/\s/g,'').toLowerCase();
+    if (statutInv === 'Réalisé') {
+      if (sansAccents_(rows2[i][ii.type]).toLowerCase().indexOf('resiliation') !== -1) resilies[numKey] = true;
+      continue;
+    }
+    activeInterventions.push({
+      num:    numKey,
+      type:   String(rows2[i][ii.type] || ''),
+      date:   normDate(rows2[i][ii.date]),
+      statut: statutInv
+    });
+  }
+
   const clients = [];
   for (let i = 1; i < rows3.length; i++) {
-    if (!String(rows3[i][c.num]).trim()) continue;
+    const num = String(rows3[i][c.num]).trim();
+    if (!num) continue;
+    if (resilies[num.replace(/\s/g,'').toLowerCase()]) continue;
     clients.push({
       num:      String(rows3[i][c.num]),
       nom:      String(rows3[i][c.nom]      || ''),
@@ -842,24 +874,6 @@ function getClients() {
       service:  String(rows3[i][c.service]  || ''),
       gps:      String(rows3[i][c.gps]      || ''),
       maj:      String(rows3[i][c.maj]      || '')
-    });
-  }
-
-  // Interventions actives (non Réalisées) — pour détection doublons côté front
-  const sheet2 = s2();
-  const rows2  = sheet2.getDataRange().getValues();
-  const ii     = getInvIdx(sheet2);
-  const activeInterventions = [];
-  for (let i = 1; i < rows2.length; i++) {
-    const num = String(rows2[i][ii.num] || '').trim();
-    if (!num) continue;
-    const statutInv = String(rows2[i][ii.statut]);
-    if (statutInv === 'Réalisé') continue;
-    activeInterventions.push({
-      num:    num.replace(/\s/g,'').toLowerCase(),
-      type:   String(rows2[i][ii.type] || ''),
-      date:   normDate(rows2[i][ii.date]),
-      statut: statutInv
     });
   }
 
@@ -1489,9 +1503,10 @@ function rangerSauvegardesExistantes() {
 //    TRAITES   = statut Réalisé
 //    INSTANCES = tout le reste (En attente / Injoignable / Problème)
 //  → REPORTS + SIGNALES = TRAITES + INSTANCES.
-//  Non suivis dans l'app, donc à 0 : RESILIATIONS, ETUDES et
-//  INSTALLATIONS Cuivre. Les types LS sont hors périmètre du fichier
-//  (« KPI des lignes FTTH et Cuivre »).
+//  Non suivis dans l'app, donc à 0 : ETUDES et INSTALLATIONS Cuivre.
+//  Les types LS sont hors périmètre du fichier (« KPI des lignes FTTH
+//  et Cuivre »). RESILIATIONS est alimenté depuis les interventions
+//  de type Résiliation (voir categorie() ci-dessous).
 // ============================================================
 const KPI_FOLDER_ID = '1SafHiZpobh9TVphdtNFScFw3rSOQ0YJl'; // CERAF Bafoussam/KPI
 const KPI_MOIS_FR = ['JANVIER','FEVRIER','MARS','AVRIL','MAI','JUIN',
@@ -1543,12 +1558,14 @@ function genererRapportKpi(mois) { // mois au format 'YYYY-MM'
   function categorie(type) {
     const t = sansAccents_(type).toLowerCase();
     if (t.indexOf('cuivre') !== -1) {
+      if (t.indexOf('resil')   !== -1) return ['CUIVRE','RESILIATIONS'];
       if (t.indexOf('derang')  !== -1) return ['CUIVRE','DERANGEMENTS'];
       if (t.indexOf('etude')   !== -1) return ['CUIVRE','ETUDES'];
       if (t.indexOf('install') !== -1) return ['CUIVRE','INSTALLATIONS'];
       return null;
     }
     if (t.indexOf('ftth') !== -1) {
+      if (t.indexOf('resil')   !== -1) return ['FTTH','RESILIATIONS'];
       if (t.indexOf('etude')   !== -1) return ['FTTH','ETUDES'];
       if (t.indexOf('install') !== -1) return ['FTTH','INSTALLATION'];
       if (t.indexOf('derang')  !== -1) return ['FTTH','DERANGEMENTS'];
