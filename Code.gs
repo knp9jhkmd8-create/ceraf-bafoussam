@@ -1623,26 +1623,28 @@ function deleteIntervention(data) {
 
   sheet2.deleteRow(rowToDelete);
 
-  const iRows2 = sheet2.getDataRange().getValues();
-  let remaining = 0;
-  for (let i = 1; i < iRows2.length; i++) {
-    if (String(iRows2[i][ii.cid]) === consistId) remaining++;
-  }
-
+  // NE PAS réécrire Nb_Interventions avec les lignes physiques restantes ni
+  // supprimer la fiche vidée : les compteurs photo-de-fin-de-journée sont
+  // reconstruits par recalculerAgregatsMois(). Écrire "remaining" laissait un
+  // Nb incohérent (Nb ≠ Réalisées + Instances) dès que le recalcul n'avait
+  // pas lieu — notamment quand la date de la ligne supprimée était corrompue.
+  // On prend la date de la FICHE (fiable) en priorité, celle de la ligne en
+  // secours, pour être sûr de toujours recalculer le bon mois.
+  let moisARecalculer = null;
   const cRows = sheet1.getDataRange().getValues();
   for (let i = 1; i < cRows.length; i++) {
     if (String(cRows[i][ci.id]) === consistId) {
-      if (remaining === 0) sheet1.deleteRow(i+1);
-      else sheet1.getRange(i+1, ci.nb+1).setValue(remaining);
+      const dFiche = normDate(cRows[i][ci.date]);
+      if (dFiche) moisARecalculer = dFiche.substring(0,7);
       break;
     }
   }
-
-  const dateStr = normDate(iRows[rowToDelete-1][ii.date]);
-  if (dateStr) recalculerAgregatsMois(dateStr.substring(0,7));
+  if (!moisARecalculer) {
+    const dLigne = normDate(iRows[rowToDelete-1][ii.date]);
+    if (dLigne) moisARecalculer = dLigne.substring(0,7);
+  }
+  if (moisARecalculer) recalculerAgregatsMois(moisARecalculer);
   return { success: true };
-
-  return { success: true, remaining };
 }
 
 // ============================================================
@@ -2358,24 +2360,18 @@ function reparerInterventionsCoincees() {
     sheet2.appendRow(rowInv);
   });
 
-  const affectedConsistIds = {};
-  aDeplacer.forEach(inv => { affectedConsistIds[inv.consistId] = true; });
   aDeplacer.sort((a,b)=>b.rowIndex-a.rowIndex).forEach(inv => sheet2.deleteRow(inv.rowIndex));
 
-  Object.keys(affectedConsistIds).forEach(cid => {
-    const iRowsAfter = sheet2.getDataRange().getValues();
-    let remaining = 0;
-    for (let j=1; j<iRowsAfter.length; j++) {
-      if (String(iRowsAfter[j][ii.cid])===cid) remaining++;
-    }
-    for (let i=1; i<cRows2.length; i++) {
-      if (String(cRows2[i][ci.id])===cid) {
-        if (remaining===0) sheet1.deleteRow(i+1);
-        else sheet1.getRange(i+1, ci.nb+1).setValue(remaining);
-        break;
-      }
-    }
+  // Compteurs reconstruits par le recalcul photo-de-fin-de-journée (jamais
+  // de "remaining" physique, jamais de suppression de fiche — voir
+  // deleteIntervention pour la même logique).
+  const moisAffectes = new Set([todayStr.substring(0,7)]);
+  aDeplacer.forEach(inv => {
+    const d = consistDateById[inv.consistId];
+    if (d) moisAffectes.add(d.substring(0,7));
+    if (inv.reporteDepuis) moisAffectes.add(inv.reporteDepuis.substring(0,7));
   });
+  moisAffectes.forEach(m => recalculerAgregatsMois(m));
 
   notify('✅ '+aDeplacer.length+' intervention(s) déplacée(s) vers la fiche d\'aujourd\'hui ('+formatDateFr(todayStr)+').');
 }
