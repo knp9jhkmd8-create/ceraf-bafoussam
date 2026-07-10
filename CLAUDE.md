@@ -40,13 +40,14 @@ curl -sL "https://script.google.com/macros/s/<deploymentId>/exec?action=getAll&r
 ```
 `doGet`/`doPost` redirect (302) before returning JSON — use `-L` to follow.
 
-## Data model (Google Sheet, 3 tabs)
+## Data model (Google Sheet, 4 tabs)
 
-Column order is **not** trustworthy — read every sheet through the dynamic header-index helpers (`getColMap`, `getClientsIdx`, `getInvIdx`, `getConsistIdx` in Code.gs) rather than hardcoded column numbers. The schema has been migrated multiple times in place (columns added/removed/reordered — see the many one-off `reparer*`/`migrer*` functions at the bottom of Code.gs), so header-name lookup is the only safe way to access a column.
+Column order is **not** trustworthy — read every sheet through the dynamic header-index helpers (`getColMap`, `getClientsIdx`, `getClientsLsIdx`, `getInvIdx`, `getConsistIdx` in Code.gs) rather than hardcoded column numbers. The schema has been migrated multiple times in place (columns added/removed/reordered — see the many one-off `reparer*`/`migrer*` functions at the bottom of Code.gs), so header-name lookup is the only safe way to access a column.
 
-- **Consistances**: one row per day (`ID_Consistance`, `Date`, `Chef`, `Nb_Interventions`, `Realisees`, `Instances`). A "fiche du jour".
+- **Consistances**: one row per day (`ID_Consistance`, `Date`, `Nb_Interventions`, `Realisees`, `Instances`). A "fiche du jour".
 - **Interventions**: one row per intervention, linked to a Consistance by `ID_Consistance`. Type (FTTH/LS/Cuivre), `Statut` (`En attente` / `Réalisé` / `Injoignable` / `Problème`), `Reporté_depuis` (origin date of first occurrence, carried through report chains), `Duree_Jours` (legacy incremental counter — **no longer the source of truth for duration**, see below).
-- **Clients**: deduplicated by line number (`Numero`). Holds `GPS`, `Service`, `Tel_Secondaire`, etc. GPS coordinates live here, not on the intervention row — `getByDate`/`getAll` always return `gps: ''` for interventions; the frontend merges in `clientsCache[num].gps` client-side ([index.html:1497](index.html:1497)).
+- **Clients FTTH/cuivre** (renamed from `Clients` on 2026-07-10; `getOrCreateSheet` self-heals the rename): deduplicated by line number (`Numero`). Holds `GPS`, `Service`, `Tel_Secondaire`, etc. GPS coordinates live here, not on the intervention row — `getByDate`/`getAll` always return `gps: ''` for interventions; the frontend merges in `clientsCache[num].gps` client-side ([index.html:1497](index.html:1497)).
+- **Clients LS**: LS interventions have **no line number** (name is the only mandatory field), so LS clients live in their own sheet keyed by normalized name (`nomKeyLs_`). Upserted by `saveConsistance` via `upsertClientLs_` (non-empty values only), read back in `getClients` as a separate `clientsLs` array. `getClientHistory`/`updateClientGPS`/`deleteClient` accept a `nomLs` param for this sheet.
 
 ## Key backend behaviors (Code.gs)
 
