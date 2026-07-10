@@ -2631,6 +2631,27 @@ function invRowHTML(inv,idx){
     </div>`;
   }
 
+  // Vue admin : lecture d'audit, pas de mise à jour terrain — affichage
+  // compact identique à l'historique (+ audit publié/statut par + suppression).
+  if(role==='admin'){
+    const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:'';
+    return`<div class="inv-row" id="row-${inv.id}">
+      <div class="inv-info">
+        <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
+        ${buildTags(inv)}
+        ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
+        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
+        ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
+        ${(inv.publiePar||inv.statutPar)?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${inv.publiePar?'🖊️ '+t('terrain.publishedBy',{nom:inv.publiePar}):''}${inv.publiePar&&inv.statutPar?' — ':''}${inv.statutPar?'🔄 '+t('terrain.statusBy',{nom:inv.statutPar}):''}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
+        ${dureeTxt}
+        <button class="btn btn-danger btn-sm" onclick="deleteInvUI('${inv.id}')">🗑️ ${t('btn.delete')}</button>
+      </div>
+    </div>`;
+  }
+
   const isEtudeFtth=inv.type===TL.etude_ftth;
   const isDerangFtth=inv.type===TL.derang_ftth;
 
@@ -2676,7 +2697,6 @@ function invRowHTML(inv,idx){
       ${buildTags(inv)}
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
       ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
-      ${role==='admin'&&(inv.publiePar||inv.statutPar)?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${inv.publiePar?'🖊️ '+t('terrain.publishedBy',{nom:inv.publiePar}):''}${inv.publiePar&&inv.statutPar?' — ':''}${inv.statutPar?'🔄 '+t('terrain.statusBy',{nom:inv.statutPar}):''}</div>`:''}
       ${structuredHTML}
       <div class="gps-row" style="margin-top:8px;">
         <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="${t('ph.gpsCoord')}" value="${gpsValue}">
@@ -2694,7 +2714,6 @@ function invRowHTML(inv,idx){
         <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>${SL[LANG].issue}</option>
       </select>
       ${rightRemarqueHTML}
-      ${role==='admin'?`<button class="btn btn-danger btn-sm" onclick="deleteInvUI('${inv.id}')">🗑️ ${t('btn.delete')}</button>`:''}
     </div>
   </div>`;
 }
