@@ -496,6 +496,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <button class="vtab active" id="cv-ftth" onclick="setClientsView('ftth')" data-i18n="clients.tab.ftth">FTTH / Cuivre</button>
         <button class="vtab" id="cv-ls" onclick="setClientsView('ls')" data-i18n="clients.tab.ls">LS</button>
       </div>
+      <div id="clients-stats" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;"></div>
       <div class="client-search-bar">
         <input type="text" id="client-search" placeholder="🔍 Rechercher par numéro, nom, localité..." data-i18n-ph="clients.search.ph" oninput="filterClients()">
         <button class="btn btn-ghost btn-sm" id="btn-merge-ls" style="display:none;" onclick="proposerFusionLs()" data-i18n="clients.merge.btn">🔗 Fusionner</button>
@@ -514,6 +515,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <button class="vtab active" id="cv-ftth-ro" onclick="setClientsView('ftth')" data-i18n="clients.tab.ftth">FTTH / Cuivre</button>
         <button class="vtab" id="cv-ls-ro" onclick="setClientsView('ls')" data-i18n="clients.tab.ls">LS</button>
       </div>
+      <div id="clients-stats-ro" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;"></div>
       <div class="client-search-bar">
         <input type="text" id="client-search-ro" placeholder="🔍 Rechercher..." data-i18n-ph="clients.search.ro.ph" oninput="filterClientsRO()">
         <button class="btn btn-ghost btn-sm" onclick="refreshClientsRO()" data-i18n="btn.refresh">↺ Actualiser</button>
@@ -739,6 +741,8 @@ fr:{
   'admin.client.existsConfirm':'Le numéro {num} existe déjà en base. Remplacer la fiche par ces informations ?',
   'admin.client.saved':'✅ Client enregistré en BD',
   'admin.client.saveBtn':'💾 Enregistrer',
+  'clients.stats.cuivre':'Cuivre',
+  'clients.stats.total':'Total : {n} clients',
   'clients.empty':'Aucun client enregistré.',
   'gps.viewLink':'📌 Voir',
   'terrain.title.html':'Fiche du <span id="terrain-date-title">Jour</span>',
@@ -972,6 +976,8 @@ en:{
   'admin.client.existsConfirm':'Number {num} already exists in the database. Replace the record with this information?',
   'admin.client.saved':'✅ Customer saved to DB',
   'admin.client.saveBtn':'💾 Save',
+  'clients.stats.cuivre':'Copper',
+  'clients.stats.total':'Total: {n} customers',
   'clients.empty':'No customers registered.',
   'gps.viewLink':'📌 View',
   'terrain.title.html':'Sheet for <span id="terrain-date-title">Today</span>',
@@ -2196,10 +2202,25 @@ function renderClientsView(list,wrapId){
 function filterClients(){
   const q=(document.getElementById('client-search').value||'').toLowerCase();
   renderClientsView(clientsListFiltered(q),'clients-table-wrap');
+  renderClientsStats();
 }
 function filterClientsRO(){
   const q=(document.getElementById('client-search-ro').value||'').toLowerCase();
   renderClientsView(clientsListFiltered(q),'clients-table-ro-wrap');
+  renderClientsStats();
+}
+// Compteurs par service au-dessus de la liste — totaux de la base,
+// indépendants de la recherche et de l'onglet actif.
+function renderClientsStats(){
+  const nF=allClientsList.filter(c=>String(c.service||'').toUpperCase()==='FTTH').length;
+  const nC=allClientsList.filter(c=>String(c.service||'').toUpperCase()==='CUIVRE').length;
+  const nL=allClientsLsList.length;
+  const total=allClientsList.length+nL;
+  const h=`<span class="service-badge svc-ftth">📡 FTTH : ${nF}</span>
+    <span class="service-badge svc-cuivre">🪙 ${t('clients.stats.cuivre')} : ${nC}</span>
+    <span class="service-badge svc-ls">🔌 LS : ${nL}</span>
+    <span style="font-size:.72rem;color:var(--muted);">${t('clients.stats.total',{n:total})}</span>`;
+  ['clients-stats','clients-stats-ro'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=h;});
 }
 
 function svcClass(s){if(s==='FTTH')return'svc-ftth';if(s==='LS')return'svc-ls';if(s==='CUIVRE')return'svc-cuivre';return'svc-ftth';}
