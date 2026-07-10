@@ -5,8 +5,12 @@
 const SHEET_ID            = '1OH566jWxL8ph7-UWscrs3ZQt0elNAnPGcNqvjC-RA_w';
 const SHEET_CONSIST       = 'Consistances';
 const SHEET_INTERVENTIONS = 'Interventions';
-const SHEET_CLIENTS       = 'Clients FTTH/cuivre'; // ex-'Clients', renommée (auto) le 2026-07-10
-const SHEET_CLIENTS_LS    = 'Clients LS';
+// Clients : une feuille par service depuis le 2026-07-10 — plus de colonne
+// Service, la feuille EST le classement. ('Clients' puis 'Clients FTTH/cuivre'
+// étaient les anciennes feuilles uniques, migrées puis archivées.)
+const SHEET_CLIENTS_FTTH   = 'Clients FTTH';
+const SHEET_CLIENTS_CUIVRE = 'Clients Cuivre';
+const SHEET_CLIENTS_LS     = 'Clients LS';
 const SHEET_USERS         = 'Utilisateurs';
 const SESSION_DUREE_JOURS = 30; // durée de validité d'un token de session
 
@@ -15,13 +19,6 @@ const SESSION_DUREE_JOURS = 30; // durée de validité d'un token de session
 // ============================================================
 function getOrCreateSheet(ss, name) {
   let sheet = ss.getSheetByName(name);
-  // Renommage auto-réparant : la feuille clients historique s'appelait
-  // 'Clients' — la renommer plutôt que d'en recréer une vide, pour que la
-  // bascule de constante ne dépende d'aucune migration manuelle.
-  if (!sheet && name === SHEET_CLIENTS) {
-    const legacy = ss.getSheetByName('Clients');
-    if (legacy) { legacy.setName(SHEET_CLIENTS); return legacy; }
-  }
   if (!sheet) {
     sheet = ss.insertSheet(name);
     if (name === SHEET_CONSIST) {
@@ -32,8 +29,8 @@ function getOrCreateSheet(ss, name) {
         'Type','Numero_Ligne','Nom_Client',
         'Statut','Panne','Remarque','Reporté_depuis','Mis_à_jour_le','Ville','Quartier','Duree_Jours','Publié_par','Statut_par']);
       sheet.getRange(1,1,1,16).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
-    } else if (name === SHEET_CLIENTS) {
-      sheet.appendRow(['Numero','Nom','Telephone','Localite','Ville','Quartier','Service','GPS','Derniere_MAJ']);
+    } else if (name === SHEET_CLIENTS_FTTH || name === SHEET_CLIENTS_CUIVRE) {
+      sheet.appendRow(['Numero','Nom','Telephone','Tel_Secondaire','Localite','Ville','Quartier','GPS','Derniere_MAJ']);
       sheet.getRange(1,1,1,9).setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
     } else if (name === SHEET_CLIENTS_LS) {
       sheet.appendRow(['Nom','Telephone','Tel_Secondaire','Localite','Ville','Quartier','POP','GPS','Derniere_MAJ']);
@@ -61,11 +58,25 @@ function notify(message) {
     Logger.log(message);
   }
 }
-function s1()     { return getOrCreateSheet(getSS(), SHEET_CONSIST); }
-function s2()     { return getOrCreateSheet(getSS(), SHEET_INTERVENTIONS); }
-function s3()     { return getOrCreateSheet(getSS(), SHEET_CLIENTS); }
-function s3ls()   { return getOrCreateSheet(getSS(), SHEET_CLIENTS_LS); }
-function s4()     { return getOrCreateSheet(getSS(), SHEET_USERS); }
+function s1()       { return getOrCreateSheet(getSS(), SHEET_CONSIST); }
+function s2()       { return getOrCreateSheet(getSS(), SHEET_INTERVENTIONS); }
+function s3ftth()   { return getOrCreateSheet(getSS(), SHEET_CLIENTS_FTTH); }
+function s3cuivre() { return getOrCreateSheet(getSS(), SHEET_CLIENTS_CUIVRE); }
+function s3ls()     { return getOrCreateSheet(getSS(), SHEET_CLIENTS_LS); }
+function s4()       { return getOrCreateSheet(getSS(), SHEET_USERS); }
+
+// Les deux feuilles clients à numéro de ligne, avec leur service dérivé.
+// Toute recherche par numéro doit balayer les deux (un numéro n'existe
+// que dans une seule feuille à la fois).
+function clientsSheets_() {
+  return [
+    { sheet: s3ftth(),   service: 'FTTH'   },
+    { sheet: s3cuivre(), service: 'CUIVRE' }
+  ];
+}
+function sheetForService_(service) {
+  return String(service).toUpperCase() === 'CUIVRE' ? s3cuivre() : s3ftth();
+}
 
 // Feuille Utilisateurs
 function getUsersIdx(sheet) {
@@ -666,7 +677,7 @@ function doPost(e) {
 //  INITIALISATION
 // ============================================================
 function initialiserSheets() {
-  s1(); s2(); s3(); s4();
+  s1(); s2(); s3ftth(); s3cuivre(); s3ls(); s4();
   ScriptApp.getProjectTriggers().forEach(t => {
     if (t.getHandlerFunction() === 'reporterInterventionsEnAttente')
       ScriptApp.deleteTrigger(t);
@@ -687,18 +698,18 @@ function getColMap(sheet) {
   return map;
 }
 
-// Feuille Clients
+// Feuilles Clients FTTH / Clients Cuivre (même schéma, sans colonne Service :
+// la feuille elle-même porte le classement)
 function getClientsIdx(sheet) {
   const h = getColMap(sheet);
   return {
     num:      h['Numero']        !== undefined ? h['Numero']        : 0,
     nom:      h['Nom']           !== undefined ? h['Nom']           : 1,
     tel:      h['Telephone']     !== undefined ? h['Telephone']     : 2,
-    telSec:   h['Tel_Secondaire']!== undefined ? h['Tel_Secondaire']: -1,
-    loc:      h['Localite']      !== undefined ? h['Localite']      : 3,
-    ville:    h['Ville']         !== undefined ? h['Ville']         : 4,
-    quartier: h['Quartier']      !== undefined ? h['Quartier']      : 5,
-    service:  h['Service']       !== undefined ? h['Service']       : 6,
+    telSec:   h['Tel_Secondaire']!== undefined ? h['Tel_Secondaire']: 3,
+    loc:      h['Localite']      !== undefined ? h['Localite']      : 4,
+    ville:    h['Ville']         !== undefined ? h['Ville']         : 5,
+    quartier: h['Quartier']      !== undefined ? h['Quartier']      : 6,
     gps:      h['GPS']           !== undefined ? h['GPS']           : 7,
     maj:      h['Derniere_MAJ']  !== undefined ? h['Derniere_MAJ']  : 8,
     total:    sheet.getLastColumn()
@@ -771,34 +782,25 @@ function ensureInvAuditCols(sheet) {
   manquantes.forEach(c => { col++; sheet.getRange(1, col).setValue(c); });
 }
 
-// Ajoute la colonne Tel_Secondaire (après Telephone) à la feuille Clients
-// si elle manque — sans elle, le numéro secondaire finissait combiné dans
-// Telephone ("tel/telSec"). Appelé sur les chemins d'écriture.
-function ensureClientsCols(sheet) {
-  const h = getColMap(sheet);
-  if (h['Tel_Secondaire'] === undefined && h['Telephone'] !== undefined) {
-    sheet.insertColumnAfter(h['Telephone'] + 1);
-    sheet.getRange(1, h['Telephone'] + 2).setValue('Tel_Secondaire');
-  }
-}
-
-// Jointure Clients : numéro nettoyé → {tel, loc}. Les colonnes Tel_Client
-// et Localite ont été retirées de la feuille Interventions — la fiche
-// Client est la seule source de ces informations à la lecture.
+// Jointure Clients : numéro nettoyé → {tel, loc}, sur les DEUX feuilles
+// clients (FTTH + Cuivre). Les colonnes Tel_Client et Localite ont été
+// retirées de la feuille Interventions — la fiche Client est la seule
+// source de ces informations à la lecture.
 function getClientsJoinMap() {
-  const sheet3 = s3();
-  const c = getClientsIdx(sheet3);
-  const rows = sheet3.getDataRange().getValues();
   const map = {};
-  for (let i = 1; i < rows.length; i++) {
-    const num = String(rows[i][c.num] || '').trim().replace(/\s/g,'');
-    if (!num) continue;
-    map[num] = {
-      tel:    String(rows[i][c.tel] || ''),
-      telSec: c.telSec >= 0 ? String(rows[i][c.telSec] || '') : '',
-      loc:    String(rows[i][c.loc] || '')
-    };
-  }
+  clientsSheets_().forEach(({ sheet }) => {
+    const c = getClientsIdx(sheet);
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      const num = String(rows[i][c.num] || '').trim().replace(/\s/g,'');
+      if (!num) continue;
+      map[num] = {
+        tel:    String(rows[i][c.tel] || ''),
+        telSec: String(rows[i][c.telSec] || ''),
+        loc:    String(rows[i][c.loc] || '')
+      };
+    }
+  });
   return map;
 }
 
@@ -862,10 +864,6 @@ function getActiveInterventions() {
 //  garantir que le cache anti-doublons est toujours prêt.
 // ============================================================
 function getClients() {
-  const sheet3 = s3();
-  const rows3  = sheet3.getDataRange().getValues();
-  const c      = getClientsIdx(sheet3);
-
   // Interventions actives (non Réalisées) — pour détection doublons côté front.
   // Au passage, on repère les numéros ayant une Résiliation Réalisée : ils sont
   // exclus des clients actifs ci-dessous. Dérivé à la lecture depuis
@@ -895,24 +893,31 @@ function getClients() {
     });
   }
 
-  const clients = [];
-  for (let i = 1; i < rows3.length; i++) {
-    const num = String(rows3[i][c.num]).trim();
-    if (!num) continue;
-    if (resilies[num.replace(/\s/g,'').toLowerCase()]) continue;
-    clients.push({
-      num:      String(rows3[i][c.num]),
-      nom:      String(rows3[i][c.nom]      || ''),
-      tel:      String(rows3[i][c.tel]      || ''),
-      telSec:   c.telSec >= 0 ? String(rows3[i][c.telSec] || '') : '',
-      loc:      String(rows3[i][c.loc]      || ''),
-      ville:    String(rows3[i][c.ville]    || ''),
-      quartier: String(rows3[i][c.quartier] || ''),
-      service:  String(rows3[i][c.service]  || ''),
-      gps:      String(rows3[i][c.gps]      || ''),
-      maj:      String(rows3[i][c.maj]      || '')
-    });
-  }
+  // Clients FTTH et Cuivre — une feuille par service, le service est dérivé
+  // de la feuille (plus de colonne Service).
+  const clientsFtth = [], clientsCuivre = [];
+  clientsSheets_().forEach(({ sheet, service }) => {
+    const c    = getClientsIdx(sheet);
+    const rows = sheet.getDataRange().getValues();
+    const dest = service === 'CUIVRE' ? clientsCuivre : clientsFtth;
+    for (let i = 1; i < rows.length; i++) {
+      const num = String(rows[i][c.num]).trim();
+      if (!num) continue;
+      if (resilies[num.replace(/\s/g,'').toLowerCase()]) continue;
+      dest.push({
+        num:      String(rows[i][c.num]),
+        nom:      String(rows[i][c.nom]      || ''),
+        tel:      String(rows[i][c.tel]      || ''),
+        telSec:   String(rows[i][c.telSec]   || ''),
+        loc:      String(rows[i][c.loc]      || ''),
+        ville:    String(rows[i][c.ville]    || ''),
+        quartier: String(rows[i][c.quartier] || ''),
+        service,
+        gps:      String(rows[i][c.gps]      || ''),
+        maj:      String(rows[i][c.maj]      || '')
+      });
+    }
+  });
 
   // Clients LS — feuille séparée, identifiés par nom (pas de numéro de ligne)
   const sheetLs = s3ls();
@@ -935,7 +940,14 @@ function getClients() {
     });
   }
 
-  return { success: true, clients, clientsLs, activeInterventions };
+  // `clients` (fusion) est conservé pour les frontends encore en cache
+  // (service worker) qui ne connaissent que l'ancienne forme de réponse.
+  return {
+    success: true,
+    clients: clientsFtth.concat(clientsCuivre),
+    clientsFtth, clientsCuivre, clientsLs,
+    activeInterventions
+  };
 }
 
 // ============================================================
@@ -944,25 +956,26 @@ function getClients() {
 function findClient(params) {
   const num = String(params.num || '').trim().replace(/\s/g,'');
   if (!num) return { success: false, error: 'Numéro vide' };
-  const sheet = s3();
-  const rows  = sheet.getDataRange().getValues();
-  const c     = getClientsIdx(sheet);
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][c.num]).trim().replace(/\s/g,'') === num) {
-      return {
-        success: true, found: true,
-        client: {
-          num:      String(rows[i][c.num]),
-          nom:      String(rows[i][c.nom]      || ''),
-          tel:      String(rows[i][c.tel]      || ''),
-          telSec:   c.telSec >= 0 ? String(rows[i][c.telSec] || '') : '',
-          loc:      String(rows[i][c.loc]      || ''),
-          ville:    String(rows[i][c.ville]    || ''),
-          quartier: String(rows[i][c.quartier] || ''),
-          service:  String(rows[i][c.service]  || ''),
-          gps:      String(rows[i][c.gps]      || '')
-        }
-      };
+  for (const { sheet, service } of clientsSheets_()) {
+    const rows = sheet.getDataRange().getValues();
+    const c    = getClientsIdx(sheet);
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][c.num]).trim().replace(/\s/g,'') === num) {
+        return {
+          success: true, found: true,
+          client: {
+            num:      String(rows[i][c.num]),
+            nom:      String(rows[i][c.nom]      || ''),
+            tel:      String(rows[i][c.tel]      || ''),
+            telSec:   String(rows[i][c.telSec]   || ''),
+            loc:      String(rows[i][c.loc]      || ''),
+            ville:    String(rows[i][c.ville]    || ''),
+            quartier: String(rows[i][c.quartier] || ''),
+            service,
+            gps:      String(rows[i][c.gps]      || '')
+          }
+        };
+      }
     }
   }
   return { success: true, found: false };
@@ -1030,44 +1043,57 @@ function getClientHistory(params) {
   return { success: true, num: num || nomLs, history };
 }
 
+// Localise la fiche d'un numéro de ligne parmi les feuilles FTTH et Cuivre.
+// Retourne { sheet, c, rowIndex (1-based feuille), service } ou null.
+function trouverClientRow_(numClean) {
+  for (const { sheet, service } of clientsSheets_()) {
+    const rows = sheet.getDataRange().getValues();
+    const c    = getClientsIdx(sheet);
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][c.num]).trim().replace(/\s/g,'') === numClean) {
+        return { sheet, c, rowIndex: i+1, service, row: rows[i] };
+      }
+    }
+  }
+  return null;
+}
+
 // ============================================================
 //  CLIENTS — sauvegarder
+//  Le service (FTTH/CUIVRE) choisit la feuille. Si le numéro
+//  existait dans l'autre feuille, la fiche y est retirée
+//  (reclassement) avant l'écriture dans la feuille cible.
 // ============================================================
 function saveClient(data) {
   const { num, nom, tel, telSec, loc, ville, quartier, service, gps } = data;
   if (!num) return { success: false, error: 'Numéro manquant' };
-  const sheet    = s3();
+  const sheet    = sheetForService_(service);
   const now      = new Date().toLocaleString('fr-FR');
-  const rows     = sheet.getDataRange().getValues();
   const c        = getClientsIdx(sheet);
   const numClean = String(num).trim().replace(/\s/g,'');
-  const telFinal = (tel && telSec) ? tel+'/'+telSec : (tel||'');
 
   function buildRow() {
     const row = new Array(c.total).fill('');
     row[c.num]      = num;
-    row[c.nom]      = nom      || '';
+    row[c.nom]      = String(nom || '').toUpperCase();
     row[c.tel]      = tel      || '';
-    if (c.telSec >= 0) row[c.telSec] = telSec || '';
-    else row[c.tel] = telFinal; // pas de colonne séparée → combiner dans tel
+    row[c.telSec]   = telSec   || '';
     row[c.loc]      = loc      || '';
     row[c.ville]    = ville    || '';
     row[c.quartier] = quartier || '';
-    row[c.service]  = service  || '';
-    if (c.gps >= 0) row[c.gps] = gps || '';
+    row[c.gps]      = gps      || '';
     row[c.maj]      = now;
     return row;
   }
 
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][c.num]).trim().replace(/\s/g,'') === numClean) {
-      sheet.getRange(i+1, 1, 1, c.total).setValues([buildRow()]);
-      return { success: true, action: 'updated' };
-    }
+  const existant = trouverClientRow_(numClean);
+  if (existant && existant.sheet.getName() === sheet.getName()) {
+    sheet.getRange(existant.rowIndex, 1, 1, c.total).setValues([buildRow()]);
+    return { success: true, action: 'updated' };
   }
+  if (existant) existant.sheet.deleteRow(existant.rowIndex); // reclassement
   sheet.appendRow(buildRow());
-  sheet.autoResizeColumns(1, c.total);
-  return { success: true, action: 'created' };
+  return { success: true, action: existant ? 'reclasse' : 'created' };
 }
 
 // ============================================================
@@ -1105,18 +1131,11 @@ function updateClientGPS(data) {
     return { success: false, error: 'Client LS introuvable' };
   }
   if (!num) return { success: false, error: 'Numéro manquant' };
-  const sheet    = s3();
-  const rows     = sheet.getDataRange().getValues();
-  const c        = getClientsIdx(sheet);
-  const numClean = String(num).trim().replace(/\s/g,'');
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][c.num]).trim().replace(/\s/g,'') === numClean) {
-      sheet.getRange(i+1, c.gps+1).setValue(gps || '');
-      sheet.getRange(i+1, c.maj+1).setValue(new Date().toLocaleString('fr-FR'));
-      return { success: true };
-    }
-  }
-  return { success: false, error: 'Client introuvable' };
+  const cible = trouverClientRow_(String(num).trim().replace(/\s/g,''));
+  if (!cible) return { success: false, error: 'Client introuvable' };
+  cible.sheet.getRange(cible.rowIndex, cible.c.gps+1).setValue(gps || '');
+  cible.sheet.getRange(cible.rowIndex, cible.c.maj+1).setValue(new Date().toLocaleString('fr-FR'));
+  return { success: true };
 }
 
 // ============================================================
@@ -1145,16 +1164,8 @@ function deleteClient(data) {
       }
     }
   } else {
-    const sheet3 = s3();
-    const c    = getClientsIdx(sheet3);
-    const rows = sheet3.getDataRange().getValues();
-    for (let i = rows.length - 1; i >= 1; i--) {
-      if (String(rows[i][c.num]).trim().replace(/\s/g,'') === num) {
-        sheet3.deleteRow(i+1);
-        clientFound = true;
-        break;
-      }
-    }
+    const cible = trouverClientRow_(num);
+    if (cible) { cible.sheet.deleteRow(cible.rowIndex); clientFound = true; }
   }
   if (!clientFound) return { success: false, error: 'Client introuvable' };
 
@@ -1292,12 +1303,11 @@ function fusionnerClientsLs(data) {
 //  Correction : upsert client même pour le premier enregistrement
 // ============================================================
 function saveConsistance(data, session) {
-  const sheet1 = s1(), sheet2 = s2(), sheet3 = s3();
+  const sheet1 = s1(), sheet2 = s2();
   const { date, interventions } = data;
   const now = new Date().toLocaleString('fr-FR');
   const ci  = getConsistIdx(sheet1);
   ensureInvAuditCols(sheet2);
-  ensureClientsCols(sheet3);
   const ii  = getInvIdx(sheet2);
 
   // Trouver ou créer la fiche du jour
@@ -1371,49 +1381,58 @@ function saveConsistance(data, session) {
 
     // Upsert clients pour toute intervention identifiable (numéro de ligne
     // réel, ou Customer ID pour les études) — c'est la fiche Client qui
-    // porte le contact affiché aux techniciens.
-    if (numKey) {
+    // porte le contact affiché aux techniciens. Le service du type choisit
+    // la feuille (FTTH ou Cuivre) ; une fiche trouvée dans l'autre feuille
+    // est déplacée (reclassement, ex. migration cuivre → FTTH).
+    if (numKey && typeToService(inv.typeLabel || inv.type) !== 'LS') {
       const numClean = numKey.replace(/\s/g,'');
       const service  = typeToService(inv.typeLabel || inv.type);
-      const cliRows  = sheet3.getDataRange().getValues();
-      const c        = getClientsIdx(sheet3);
+      const sheetCli = sheetForService_(service);
+      const c        = getClientsIdx(sheetCli);
 
       function buildClientRow() {
         const row = new Array(c.total).fill('');
         row[c.num]      = numKey;
-        row[c.nom]      = inv.nom || '';
-        if (c.telSec >= 0) {
-          row[c.tel]    = inv.tel    || '';
-          row[c.telSec] = inv.numSec || '';
-        } else {
-          row[c.tel]    = (inv.tel && inv.numSec) ? inv.tel+'/'+inv.numSec : (inv.tel||'');
-        }
+        row[c.nom]      = String(inv.nom || '').toUpperCase();
+        row[c.tel]      = inv.tel    || '';
+        row[c.telSec]   = inv.numSec || '';
         row[c.loc]      = inv.loc      || '';
         row[c.ville]    = inv.ville    || '';
         row[c.quartier] = inv.quartier || '';
-        row[c.service]  = service;
-        if (c.gps >= 0) row[c.gps] = '';
+        row[c.gps]      = '';
         row[c.maj]      = now;
         return row;
       }
 
-      let found = false;
-      for (let i = 1; i < cliRows.length; i++) {
-        if (String(cliRows[i][c.num]).trim().replace(/\s/g,'') === numClean) {
-          if (inv.updateClient) {
-            sheet3.getRange(i+1, 1, 1, c.total).setValues([buildClientRow()]);
-          } else {
-            sheet3.getRange(i+1, c.service+1).setValue(service);
-            // Le numéro secondaire saisi doit persister même sans mise à
-            // jour complète de la fiche (il n'était écrit qu'à la création).
-            if (inv.numSec && c.telSec >= 0) sheet3.getRange(i+1, c.telSec+1).setValue(String(inv.numSec).trim());
-            sheet3.getRange(i+1, c.maj+1).setValue(now);
-          }
-          found = true; break;
+      const existant = trouverClientRow_(numClean);
+      if (existant && existant.sheet.getName() === sheetCli.getName()) {
+        if (inv.updateClient) {
+          // Préserver le GPS existant lors d'une mise à jour complète
+          const row = buildClientRow();
+          row[c.gps] = String(existant.row[existant.c.gps] || '');
+          sheetCli.getRange(existant.rowIndex, 1, 1, c.total).setValues([row]);
+        } else {
+          // Le numéro secondaire saisi doit persister même sans mise à
+          // jour complète de la fiche (il n'était écrit qu'à la création).
+          if (inv.numSec) sheetCli.getRange(existant.rowIndex, c.telSec+1).setValue(String(inv.numSec).trim());
+          sheetCli.getRange(existant.rowIndex, c.maj+1).setValue(now);
         }
-      }
-      if (!found) {
-        sheet3.appendRow(buildClientRow());
+      } else if (existant) {
+        // Reclassement : déplacer la fiche vers la feuille du nouveau service
+        // en préservant ses champs déjà connus (complétés par la saisie).
+        const ec = existant.c;
+        const row = buildClientRow();
+        row[c.nom]      = String(inv.nom || existant.row[ec.nom] || '').toUpperCase();
+        row[c.tel]      = inv.tel      || String(existant.row[ec.tel]      || '');
+        row[c.telSec]   = inv.numSec   || String(existant.row[ec.telSec]   || '');
+        row[c.loc]      = inv.loc      || String(existant.row[ec.loc]      || '');
+        row[c.ville]    = inv.ville    || String(existant.row[ec.ville]    || '');
+        row[c.quartier] = inv.quartier || String(existant.row[ec.quartier] || '');
+        row[c.gps]      = String(existant.row[ec.gps] || '');
+        existant.sheet.deleteRow(existant.rowIndex);
+        sheetCli.appendRow(row);
+      } else {
+        sheetCli.appendRow(buildClientRow());
         SpreadsheetApp.flush();
       }
     }
@@ -2067,13 +2086,11 @@ function deleteIntervention(data) {
 
 // ============================================================
 //  RÉPARATION DES EN-TÊTES — à exécuter UNE FOIS
-//  Ajoute la ligne d'en-têtes manquante sur Interventions et
-//  Clients SANS toucher aux données existantes, en les
-//  décalant proprement vers le bas si nécessaire.
+//  Ajoute la ligne d'en-têtes manquante sur Interventions
+//  SANS toucher aux données existantes.
 // ============================================================
 function reparerEnTetes() {
   const sheet2 = getSS().getSheetByName(SHEET_INTERVENTIONS);
-  const sheet3 = getSS().getSheetByName(SHEET_CLIENTS);
   let fixed = [];
 
   // Interventions — ajouter entête si manquante
@@ -2087,33 +2104,6 @@ function reparerEnTetes() {
         'Statut','Panne','Remarque','Reporté_depuis','Mis_à_jour_le','Ville','Quartier','Duree_Jours','Publié_par','Statut_par'
       ]]).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
       fixed.push('Interventions (en-tête ajoutée)');
-    }
-  }
-
-  // Clients — vérifier que Tel_Secondaire est bien en colonne D (index 3)
-  if (sheet3) {
-    const headers = sheet3.getRange(1, 1, 1, sheet3.getLastColumn()).getValues()[0].map(String);
-    const firstCell = headers[0];
-
-    // Si pas d'en-tête du tout → insérer une ligne
-    if (firstCell !== 'Numero') {
-      sheet3.insertRowBefore(1);
-      sheet3.getRange(1,1,1,10).setValues([[
-        'Numero','Nom','Telephone','Tel_Secondaire','Localite','Ville','Quartier','Service','GPS','Derniere_MAJ'
-      ]]).setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
-      fixed.push('Clients (en-tête ajoutée)');
-    }
-    // Si en-tête présente mais Tel_Secondaire manquant → insérer la colonne D
-    else if (!headers.includes('Tel_Secondaire')) {
-      // Insérer colonne vide en position 4 (colonne D)
-      sheet3.insertColumnBefore(4);
-      sheet3.getRange(1, 4).setValue('Tel_Secondaire')
-        .setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
-      fixed.push('Clients (colonne Tel_Secondaire insérée en D)');
-    }
-    // Si Tel_Secondaire existe mais pas à la bonne position → signaler
-    else if (headers[3] !== 'Tel_Secondaire') {
-      fixed.push('⚠️ Tel_Secondaire trouvée mais pas en colonne D — vérifie manuellement');
     }
   }
 
@@ -2157,40 +2147,6 @@ function reparerBaseDeDonnees() {
   notify(
     '✅ Réparation terminée\n\n'+updated+' compteur(s) corrigé(s)\n'+removed+' fiche(s) orpheline(s) supprimée(s)'
   );
-}
-
-function reparerServiceClients() {
-  const sheet2 = s2(), sheet3 = s3();
-  const ii = getInvIdx(sheet2);
-  const c  = getClientsIdx(sheet3);
-  const iRows = sheet2.getDataRange().getValues();
-  const cRows = sheet3.getDataRange().getValues();
-
-  const lastTypeByNum = {}, lastDateByNum = {};
-  for (let i = 1; i < iRows.length; i++) {
-    const num = String(iRows[i][ii.num] || '').trim().replace(/\s/g,'');
-    if (!num) continue;
-    const dateStr = String(iRows[i][ii.date] || '');
-    if (!lastDateByNum[num] || dateStr >= lastDateByNum[num]) {
-      lastDateByNum[num] = dateStr;
-      lastTypeByNum[num] = String(iRows[i][ii.type] || '');
-    }
-  }
-
-  let updated = 0;
-  for (let i = 1; i < cRows.length; i++) {
-    const num = String(cRows[i][c.num] || '').trim().replace(/\s/g,'');
-    if (!num) continue;
-    const type = lastTypeByNum[num];
-    if (!type) continue;
-    const correctService = typeToService(type);
-    if (String(cRows[i][c.service]) !== correctService) {
-      sheet3.getRange(i+1, c.service+1).setValue(correctService);
-      updated++;
-    }
-  }
-
-  notify('✅ Service recalculé pour ' + updated + ' client(s).');
 }
 
 // ============================================================
@@ -2284,410 +2240,6 @@ function recalculerAgregatsMois(monthKey) {
   });
 }
 
-// ============================================================
-//  MIGRATION DES FEUILLES EXISTANTES
-//  À exécuter UNE FOIS après déploiement de cette version.
-//  1. Feuille Interventions : supprime la colonne GPS (col P)
-//  2. Feuille Clients : ajoute Tel_Secondaire en col D
-// ============================================================
-function migrerStructureBD() {
-  const ss = getSS();
-  let msg = [];
-
-  // ── 1. INTERVENTIONS : supprimer colonne GPS (col 16 = P) ──
-  const sh2 = ss.getSheetByName(SHEET_INTERVENTIONS);
-  if (sh2) {
-    const headers2 = sh2.getRange(1,1,1,sh2.getLastColumn()).getValues()[0];
-    const gpsIdx = headers2.findIndex(h=>String(h).trim()==='GPS');
-    if (gpsIdx >= 0) {
-      sh2.deleteColumn(gpsIdx+1);
-      msg.push('Interventions : colonne GPS supprimée (col '+(gpsIdx+1)+')');
-    } else {
-      msg.push('Interventions : colonne GPS déjà absente');
-    }
-    // S'assurer que l'entête Duree_Jours est bien en dernière position
-    const h2 = sh2.getRange(1,1,1,sh2.getLastColumn()).getValues()[0];
-    const dureeIdx = h2.findIndex(h=>String(h).trim()==='Duree_Jours');
-    if (dureeIdx < 0) {
-      sh2.getRange(1,sh2.getLastColumn()+1).setValue('Duree_Jours').setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
-      msg.push('Interventions : colonne Duree_Jours ajoutée');
-    }
-  }
-
-  // ── 2. CLIENTS : ajouter Tel_Secondaire en col D si absente ──
-  const sh3 = ss.getSheetByName(SHEET_CLIENTS);
-  if (sh3) {
-    const headers3 = sh3.getRange(1,1,1,sh3.getLastColumn()).getValues()[0];
-    const hasTelSec = headers3.some(h=>String(h).trim()==='Tel_Secondaire');
-    if (!hasTelSec) {
-      sh3.insertColumnAfter(3); // après col C (Telephone)
-      sh3.getRange(1,4).setValue('Tel_Secondaire').setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
-      msg.push('Clients : colonne Tel_Secondaire insérée en col D');
-    } else {
-      msg.push('Clients : Tel_Secondaire déjà présente');
-    }
-  }
-
-  notify('✅ Migration terminée :\n\n- ' + msg.join('\n- '));
-}
-
-// ============================================================
-//  RÉPARATION COMPLÈTE DES COLONNES CLIENTS — à exécuter UNE FOIS
-//  Corrige le décalage causé par l'écriture 10 colonnes sur une
-//  feuille qui n'en avait que 9 : GPS reçevait "FTTH",
-//  Localite/Ville/Quartier/Service étaient tous décalés.
-//  Détecte les lignes corrompues (GPS = FTTH/LS/CUIVRE) et
-//  remet chaque valeur dans sa bonne colonne.
-// ============================================================
-function reparerColonnesClients() {
-  const sheet   = s3();
-  const all     = sheet.getDataRange().getValues();
-  const c       = getClientsIdx(sheet);
-  const SVCS    = ['FTTH','LS','CUIVRE'];
-  const isSvc   = v => SVCS.includes(String(v).trim().toUpperCase());
-  const isGPS   = v => /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+$/.test(String(v).trim());
-
-  let fixed = 0;
-  for (let i = 1; i < all.length; i++) {
-    const row    = [...all[i]];
-    const gpsVal = String(row[c.gps] || '');
-
-    // Ligne corrompue : GPS contient un service au lieu de coordonnées
-    if (!isSvc(gpsVal)) continue;
-
-    // Les valeurs sont décalées d'une position vers la droite
-    // à partir de Localite. On les relit depuis leur vraie position (+1)
-    // et on les remet au bon endroit.
-    const newRow = [...row];
-    newRow[c.loc]      = row[c.loc + 1]  || '';  // vrai loc est une position plus loin
-    newRow[c.ville]    = row[c.ville + 1] || '';  // vrai ville
-    newRow[c.quartier] = row[c.quartier + 1] || ''; // vrai quartier
-    newRow[c.service]  = row[c.gps];               // service = ce qui était dans GPS
-    // GPS réel : chercher dans les colonnes suivantes
-    let realGPS = '';
-    for (let col = c.gps + 1; col < row.length; col++) {
-      if (isGPS(row[col])) { realGPS = String(row[col]); break; }
-    }
-    newRow[c.gps] = realGPS;
-    newRow[c.maj] = new Date().toLocaleString('fr-FR');
-
-    // Écrire en limitant au nombre de colonnes avec entête
-    sheet.getRange(i + 1, 1, 1, all[0].length).setValues([newRow.slice(0, all[0].length)]);
-    fixed++;
-  }
-
-  notify(
-    fixed > 0
-      ? '✅ ' + fixed + ' client(s) corrigé(s) — toutes les colonnes remises en ordre.\n\nActualisez la page client dans l\'app pour voir les corrections.'
-      : 'ℹ️ Aucune ligne corrompue détectée.'
-  );
-}
-
-// ============================================================
-//  CORRIGER LES DONNÉES CLIENTS DÉCALÉES
-//  Pour les lignes où Localite est en colonne Tel_Secondaire
-//  (décalage dû à une écriture avec les anciens indices).
-//  Règle : si Tel_Secondaire contient du texte non numérique
-//  → c'est une Localite mal placée → on corrige.
-// ============================================================
-function corrigerDecalageClients() {
-  const sheet = s3();
-  const data  = sheet.getDataRange().getValues();
-  const c     = getClientsIdx(sheet);
-
-  if (c.telSec < 0) {
-    notify('ℹ️ Pas de colonne Tel_Secondaire — rien à corriger.');
-    return;
-  }
-
-  const isPhone = v => /^\d[\d\/]*$/.test(String(v).trim()) || String(v).trim() === '';
-  let fixed = 0;
-
-  for (let i = 1; i < data.length; i++) {
-    const telSec = String(data[i][c.telSec] || '').trim();
-    if (!isPhone(telSec)) {
-      // Tel_Secondaire contient une Localite → décalage détecté
-      // On lit les valeurs à partir de Tel_Secondaire et on les remet en place
-      const loc      = telSec;                               // vrai Localite
-      const ville    = String(data[i][c.telSec+1] || '').trim(); // vrai Ville
-      const quartier = String(data[i][c.telSec+2] || '').trim(); // vrai Quartier
-      const service  = String(data[i][c.telSec+3] || '').trim(); // vrai Service
-
-      sheet.getRange(i+1, c.telSec+1).setValue('');          // Tel_Secondaire vide
-      sheet.getRange(i+1, c.loc+1).setValue(loc);            // E = Localite
-      sheet.getRange(i+1, c.ville+1).setValue(ville);        // F = Ville
-      sheet.getRange(i+1, c.quartier+1).setValue(quartier);  // G = Quartier
-      sheet.getRange(i+1, c.service+1).setValue(service);    // H = Service
-      fixed++;
-    }
-  }
-
-  notify('✅ ' + fixed + ' ligne(s) corrigée(s) dans la feuille Clients.');
-}
-
-// ============================================================
-//  DIAGNOSTIC — indices réels détectés sur la feuille Clients
-// ============================================================
-function diagnostiquerClientsIdx() {
-  const sheet = s3();
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const c = getClientsIdx(sheet);
-  const lines = [
-    '📋 Entêtes détectées (' + headers.length + ' colonnes) :',
-    headers.map((h,i) => String.fromCharCode(65+i)+'='+h).join(' | '),
-    '',
-    '🔢 Indices utilisés par le code :',
-    'num='+c.num+' nom='+c.nom+' tel='+c.tel+' telSec='+c.telSec,
-    'loc='+c.loc+' ville='+c.ville+' quartier='+c.quartier,
-    'service='+c.service+' gps='+c.gps+' maj='+c.maj,
-    'total='+c.total,
-    '',
-    '✅ = correct si telSec=3, loc=4, ville=5 (avec Tel_Secondaire en D)'
-  ];
-  notify(lines.join('\n'));
-}
-
-// ============================================================
-//  AJOUTER Tel_Secondaire DANS LA FEUILLE CLIENTS EXISTANTE
-//  À exécuter UNE FOIS. Insère la colonne après Telephone
-//  sans toucher aux données existantes.
-// ============================================================
-function ajouterTelSecondaire() {
-  const sheet = s3();
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  if (headers.some(h => String(h).trim() === 'Tel_Secondaire')) {
-    notify('ℹ️ La colonne Tel_Secondaire existe déjà.');
-    return;
-  }
-
-  const telIdx = headers.findIndex(h => String(h).trim() === 'Telephone');
-  if (telIdx < 0) {
-    notify('❌ Colonne Telephone introuvable.');
-    return;
-  }
-
-  // Insérer une colonne vide juste après Telephone
-  sheet.insertColumnAfter(telIdx + 1);
-  sheet.getRange(1, telIdx + 2)
-    .setValue('Tel_Secondaire')
-    .setFontWeight('bold')
-    .setBackground('#0891b2')
-    .setFontColor('white');
-
-  notify(
-    '✅ Colonne Tel_Secondaire ajoutée en colonne ' + String.fromCharCode(65 + telIdx + 1) + '.\n' +
-    'Les données existantes sont intactes.\n\n' +
-    'Désormais les numéros secondaires seront stockés séparément.'
-  );
-}
-
-// ============================================================
-//  SUPPRIMER LA COLONNE Tel_Secondaire ET CORRIGER LES DONNÉES
-//  À exécuter UNE FOIS dans Apps Script.
-// ============================================================
-function supprimerColonneTelSecondaire() {
-  const sheet = s3();
-  const data  = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => String(h).trim());
-  const telSecIdx = headers.indexOf('Tel_Secondaire');
-
-  if (telSecIdx < 0) {
-    Logger.log('ℹ️ Colonne Tel_Secondaire introuvable — rien à faire.');
-    return;
-  }
-
-  // Avant de supprimer, fusionner Tel_Secondaire dans Telephone si non vide
-  // et corriger les lignes dont les données ont été décalées
-  const IS_PHONE = v => /^\d[\d\/]*$/.test(String(v).trim());
-  let fixed = 0;
-  for (let i = 1; i < data.length; i++) {
-    const tel    = String(data[i][2] || '').trim();
-    const telSec = String(data[i][telSecIdx] || '').trim();
-    const loc    = String(data[i][telSecIdx+1] || '').trim();
-
-    if (telSec !== '') {
-      if (IS_PHONE(telSec)) {
-        // Vrai numéro secondaire → fusionner dans Telephone
-        const telFinal = tel ? tel+'/'+telSec : telSec;
-        sheet.getRange(i+1, 3).setValue(telFinal);
-      } else {
-        // Texte non-numérique = Localite mal placée → décaler vers Localite
-        sheet.getRange(i+1, telSecIdx+2).setValue(telSec);  // → Localite (col après telSec)
-        sheet.getRange(i+1, telSecIdx+3).setValue(loc);      // → Ville (col après Localite)
-      }
-      sheet.getRange(i+1, telSecIdx+1).setValue('');
-      fixed++;
-    }
-  }
-
-  // Supprimer la colonne Tel_Secondaire
-  sheet.deleteColumn(telSecIdx + 1);
-
-  Logger.log('✅ Colonne Tel_Secondaire supprimée. ' + fixed + ' ligne(s) corrigée(s). La feuille Clients est revenue à 9 colonnes.');
-}
-
-// ============================================================
-//  CORRIGER LES NOMS DE QUARTIERS DANS LES INTERVENTIONS
-//  À exécuter une fois après un renommage de quartier.
-// ============================================================
-function corrigerNomsQuartiers() {
-  const sheet2 = s2(), sheet3 = s3();
-  const ii = getInvIdx(sheet2);
-  const c  = getClientsIdx(sheet3);
-  const CORRECTIONS = {
-    'NDIANGDAM': 'NDIANDAM', 'MATEUR': 'MAETUR', 'MAETURE': 'MAETUR',
-    'MICHOU BAR': 'CASA', "TOTAL D'EN BAS": 'TOTAL EN BAS',
-    'FEUX ROUGE': 'FEU ROUGE', 'MARCHE CASA': 'CASA'
-  };
-  let count = 0;
-  const iData = sheet2.getDataRange().getValues();
-  for (let i = 1; i < iData.length; i++) {
-    const q = String(iData[i][ii.quartier]||'').trim();
-    if (CORRECTIONS[q]) { sheet2.getRange(i+1, ii.quartier+1).setValue(CORRECTIONS[q]); count++; }
-  }
-  const cData = sheet3.getDataRange().getValues();
-  for (let i = 1; i < cData.length; i++) {
-    const q = String(cData[i][c.quartier]||'').trim();
-    if (CORRECTIONS[q]) { sheet3.getRange(i+1, c.quartier+1).setValue(CORRECTIONS[q]); count++; }
-  }
-  Logger.log('✅ ' + count + ' correction(s) appliquée(s).');
-}
-//  Si l'entête a été poussée vers le bas par des appendRow
-//  intempestifs, cette fonction la remet en ligne 1.
-// ============================================================
-function reparerEnteteClients() {
-  const sheet  = s3();
-  const data   = sheet.getDataRange().getValues();
-  const HEADER = ['Numero','Nom','Telephone','Localite','Ville','Quartier','Service','GPS','Derniere_MAJ'];
-
-  // Chercher la ligne qui contient l'entête
-  let headerRow = -1;
-  for (let i = 0; i < data.length; i++) {
-    if (String(data[i][0]).trim() === 'Numero') { headerRow = i; break; }
-  }
-
-  if (headerRow === 0) {
-    notify('ℹ️ L\'entête est déjà en ligne 1. Rien à faire.');
-    return;
-  }
-
-  if (headerRow > 0) {
-    // Supprimer la ligne d'entête là où elle est
-    sheet.deleteRow(headerRow + 1);
-    // Insérer une nouvelle ligne en position 1
-    sheet.insertRowBefore(1);
-  } else {
-    // Entête introuvable — l'écrire directement
-    sheet.insertRowBefore(1);
-  }
-
-  // Écrire l'entête en ligne 1 avec le bon style
-  sheet.getRange(1, 1, 1, HEADER.length)
-    .setValues([HEADER])
-    .setFontWeight('bold')
-    .setBackground('#0891b2')
-    .setFontColor('white');
-
-  notify('✅ Entête remise en ligne 1. Tes données sont intactes.');
-}
-
-// ============================================================
-//  RÉPARATION COMPLÈTE DE LA FEUILLE CLIENTS
-//  Réécrit les entêtes avec les noms exacts attendus par le code,
-//  puis détecte et corrige automatiquement les lignes dont les
-//  colonnes sont décalées (GPS contient FTTH/LS/CUIVRE).
-//  À EXÉCUTER UNE FOIS pour résoudre les problèmes de
-//  Localité/GPS vides dans l'application.
-// ============================================================
-function reparerCompletClients() {
-  const sheet = s3();
-  const lastCol = sheet.getLastColumn();
-  const all = sheet.getDataRange().getValues();
-
-  // ── ÉTAPE 1 : Réécrire les entêtes avec les noms exacts ──
-  // On détecte si on a 9 colonnes (ancien format sans Tel_Secondaire)
-  // ou 10 colonnes (nouveau format avec Tel_Secondaire).
-  let headers10 = ['Numero','Nom','Telephone','Tel_Secondaire','Localite','Ville','Quartier','Service','GPS','Derniere_MAJ'];
-  let headers9  = ['Numero','Nom','Telephone','Localite','Ville','Quartier','Service','GPS','Derniere_MAJ'];
-  const expectedHeaders = lastCol >= 10 ? headers10 : headers9;
-
-  // Réécrire la ligne 1 avec les noms standardisés
-  sheet.getRange(1, 1, 1, expectedHeaders.length)
-    .setValues([expectedHeaders])
-    .setFontWeight('bold')
-    .setBackground('#0891b2')
-    .setFontColor('white');
-  SpreadsheetApp.flush();
-
-  // ── ÉTAPE 2 : Relire avec les nouveaux indices corrects ──
-  const c = getClientsIdx(sheet);
-  const rows = sheet.getDataRange().getValues();
-  const SVCS = ['FTTH','LS','CUIVRE'];
-  const isSvc = v => SVCS.includes(String(v).trim().toUpperCase());
-  const isGPS = v => /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+$/.test(String(v).trim());
-
-  let fixed = 0;
-  for (let i = 1; i < rows.length; i++) {
-    const row = [...rows[i]];
-    const gpsVal = String(row[c.gps] || '').trim();
-    if (!isSvc(gpsVal)) continue; // pas corrompu
-
-    // Colonnes décalées : corriger
-    const newRow = [...row];
-    newRow[c.loc]      = row[c.loc + 1]      || '';
-    newRow[c.ville]    = row[c.ville + 1]    || '';
-    newRow[c.quartier] = row[c.quartier + 1] || '';
-    newRow[c.service]  = row[c.gps];
-    let realGPS = '';
-    for (let col = c.gps + 1; col < row.length; col++) {
-      if (isGPS(row[col])) { realGPS = String(row[col]); break; }
-    }
-    newRow[c.gps] = realGPS;
-    newRow[c.maj] = new Date().toLocaleString('fr-FR');
-    sheet.getRange(i + 1, 1, 1, row.length).setValues([newRow.slice(0, row.length)]);
-    fixed++;
-  }
-
-  notify(
-    '✅ Réparation terminée !\n\n' +
-    '- Entêtes standardisées (' + expectedHeaders.length + ' colonnes)\n' +
-    '- ' + fixed + ' ligne(s) de données corrigée(s)\n\n' +
-    'Actualisez maintenant la page Clients dans l\'app (bouton ↺).'
-  );
-}
-
-// ============================================================
-//  AJOUTER LA COLONNE Tel_Secondaire DANS LA FEUILLE CLIENTS
-//  À exécuter UNE FOIS si la colonne n'existe pas encore.
-//  Insère la colonne en position 4 (après Telephone) et
-//  décale les colonnes suivantes vers la droite sans perte.
-// ============================================================
-function ajouterColonneTelSecondaire() {
-  const sheet = s3();
-  const firstRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  // Vérifier si la colonne existe déjà
-  if (firstRow.includes('Tel_Secondaire')) {
-    notify('ℹ️ La colonne Tel_Secondaire existe déjà. Rien à faire.');
-    return;
-  }
-
-  // Insérer une colonne vide en position 4 (après Telephone = col 3)
-  sheet.insertColumnAfter(3);
-
-  // Mettre l'entête
-  sheet.getRange(1, 4).setValue('Tel_Secondaire').setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
-
-  // Reformater toute la ligne d'entête (au cas où la couleur se serait perdue)
-  sheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
-
-  notify(
-    '✅ Colonne Tel_Secondaire ajoutée en position 4.\n\n' +
-    sheet.getLastRow() - 1 + ' client(s) existant(s) conservés.\n' +
-    'La colonne est vide pour l\'instant — elle se remplira au fur et à mesure des publications.'
-  );
-}
 
 // ============================================================
 //  RÉPARATION — Pousser vers AUJOURD'HUI les interventions
@@ -2841,6 +2393,52 @@ function migrerColonnesConsistances() {
   if (h['Chef'] === undefined) return { success: true, colonneSupprimee: false };
   sheet.deleteColumn(h['Chef']+1);
   return { success: true, colonneSupprimee: true };
+}
+
+// ============================================================
+//  MIGRATION — sépare 'Clients FTTH/cuivre' en deux feuilles
+//  'Clients FTTH' et 'Clients Cuivre' (à exécuter UNE FOIS).
+//  - Le Service de chaque ligne choisit la feuille (défaut FTTH).
+//  - Les noms passent en MAJUSCULES.
+//  - L'ancienne feuille est archivée (renommée), pas supprimée :
+//    à effacer manuellement une fois le résultat vérifié.
+// ============================================================
+function migrerSeparerClients() {
+  const ss  = getSS();
+  const old = ss.getSheetByName('Clients FTTH/cuivre');
+  if (!old) return { success: true, dejaFait: true };
+
+  const h    = getColMap(old);
+  const rows = old.getDataRange().getValues();
+  const get  = (row, name) => h[name] !== undefined ? String(row[h[name]] || '').trim() : '';
+
+  const ftth = [], cuivre = [];
+  let serviceAutre = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const num = get(rows[i], 'Numero');
+    if (!num) continue;
+    const service = get(rows[i], 'Service').toUpperCase();
+    if (service !== 'FTTH' && service !== 'CUIVRE') serviceAutre++;
+    const row = [
+      num,
+      get(rows[i], 'Nom').toUpperCase(),
+      get(rows[i], 'Telephone'),
+      get(rows[i], 'Tel_Secondaire'),
+      get(rows[i], 'Localite'),
+      get(rows[i], 'Ville'),
+      get(rows[i], 'Quartier'),
+      get(rows[i], 'GPS'),
+      get(rows[i], 'Derniere_MAJ')
+    ];
+    (service === 'CUIVRE' ? cuivre : ftth).push(row);
+  }
+
+  const sheetF = s3ftth(), sheetC = s3cuivre();
+  if (ftth.length)   sheetF.getRange(sheetF.getLastRow()+1, 1, ftth.length,   9).setValues(ftth);
+  if (cuivre.length) sheetC.getRange(sheetC.getLastRow()+1, 1, cuivre.length, 9).setValues(cuivre);
+
+  old.setName('zz_Clients_archive_20260710');
+  return { success: true, ftth: ftth.length, cuivre: cuivre.length, serviceAutreClasseFtth: serviceAutre };
 }
 
 // ============================================================

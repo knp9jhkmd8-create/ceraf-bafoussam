@@ -40,14 +40,16 @@ curl -sL "https://script.google.com/macros/s/<deploymentId>/exec?action=getAll&r
 ```
 `doGet`/`doPost` redirect (302) before returning JSON — use `-L` to follow.
 
-## Data model (Google Sheet, 4 tabs)
+## Data model (Google Sheet, 5 tabs)
 
-Column order is **not** trustworthy — read every sheet through the dynamic header-index helpers (`getColMap`, `getClientsIdx`, `getClientsLsIdx`, `getInvIdx`, `getConsistIdx` in Code.gs) rather than hardcoded column numbers. The schema has been migrated multiple times in place (columns added/removed/reordered — see the many one-off `reparer*`/`migrer*` functions at the bottom of Code.gs), so header-name lookup is the only safe way to access a column.
+Column order is **not** trustworthy — read every sheet through the dynamic header-index helpers (`getColMap`, `getClientsIdx`, `getClientsLsIdx`, `getInvIdx`, `getConsistIdx` in Code.gs) rather than hardcoded column numbers. The schema has been migrated multiple times in place (columns added/removed/reordered), so header-name lookup is the only safe way to access a column.
 
 - **Consistances**: one row per day (`ID_Consistance`, `Date`, `Nb_Interventions`, `Realisees`, `Instances`). A "fiche du jour".
 - **Interventions**: one row per intervention, linked to a Consistance by `ID_Consistance`. Type (FTTH/LS/Cuivre), `Statut` (`En attente` / `Réalisé` / `Injoignable` / `Problème`), `Reporté_depuis` (origin date of first occurrence, carried through report chains), `Duree_Jours` (legacy incremental counter — **no longer the source of truth for duration**, see below).
-- **Clients FTTH/cuivre** (renamed from `Clients` on 2026-07-10; `getOrCreateSheet` self-heals the rename): deduplicated by line number (`Numero`). Holds `GPS`, `Service`, `Tel_Secondaire`, etc. GPS coordinates live here, not on the intervention row — `getByDate`/`getAll` always return `gps: ''` for interventions; the frontend merges in `clientsCache[num].gps` client-side ([index.html:1497](index.html:1497)).
-- **Clients LS**: LS interventions have **no line number** (name is the only mandatory field), so LS clients live in their own sheet keyed by normalized name (`nomKeyLs_`). Upserted by `saveConsistance` via `upsertClientLs_` (non-empty values only), read back in `getClients` as a separate `clientsLs` array. `getClientHistory`/`updateClientGPS`/`deleteClient` accept a `nomLs` param for this sheet.
+- **Clients FTTH** and **Clients Cuivre** (split from the single `Clients` sheet on 2026-07-10): one sheet per service, **no `Service` column** — the sheet itself is the classification; `typeToService()` only picks which sheet to write to (`sheetForService_`). Deduplicated by line number (`Numero`); a number lives in exactly one of the two sheets, and re-saving under the other service **moves** the row (reclassement). Client names are stored UPPERCASE. Any lookup by number must scan both sheets — use `trouverClientRow_`/`clientsSheets_`. GPS coordinates live here, not on the intervention row — `getByDate`/`getAll` always return `gps: ''` for interventions; the frontend merges in `clientsCache[num].gps` client-side.
+- **Clients LS**: LS interventions have **no line number** (name is the only mandatory field), so LS clients live in their own sheet keyed by normalized name (`nomKeyLs_`). Upserted by `saveConsistance` via `upsertClientLs_` (non-empty values only). `getClientHistory`/`updateClientGPS`/`deleteClient` accept a `nomLs` param for this sheet.
+
+`getClients` returns `clientsFtth`, `clientsCuivre`, `clientsLs` (plus a merged `clients` array kept for stale cached frontends). The archived pre-split sheet `zz_Clients_archive_20260710` can be deleted once the split is confirmed good.
 
 ## Key backend behaviors (Code.gs)
 
