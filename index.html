@@ -492,6 +492,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
     <div class="page" id="page-clients">
       <div class="page-title" data-i18n-html="clients.title">Base <span>Clients</span></div>
       <div class="page-sub" data-i18n="clients.sub">Annuaire automatique — mis à jour à chaque publication</div>
+      <div class="view-toggle">
+        <button class="vtab active" id="cv-ftth" onclick="setClientsView('ftth')" data-i18n="clients.tab.ftth">FTTH / Cuivre</button>
+        <button class="vtab" id="cv-ls" onclick="setClientsView('ls')" data-i18n="clients.tab.ls">LS</button>
+      </div>
       <div class="client-search-bar">
         <input type="text" id="client-search" placeholder="🔍 Rechercher par numéro, nom, localité..." data-i18n-ph="clients.search.ph" oninput="filterClients()">
         <button class="btn btn-ghost btn-sm" onclick="refreshClients()" data-i18n="btn.refresh">↺ Actualiser</button>
@@ -505,6 +509,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
     <div class="page" id="page-clients-ro">
       <div class="page-title" data-i18n-html="clients.title">Base <span>Clients</span></div>
       <div class="page-sub" data-i18n="clients.sub.ro">Consultation de l'annuaire — lecture seule</div>
+      <div class="view-toggle">
+        <button class="vtab active" id="cv-ftth-ro" onclick="setClientsView('ftth')" data-i18n="clients.tab.ftth">FTTH / Cuivre</button>
+        <button class="vtab" id="cv-ls-ro" onclick="setClientsView('ls')" data-i18n="clients.tab.ls">LS</button>
+      </div>
       <div class="client-search-bar">
         <input type="text" id="client-search-ro" placeholder="🔍 Rechercher..." data-i18n-ph="clients.search.ro.ph" oninput="filterClientsRO()">
         <button class="btn btn-ghost btn-sm" onclick="refreshClientsRO()" data-i18n="btn.refresh">↺ Actualiser</button>
@@ -678,6 +686,7 @@ fr:{
   'btn.refresh':'↺ Actualiser',
   'clients.th.num':'N° Ligne','clients.th.nom':'Nom','clients.th.tel':'Téléphone','clients.th.tel2':'2ème contact',
   'clients.th.loc':'Localité','clients.th.ville':'Ville','clients.th.quartier':'Quartier','clients.th.service':'Service','clients.th.gps':'GPS',
+  'clients.th.pop':'POP','clients.tab.ftth':'📡 FTTH / Cuivre','clients.tab.ls':'🔌 LS',
   'clients.empty':'Aucun client enregistré.',
   'gps.viewLink':'📌 Voir',
   'terrain.title.html':'Fiche du <span id="terrain-date-title">Jour</span>',
@@ -896,6 +905,7 @@ en:{
   'btn.refresh':'↺ Refresh',
   'clients.th.num':'Line No.','clients.th.nom':'Name','clients.th.tel':'Phone','clients.th.tel2':'2nd contact',
   'clients.th.loc':'Location','clients.th.ville':'City','clients.th.quartier':'Neighborhood','clients.th.service':'Service','clients.th.gps':'GPS',
+  'clients.th.pop':'POP','clients.tab.ftth':'📡 FTTH / Copper','clients.tab.ls':'🔌 LS',
   'clients.empty':'No customers registered.',
   'gps.viewLink':'📌 View',
   'terrain.title.html':'Sheet for <span id="terrain-date-title">Today</span>',
@@ -1201,7 +1211,7 @@ function renderQuartierGroupsHTML(villeGroups,activeQ,onclickBuilder){
     return `<div class="ville-group"><span class="ville-label">🏙️ ${ville} :</span> ${pills}</div>`;
   }).join('');
 }
-let clientsCache={}, allClientsList=[];
+let clientsCache={}, allClientsList=[], allClientsLsList=[], clientsView='ftth';
 let activeInterventionsCache={}; // clé: num de ligne → {date,statut} (pour détection doublons)
 let pendingUpdateClient=null, lastLookedNum='';
 
@@ -1458,8 +1468,8 @@ function goPage(p,el,load=true){
   if(load){
     if(p==='terrain')    loadTerrain();
     if(p==='historique') loadHistorique();
-    if(p==='clients')    {if(allClientsList.length>0)renderClientsTable(allClientsList,'clients-table-wrap');else refreshClients();}
-    if(p==='clients-ro') {if(allClientsList.length>0)renderClientsTable(allClientsList,'clients-table-ro-wrap');else refreshClientsRO();}
+    if(p==='clients')    {if(allClientsList.length>0||allClientsLsList.length>0)filterClients();else refreshClients();}
+    if(p==='clients-ro') {if(allClientsList.length>0||allClientsLsList.length>0)filterClientsRO();else refreshClientsRO();}
     if(p==='admin')      loadAdminUsers();
   }
 }
@@ -1544,6 +1554,7 @@ async function preloadClients(){
   const data=await apiGet({action:'getClients'});
   if(!data.success) return;
   if(data.clients) buildClientsCache(data.clients);
+  if(data.clientsLs) buildClientsLsList(data.clientsLs);
   // Les interventions actives sont incluses dans la même réponse — pas d'appel séparé
   if(data.activeInterventions){
     activeInterventionsCache={};
@@ -1584,6 +1595,9 @@ function buildClientsCache(list){
     return String(a.num).localeCompare(String(b.num));
   });
   allClientsList.forEach(c=>{clientsCache[String(c.num).trim().replace(/\s/g,'').toLowerCase()]=c;});
+}
+function buildClientsLsList(list){
+  allClientsLsList=[...list].sort((a,b)=>String(a.nom).localeCompare(String(b.nom)));
 }
 
 // ══════════════════════════════════════════════
@@ -2054,22 +2068,43 @@ async function publishConsistance(){
 // ══════════════════════════════════════════════
 async function refreshClients(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-wrap');showToast(t('toast.refreshed'));}
+  if(data.success&&data.clients){buildClientsCache(data.clients);buildClientsLsList(data.clientsLs||[]);filterClients();showToast(t('toast.refreshed'));}
 }
 async function refreshClientsRO(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&data.clients){buildClientsCache(data.clients);renderClientsTable(allClientsList,'clients-table-ro-wrap');showToast(t('toast.refreshed'));}
+  if(data.success&&data.clients){buildClientsCache(data.clients);buildClientsLsList(data.clientsLs||[]);filterClientsRO();showToast(t('toast.refreshed'));}
+}
+// Bascule FTTH/Cuivre ↔ LS — état partagé entre la page chef et la page
+// lecture seule (une seule des deux est visible à la fois).
+function setClientsView(v){
+  clientsView=v;
+  [['cv-ftth','cv-ls'],['cv-ftth-ro','cv-ls-ro']].forEach(([idF,idL])=>{
+    const f=document.getElementById(idF),l=document.getElementById(idL);
+    if(f){f.classList.toggle('active',v==='ftth');l.classList.toggle('active',v==='ls');}
+  });
+  filterClients();filterClientsRO();
+}
+function clientsListFiltered(q){
+  const list=clientsView==='ls'?allClientsLsList:allClientsList;
+  if(!q)return list;
+  return list.filter(c=>((c.num||'')+c.nom+c.tel+(c.telSec||'')+c.loc+c.ville+(c.quartier||'')+(c.pop||'')).toLowerCase().includes(q));
+}
+function renderClientsView(list,wrapId){
+  if(clientsView==='ls')renderClientsLsTable(list,wrapId);
+  else renderClientsTable(list,wrapId);
 }
 function filterClients(){
   const q=(document.getElementById('client-search').value||'').toLowerCase();
-  renderClientsTable(allClientsList.filter(c=>(c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q)),'clients-table-wrap');
+  renderClientsView(clientsListFiltered(q),'clients-table-wrap');
 }
 function filterClientsRO(){
   const q=(document.getElementById('client-search-ro').value||'').toLowerCase();
-  renderClientsTable(allClientsList.filter(c=>(c.num+c.nom+c.tel+c.loc+c.ville+c.quartier).toLowerCase().includes(q)),'clients-table-ro-wrap');
+  renderClientsView(clientsListFiltered(q),'clients-table-ro-wrap');
 }
 
 function svcClass(s){if(s==='FTTH')return'svc-ftth';if(s==='LS')return'svc-ls';if(s==='CUIVRE')return'svc-cuivre';return'svc-ftth';}
+// Miroir de typeToService() côté backend — détecte un type LS depuis son libellé stocké
+function estTypeLs(typeLabel){const t=String(typeLabel||'').toLowerCase();return t.includes(' ls')||t.endsWith('ls');}
 
 function renderClientsTable(list,wrapId){
   const wrap=document.getElementById(wrapId);
@@ -2101,16 +2136,45 @@ function renderClientsTable(list,wrapId){
   h+='</tbody></table>';wrap.innerHTML=h;
 }
 
+// Table Clients LS — pas de numéro de ligne ni de service : identifié par
+// nom, avec la colonne POP propre aux liaisons spécialisées.
+function renderClientsLsTable(list,wrapId){
+  const wrap=document.getElementById(wrapId);
+  if(!list||list.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">👥</div><p>${t('clients.empty')}</p></div>`;return;}
+  const showHist=role==='chef';
+  let h=`<table class="clients-table"><thead><tr>
+    <th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.pop')}</th><th>${t('clients.th.gps')}</th>${showHist?`<th></th>`:''}
+  </tr></thead><tbody>`;
+  list.forEach(c=>{
+    const gpsRaw=c.gps&&c.gps!=='null'?String(c.gps).trim():'';
+    const gpsValide=gpsRaw!==''&&/\d/.test(gpsRaw)&&/,/.test(gpsRaw)&&!/^(FTTH|LS|CUIVRE)$/i.test(gpsRaw);
+    const gpsH=gpsValide
+      ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">${t('gps.viewLink')}</a>`:'—';
+    const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
+    h+=`<tr>
+      <td><strong>${c.nom}</strong></td><td>${c.tel||'—'}</td>
+      <td>${telSec}</td>
+      <td>${c.loc||'—'}</td><td>${c.ville||'—'}</td>
+      <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
+      <td>${c.pop||'—'}</td>
+      <td>${gpsH}</td>
+      ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('','${String(c.nom).replace(/'/g,"\\'")}',true)">📜</button></td>`:''}
+    </tr>`;
+  });
+  h+='</tbody></table>';wrap.innerHTML=h;
+}
+
 // ══════════════════════════════════════════════
 //  HISTORIQUE D'UN CLIENT (page Clients du chef)
 //  Liste simple : date, type, statut, panne, durée.
+//  isLs : client LS → recherche par nom (nomLs) au lieu du numéro.
 // ══════════════════════════════════════════════
-async function showClientHistory(num,nom){
+async function showClientHistory(num,nom,isLs){
   const content=document.getElementById('quartier-modal-content');
   content.innerHTML=`<div class="modal-title">📜 ${nom||num}</div><div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
   document.getElementById('modal-quartier').classList.add('active');
 
-  const res=await apiGet({action:'getClientHistory',num});
+  const res=await apiGet(isLs?{action:'getClientHistory',nomLs:nom}:{action:'getClientHistory',num});
   if(!res.success){content.innerHTML=`<div class="modal-title">📜 ${nom||num}</div><div class="empty"><p>❌ ${res.error||t('err.generic')}</p></div><div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button></div>`;return;}
 
   let h=`<div class="modal-title">📜 ${nom||num}</div>
@@ -2163,13 +2227,18 @@ function getGPSField(fieldId,btn){
   );
 }
 
-async function saveGPS(invId,num){
+async function saveGPS(invId,num,nomLs){
   const inp=document.getElementById('gps-'+invId);
   const gps=(inp.value||'').trim();
   if(!gps){showToast(t('valid.gpsRequired'));return;}
   if(num&&num!=='null'&&num!==''){
     const res=await apiPost({action:'updateClientGPS',num,gps});
     if(res.success){showToast(t('toast.gpsSaved'));const key=num.replace(/\s/g,'').toLowerCase();if(clientsCache[key])clientsCache[key].gps=gps;}
+    else showToast(t('err.gpsError'));
+  } else if(nomLs&&nomLs!=='null'&&nomLs!==''){
+    // Client LS : pas de numéro de ligne — la fiche Clients LS est retrouvée par nom
+    const res=await apiPost({action:'updateClientGPS',nomLs,gps});
+    if(res.success)showToast(t('toast.gpsSaved'));
     else showToast(t('err.gpsError'));
   } else {
     showToast(t('toast.gpsNotedLater'));
@@ -2390,7 +2459,8 @@ function renderByQuartier(interventions){
 
 function invRowHTML(inv,idx){
   const sk=SM[inv.statut]||'pending';
-  const cacheClient=inv.num?clientsCache[String(inv.num).replace(/\s/g,'').toLowerCase()]:null;
+  const cacheClient=inv.num?clientsCache[String(inv.num).replace(/\s/g,'').toLowerCase()]
+    :(estTypeLs(inv.type)&&inv.nom?allClientsLsList.find(c=>String(c.nom).trim().toUpperCase()===String(inv.nom).trim().toUpperCase()):null)||null;
   // Enrichir avec telSec du cache client si disponible
   if(cacheClient&&cacheClient.telSec&&!inv.telSec) inv={...inv,telSec:cacheClient.telSec};
   const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
@@ -2461,7 +2531,7 @@ function invRowHTML(inv,idx){
         <button class="btn-gps" onclick="getGPSField('gps-${inv.id}',this)">📍</button>
       </div>
       ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">${t('gps.saved')}${gpsSource} — <button class="btn-gps" style="padding:3px 10px;font-size:.7rem;margin-left:4px;" data-gps="${gpsValue.replace(/"/g,'&quot;')}" onclick="ouvrirMaps(this.dataset.gps)">${t('btn.openMaps')}</button></div>`:''}
-      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}')">${t('btn.updateGps')}</button>
+      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}','${estTypeLs(inv.type)?String(inv.nom||'').replace(/'/g,"\\'"):''}')">${t('btn.updateGps')}</button>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
       <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>

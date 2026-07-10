@@ -5,7 +5,8 @@
 const SHEET_ID            = '1OH566jWxL8ph7-UWscrs3ZQt0elNAnPGcNqvjC-RA_w';
 const SHEET_CONSIST       = 'Consistances';
 const SHEET_INTERVENTIONS = 'Interventions';
-const SHEET_CLIENTS       = 'Clients';
+const SHEET_CLIENTS       = 'Clients FTTH/cuivre'; // ex-'Clients', renommée (auto) le 2026-07-10
+const SHEET_CLIENTS_LS    = 'Clients LS';
 const SHEET_USERS         = 'Utilisateurs';
 const SESSION_DUREE_JOURS = 30; // durée de validité d'un token de session
 
@@ -14,6 +15,13 @@ const SESSION_DUREE_JOURS = 30; // durée de validité d'un token de session
 // ============================================================
 function getOrCreateSheet(ss, name) {
   let sheet = ss.getSheetByName(name);
+  // Renommage auto-réparant : la feuille clients historique s'appelait
+  // 'Clients' — la renommer plutôt que d'en recréer une vide, pour que la
+  // bascule de constante ne dépende d'aucune migration manuelle.
+  if (!sheet && name === SHEET_CLIENTS) {
+    const legacy = ss.getSheetByName('Clients');
+    if (legacy) { legacy.setName(SHEET_CLIENTS); return legacy; }
+  }
   if (!sheet) {
     sheet = ss.insertSheet(name);
     if (name === SHEET_CONSIST) {
@@ -26,6 +34,9 @@ function getOrCreateSheet(ss, name) {
       sheet.getRange(1,1,1,16).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
     } else if (name === SHEET_CLIENTS) {
       sheet.appendRow(['Numero','Nom','Telephone','Localite','Ville','Quartier','Service','GPS','Derniere_MAJ']);
+      sheet.getRange(1,1,1,9).setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
+    } else if (name === SHEET_CLIENTS_LS) {
+      sheet.appendRow(['Nom','Telephone','Tel_Secondaire','Localite','Ville','Quartier','POP','GPS','Derniere_MAJ']);
       sheet.getRange(1,1,1,9).setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
     } else if (name === SHEET_USERS) {
       sheet.appendRow(['ID','Nom','PIN_Hash','Role','Actif','Token','Token_Expire','Derniere_connexion']);
@@ -53,6 +64,7 @@ function notify(message) {
 function s1()     { return getOrCreateSheet(getSS(), SHEET_CONSIST); }
 function s2()     { return getOrCreateSheet(getSS(), SHEET_INTERVENTIONS); }
 function s3()     { return getOrCreateSheet(getSS(), SHEET_CLIENTS); }
+function s3ls()   { return getOrCreateSheet(getSS(), SHEET_CLIENTS_LS); }
 function s4()     { return getOrCreateSheet(getSS(), SHEET_USERS); }
 
 // Feuille Utilisateurs
@@ -691,6 +703,30 @@ function getClientsIdx(sheet) {
   };
 }
 
+// Feuille Clients LS — pas de numéro de ligne pour ce service : le client
+// est identifié par son nom (obligatoire à la saisie, forcé en majuscules).
+function getClientsLsIdx(sheet) {
+  const h = getColMap(sheet);
+  return {
+    nom:      h['Nom']           !== undefined ? h['Nom']           : 0,
+    tel:      h['Telephone']     !== undefined ? h['Telephone']     : 1,
+    telSec:   h['Tel_Secondaire']!== undefined ? h['Tel_Secondaire']: 2,
+    loc:      h['Localite']      !== undefined ? h['Localite']      : 3,
+    ville:    h['Ville']         !== undefined ? h['Ville']         : 4,
+    quartier: h['Quartier']      !== undefined ? h['Quartier']      : 5,
+    pop:      h['POP']           !== undefined ? h['POP']           : 6,
+    gps:      h['GPS']           !== undefined ? h['GPS']           : 7,
+    maj:      h['Derniere_MAJ']  !== undefined ? h['Derniere_MAJ']  : 8,
+    total:    sheet.getLastColumn()
+  };
+}
+
+// Clé de dédoublonnage d'un client LS : nom normalisé (majuscules, espaces
+// multiples réduits) — la casse et l'espacement varient à la saisie terrain.
+function nomKeyLs_(nom) {
+  return String(nom || '').trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
 // Feuille Interventions
 function getInvIdx(sheet) {
   const h = getColMap(sheet);
@@ -876,7 +912,28 @@ function getClients() {
     });
   }
 
-  return { success: true, clients, activeInterventions };
+  // Clients LS — feuille séparée, identifiés par nom (pas de numéro de ligne)
+  const sheetLs = s3ls();
+  const rowsLs  = sheetLs.getDataRange().getValues();
+  const cl      = getClientsLsIdx(sheetLs);
+  const clientsLs = [];
+  for (let i = 1; i < rowsLs.length; i++) {
+    const nom = String(rowsLs[i][cl.nom] || '').trim();
+    if (!nom) continue;
+    clientsLs.push({
+      nom,
+      tel:      String(rowsLs[i][cl.tel]      || ''),
+      telSec:   String(rowsLs[i][cl.telSec]   || ''),
+      loc:      String(rowsLs[i][cl.loc]      || ''),
+      ville:    String(rowsLs[i][cl.ville]    || ''),
+      quartier: String(rowsLs[i][cl.quartier] || ''),
+      pop:      String(rowsLs[i][cl.pop]      || ''),
+      gps:      String(rowsLs[i][cl.gps]      || ''),
+      maj:      String(rowsLs[i][cl.maj]      || '')
+    });
+  }
+
+  return { success: true, clients, clientsLs, activeInterventions };
 }
 
 // ============================================================
@@ -919,8 +976,12 @@ function findClient(params) {
 //  physiques d'un même report restent bien fusionnées en une seule.
 // ============================================================
 function getClientHistory(params) {
-  const num = String(params.num || '').trim().replace(/\s/g,'');
-  if (!num) return { success: false, error: 'Numéro manquant' };
+  const num   = String(params.num || '').trim().replace(/\s/g,'');
+  // Mode LS : les interventions LS n'ont pas de numéro de ligne — le client
+  // est retrouvé par nom normalisé, restreint aux types LS pour ne pas
+  // capter un homonyme FTTH/Cuivre.
+  const nomLs = nomKeyLs_(params.nomLs);
+  if (!num && !nomLs) return { success: false, error: 'Numéro manquant' };
 
   const sheet2 = s2();
   const ii = getInvIdx(sheet2);
@@ -928,8 +989,13 @@ function getClientHistory(params) {
 
   const deduped = {};
   for (let j = 1; j < rows.length; j++) {
-    const rowNum = String(rows[j][ii.num] || '').trim().replace(/\s/g,'');
-    if (rowNum !== num) continue;
+    if (nomLs) {
+      if (typeToService(rows[j][ii.type]) !== 'LS') continue;
+      if (nomKeyLs_(rows[j][ii.nom]) !== nomLs) continue;
+    } else {
+      const rowNum = String(rows[j][ii.num] || '').trim().replace(/\s/g,'');
+      if (rowNum !== num) continue;
+    }
     const remarque = String(rows[j][ii.remarque] || '');
     if (remarque.startsWith('➡️ Reporté au')) continue;
 
@@ -959,7 +1025,7 @@ function getClientHistory(params) {
     .map(inv => ({ ...inv, duree: calculerDuree(inv.origine, inv.date, inv.statut) }))
     .sort((a, b) => b.origine.localeCompare(a.origine));
 
-  return { success: true, num, history };
+  return { success: true, num: num || nomLs, history };
 }
 
 // ============================================================
@@ -1007,6 +1073,21 @@ function saveClient(data) {
 // ============================================================
 function updateClientGPS(data) {
   const { num, gps } = data;
+  // Mode LS : pas de numéro de ligne, la fiche est retrouvée par nom.
+  if (!num && data.nomLs) {
+    const sheetLs = s3ls();
+    const cl      = getClientsLsIdx(sheetLs);
+    const key     = nomKeyLs_(data.nomLs);
+    const rowsLs  = sheetLs.getDataRange().getValues();
+    for (let i = 1; i < rowsLs.length; i++) {
+      if (nomKeyLs_(rowsLs[i][cl.nom]) === key) {
+        sheetLs.getRange(i+1, cl.gps+1).setValue(gps || '');
+        sheetLs.getRange(i+1, cl.maj+1).setValue(new Date().toLocaleString('fr-FR'));
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'Client LS introuvable' };
+  }
   if (!num) return { success: false, error: 'Numéro manquant' };
   const sheet    = s3();
   const rows     = sheet.getDataRange().getValues();
@@ -1030,28 +1111,48 @@ function updateClientGPS(data) {
 // ============================================================
 function deleteClient(data) {
   const num    = String(data.num || '').trim().replace(/\s/g,'');
-  const sheet1 = s1(), sheet2 = s2(), sheet3 = s3();
+  const nomLs  = nomKeyLs_(data.nomLs); // mode LS : suppression par nom
+  const sheet1 = s1(), sheet2 = s2();
   const ci = getConsistIdx(sheet1);
   const ii = getInvIdx(sheet2);
-  const c  = getClientsIdx(sheet3);
-  const rows = sheet3.getDataRange().getValues();
   let clientFound = false;
 
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (String(rows[i][c.num]).trim().replace(/\s/g,'') === num) {
-      sheet3.deleteRow(i+1);
-      clientFound = true;
-      break;
+  if (nomLs) {
+    const sheetLs = s3ls();
+    const cl      = getClientsLsIdx(sheetLs);
+    const rowsLs  = sheetLs.getDataRange().getValues();
+    for (let i = rowsLs.length - 1; i >= 1; i--) {
+      if (nomKeyLs_(rowsLs[i][cl.nom]) === nomLs) {
+        sheetLs.deleteRow(i+1);
+        clientFound = true;
+        break;
+      }
+    }
+  } else {
+    const sheet3 = s3();
+    const c    = getClientsIdx(sheet3);
+    const rows = sheet3.getDataRange().getValues();
+    for (let i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][c.num]).trim().replace(/\s/g,'') === num) {
+        sheet3.deleteRow(i+1);
+        clientFound = true;
+        break;
+      }
     }
   }
   if (!clientFound) return { success: false, error: 'Client introuvable' };
+
+  // Cascade : mode LS = mêmes nom + type LS (pour épargner un homonyme
+  // FTTH/Cuivre) ; mode numéro = même Numero_Ligne.
+  const estCible = (row) => nomLs
+    ? (typeToService(row[ii.type]) === 'LS' && nomKeyLs_(row[ii.nom]) === nomLs)
+    : (String(row[ii.num] || '').trim().replace(/\s/g,'') === num);
 
   const iRows = sheet2.getDataRange().getValues();
   const affectedConsistIds = {};
   let deletedCount = 0;
   for (let i = iRows.length - 1; i >= 1; i--) {
-    const rowNum = String(iRows[i][ii.num] || '').trim().replace(/\s/g,'');
-    if (rowNum === num) {
+    if (estCible(iRows[i])) {
       affectedConsistIds[String(iRows[i][ii.cid])] = true;
       sheet2.deleteRow(i+1);
       deletedCount++;
@@ -1075,6 +1176,49 @@ function deleteClient(data) {
   });
 
   return { success: true, deletedInterventions: deletedCount };
+}
+
+// ============================================================
+//  CLIENTS LS — upsert par nom normalisé
+//  Un champ existant n'est remplacé que par une valeur non vide :
+//  une étude sans téléphone ne doit pas effacer le contact connu.
+// ============================================================
+function upsertClientLs_(fields) {
+  const key = nomKeyLs_(fields.nom);
+  if (!key) return null;
+  const sheet = s3ls();
+  const c     = getClientsLsIdx(sheet);
+  const now   = fields.maj || new Date().toLocaleString('fr-FR');
+  const rows  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (nomKeyLs_(rows[i][c.nom]) !== key) continue;
+    const setIfValue = (col, val) => {
+      if (val && String(val).trim()) sheet.getRange(i+1, col+1).setValue(String(val).trim());
+    };
+    setIfValue(c.tel,      fields.tel);
+    setIfValue(c.telSec,   fields.telSec);
+    setIfValue(c.loc,      fields.loc);
+    setIfValue(c.ville,    fields.ville);
+    setIfValue(c.quartier, fields.quartier);
+    setIfValue(c.pop,      fields.pop);
+    setIfValue(c.gps,      fields.gps);
+    sheet.getRange(i+1, c.maj+1).setValue(now);
+    return 'updated';
+  }
+
+  const row = new Array(c.total).fill('');
+  row[c.nom]      = key;
+  row[c.tel]      = fields.tel      || '';
+  row[c.telSec]   = fields.telSec   || '';
+  row[c.loc]      = fields.loc      || '';
+  row[c.ville]    = fields.ville    || '';
+  row[c.quartier] = fields.quartier || '';
+  row[c.pop]      = fields.pop      || '';
+  row[c.gps]      = fields.gps      || '';
+  row[c.maj]      = now;
+  sheet.appendRow(row);
+  return 'created';
 }
 
 // ============================================================
@@ -1206,6 +1350,15 @@ function saveConsistance(data, session) {
         sheet3.appendRow(buildClientRow());
         SpreadsheetApp.flush();
       }
+    }
+
+    // Les clients LS n'ont pas de numéro de ligne : ils vivent dans leur
+    // propre feuille, identifiés par nom (voir upsertClientLs_).
+    if (typeToService(inv.typeLabel || inv.type) === 'LS' && inv.nom) {
+      upsertClientLs_({
+        nom: inv.nom, tel: inv.tel, telSec: inv.numSec, loc: inv.loc,
+        ville: inv.ville, quartier: inv.quartier, pop: inv.pop, gps: inv.gps, maj: now
+      });
     }
   });
 
@@ -2622,6 +2775,53 @@ function migrerColonnesConsistances() {
   if (h['Chef'] === undefined) return { success: true, colonneSupprimee: false };
   sheet.deleteColumn(h['Chef']+1);
   return { success: true, colonneSupprimee: true };
+}
+
+// ============================================================
+//  MIGRATION — reprise de l'historique LS dans Clients LS
+//  (à exécuter UNE FOIS). Les interventions LS n'ont jamais créé
+//  de fiche client : le contact était encodé dans la Remarque
+//  ("Tel: … • Tel2: … • Localité: …"). On rejoue tout l'historique
+//  en ordre chronologique — la donnée non vide la plus récente gagne
+//  (upsertClientLs_ ne remplace jamais par du vide).
+// ============================================================
+function migrerClientsLs() {
+  const sheet2 = s2();
+  const ii     = getInvIdx(sheet2);
+  const rows   = sheet2.getDataRange().getValues();
+
+  const lignes = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (typeToService(rows[i][ii.type]) !== 'LS') continue;
+    const nom = String(rows[i][ii.nom] || '').trim();
+    if (!nom) continue;
+    lignes.push({ row: rows[i], date: normDate(rows[i][ii.date]) });
+  }
+  lignes.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  let crees = 0, maj = 0;
+  lignes.forEach(l => {
+    const remarque = String(l.row[ii.remarque] || '');
+    const contact  = contactDepuisRemarque(remarque);
+    let gps = '';
+    remarque.split(' • ').forEach(seg => {
+      const s = seg.trim();
+      if (s.indexOf('GPS: ') === 0) gps = s.slice(5).trim();
+    });
+    const res = upsertClientLs_({
+      nom:      l.row[ii.nom],
+      tel:      contact.tel,
+      telSec:   contact.telSec,
+      loc:      contact.loc,
+      ville:    String(l.row[ii.ville]    || ''),
+      quartier: String(l.row[ii.quartier] || ''),
+      gps
+    });
+    if (res === 'created') crees++;
+    else if (res === 'updated') maj++;
+  });
+
+  return { success: true, lignesLsScannees: lignes.length, clientsCrees: crees, majEffectuees: maj };
 }
 
 // ============================================================
