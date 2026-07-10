@@ -112,12 +112,6 @@ input.autofilled{border-color:var(--green)!important;background:#f0fdf4!importan
 select{cursor:pointer;}
 textarea{resize:vertical;min-height:60px;}
 
-/* Chef row */
-.chef-row{display:flex;gap:8px;align-items:flex-end;}
-.chef-row select{flex:1;}
-.chef-extra{display:none;flex:1;}
-.chef-extra.visible{display:block;}
-
 /* GPS row */
 .gps-row{display:flex;gap:6px;align-items:flex-end;}
 .gps-row input{flex:1;}
@@ -208,7 +202,6 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .consist-header{background:linear-gradient(135deg,var(--navy),var(--blue-mid));border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;color:#fff;}
 .ch-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;}
 .ch-date{font-size:.78rem;opacity:.75;margin-top:2px;}
-.ch-chef{font-size:.85rem;font-weight:600;opacity:.9;}
 
 .view-toggle{display:flex;gap:6px;margin-bottom:16px;}
 .vtab{padding:6px 14px;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
@@ -218,7 +211,6 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .hist-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:13px 16px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;transition:all .2s;box-shadow:var(--shadow);}
 .hist-card:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);transform:translateY(-1px);}
 .hc-date{font-weight:700;font-size:.92rem;color:var(--navy);}
-.hc-chef{font-size:.76rem;color:var(--muted);margin-top:2px;}
 .hc-pills{display:flex;gap:6px;flex-wrap:wrap;}
 .pill{padding:2px 8px;border-radius:20px;font-size:.68rem;font-weight:700;}
 
@@ -321,24 +313,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <div class="page-sub" data-i18n="chef.sub">Chaque publication s'ajoute à la fiche du jour</div>
       <div class="card">
         <div class="card-title" data-i18n="chef.card.general">📋 Informations générales</div>
-        <div class="form-row">
+        <div class="form-row full">
           <div>
             <label data-i18n="common.date.label">Date (JJ/MM/AAAA)</label>
             <input type="text" id="inp-date" placeholder="JJ/MM/AAAA" data-i18n-ph="common.date.ph" maxlength="10" oninput="formatDateInput(this)" inputmode="numeric">
-          </div>
-          <div>
-            <label data-i18n="common.chefCentre.label">Chef centre</label>
-            <div class="chef-row">
-              <select id="inp-chef-sel" onchange="onChefSelChange(this.value)">
-                <option value="" data-i18n="common.select.default">-- Sélectionner --</option>
-                <option value="BENANA Hermann">BENANA Hermann</option>
-                <option value="Godlove NGWANG FOR">Godlove NGWANG FOR</option>
-                <option value="NDZOUALI Joel">NDZOUALI Joel</option>
-                <option value="TENE Eric">TENE Eric</option>
-                <option value="__autre__" data-i18n="common.other">Autre...</option>
-              </select>
-              <input type="text" id="inp-chef-txt" class="chef-extra" placeholder="Nouveau chef" data-i18n-ph="chef.newChef.ph" oninput="saveCustomChef(this.value)">
-            </div>
           </div>
         </div>
       </div>
@@ -660,8 +638,6 @@ fr:{
   'common.name.label':'Nom',
   'common.chefCentre.label':'Chef centre',
   'common.select.default':'-- Sélectionner --',
-  'common.other':'Autre...',
-  'chef.newChef.ph':'Nouveau chef',
   'chef.addInv.title':'➕ Ajouter une intervention',
   'type.etude_ftth':'Étude FTTH','type.install_ftth':'Installation FTTH','type.derang_ftth':'Dérang. FTTH',
   'type.derang_cuivre':'Dérang. Cuivre','type.etude_ls':'Étude LS','type.derang_ls':'Dérang. LS','type.install_ls':'Install. LS',
@@ -811,7 +787,6 @@ fr:{
   'valid.lineRequired':'Le numéro de ligne est obligatoire',
   'valid.9digitsSecondary':'Le numéro secondaire doit contenir exactement 9 chiffres',
   'valid.dateInvalid':'⚠️ Date invalide — format JJ/MM/AAAA',
-  'valid.chefRequired':'⚠️ Sélectionnez ou saisissez le chef centre',
   'valid.atLeastOneInv':'⚠️ Ajoutez au moins une intervention',
   'toast.published':'✅ Publié !',
   'err.checkConnection':'Vérifiez la connexion',
@@ -881,8 +856,6 @@ en:{
   'common.name.label':'Name',
   'common.chefCentre.label':'Center Supervisor',
   'common.select.default':'-- Select --',
-  'common.other':'Other...',
-  'chef.newChef.ph':'New supervisor',
   'chef.addInv.title':'➕ Add an intervention',
   'type.etude_ftth':'FTTH Survey','type.install_ftth':'FTTH Installation','type.derang_ftth':'FTTH Fault',
   'type.derang_cuivre':'Copper Fault','type.etude_ls':'LS Survey','type.derang_ls':'LS Fault','type.install_ls':'LS Installation',
@@ -1032,7 +1005,6 @@ en:{
   'valid.lineRequired':'The line number is required',
   'valid.9digitsSecondary':'The secondary number must contain exactly 9 digits',
   'valid.dateInvalid':'⚠️ Invalid date — format DD/MM/YYYY',
-  'valid.chefRequired':'⚠️ Select or enter the center supervisor',
   'valid.atLeastOneInv':'⚠️ Add at least one intervention',
   'toast.published':'✅ Published!',
   'err.checkConnection':'Check your connection',
@@ -1133,8 +1105,6 @@ const QUARTIERS_BAFOUSSAM=[
   "DJEMOUN","NDIANSO","BANENGO","SOCADA","TAMDJA","KAMKOP","BALENG","EVECHE","COLACO",
   "BIPMOP","TOCKET","MAETUR","BINAM","DUBAI","AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO","FAMLA"
 ].sort((a,b)=>b.length-a.length);
-
-const CHEFS_DEFAUT=['BENANA Hermann','Godlove NGWANG FOR','NDZOUALI Joel','TENE Eric'];
 
 // Options de "nature de la panne" pour les Dérangements FTTH
 const PANNE_OPTIONS=['Appui cassé','Fibre coupée','Modem défectueux','Connexion instable','Jarretière coupée','Atténuation','Problème de voix','Alimentation défectueuse','Service OKAY'];
@@ -1280,7 +1250,6 @@ window.onload=()=>{
   // connu plutôt que d'exiger un choix impossible à faire.
   if(AVAILABLE_ROLES.length===0 && role) AVAILABLE_ROLES=[role];
   setTodayDate();
-  initChefSelect();
   if(!SCRIPT_URL) show('setup-screen','flex');
   else if(!TOKEN)  show('login-screen','flex');
   else if(AVAILABLE_ROLES.length===0) show('login-screen','flex'); // aucune info exploitable
@@ -1340,40 +1309,6 @@ function showRoleSwitch(){
 function chooseActiveRole(r){
   role=r;localStorage.setItem('ceraf_role',r);
   startApp(r);
-}
-
-// ══════════════════════════════════════════════
-//  CHEF SELECT
-// ══════════════════════════════════════════════
-function initChefSelect(){
-  const customs=JSON.parse(localStorage.getItem('ceraf_chefs_custom')||'[]');
-  const sel=document.getElementById('inp-chef-sel');
-  customs.forEach(c=>{
-    if(!CHEFS_DEFAUT.includes(c)){
-      const opt=document.createElement('option');opt.value=c;opt.textContent=c;
-      sel.insertBefore(opt,sel.querySelector('option[value="__autre__"]'));
-    }
-  });
-}
-function onChefSelChange(val){
-  const txt=document.getElementById('inp-chef-txt');
-  txt.className='chef-extra'+(val==='__autre__'?' visible':'');
-  if(val==='__autre__')txt.focus();else txt.value='';
-}
-function saveCustomChef(val){
-  if(!val.trim())return;
-  const customs=JSON.parse(localStorage.getItem('ceraf_chefs_custom')||'[]');
-  if(!customs.includes(val)&&!CHEFS_DEFAUT.includes(val)){
-    customs.push(val);localStorage.setItem('ceraf_chefs_custom',JSON.stringify(customs));
-    const sel=document.getElementById('inp-chef-sel');
-    const exists=[...sel.options].some(o=>o.value===val);
-    if(!exists){const opt=document.createElement('option');opt.value=val;opt.textContent=val;sel.insertBefore(opt,sel.querySelector('option[value="__autre__"]'));}
-  }
-}
-function getChefValue(){
-  const sel=document.getElementById('inp-chef-sel');
-  const txt=document.getElementById('inp-chef-txt');
-  return sel.value==='__autre__'?txt.value.trim():sel.value;
 }
 
 // ══════════════════════════════════════════════
@@ -2104,13 +2039,11 @@ function clearAll(){if(confirm(t('confirm.clear'))){pending=[];renderPreview();}
 
 async function publishConsistance(){
   const date=getDateISO();
-  const chef=getChefValue();
   if(!date){showToast(t('valid.dateInvalid'));return;}
-  if(!chef){showToast(t('valid.chefRequired'));return;}
   if(pending.length===0){showToast(t('valid.atLeastOneInv'));return;}
   const btn=document.getElementById('btn-pub');
   btn.disabled=true;btn.textContent=t('btn.publish.loading');
-  const res=await apiPost({action:'saveConsistance',date,chef,interventions:pending});
+  const res=await apiPost({action:'saveConsistance',date,interventions:pending});
   btn.disabled=false;btn.textContent=t('btn.publish');
   if(res.success){showToast(t('toast.published'));pending=[];renderPreview();preloadClients();}
   else showToast(t('err.prefix')+(res.error||t('err.checkConnection')));
@@ -2309,7 +2242,7 @@ function renderTerrain(data){
   terrainInterventionsCache=interventions;
 
   document.getElementById('terrain-date-title').textContent=formatDateDisplay(consist.date);
-  document.getElementById('terrain-chef-sub').textContent='👷 '+consist.chef+' — '+t('terrain.subUpdate');
+  document.getElementById('terrain-chef-sub').textContent=t('terrain.subUpdate');
 
   const actives=interventions.filter(i=>!i.estTransfere);
   // Pour les compteurs quartier et type : ignorer les Réalisés
@@ -2585,7 +2518,7 @@ function showQuartierDetail(quartier, context){
   } else {
     (histoAllData||[]).forEach(c=>{
       c.interventions.forEach(i=>{
-        if(!i.estTransfere && i.quartier===quartier) allInvs.push({...i, _date:c.date, _chef:c.chef});
+        if(!i.estTransfere && i.quartier===quartier) allInvs.push({...i, _date:c.date});
       });
     });
   }
@@ -2599,7 +2532,7 @@ function showQuartierDetail(quartier, context){
   } else {
     allInvs.forEach((inv,i)=>{
       const sk=SM[inv.statut]||'pending';
-      const dateLine=context==='historique'?`<div class="inv-meta" style="font-size:.72rem;color:var(--muted);">📅 ${formatDateDisplay(inv._date)} — 👷 ${inv._chef}</div>`:'';
+      const dateLine=context==='historique'?`<div class="inv-meta" style="font-size:.72rem;color:var(--muted);">📅 ${formatDateDisplay(inv._date)}</div>`:'';
       h+=`<div class="inv-row">
         <div class="inv-info">
           <div class="inv-name">${i+1}. ${buildLabel(inv)}</div>
@@ -2872,7 +2805,7 @@ function renderHistoForMonth(){
   // Les données venant du serveur sont déjà dédupliquées.
   // On collecte toutes les interventions uniques du mois.
   const allInvs=[];
-  histoAllData.forEach(c=>c.interventions.forEach(i=>allInvs.push({...i,date:i.date||c.date,chef:c.chef})));
+  histoAllData.forEach(c=>c.interventions.forEach(i=>allInvs.push({...i,date:i.date||c.date})));
 
   if(allInvs.length===0){
     sw.classList.add('hidden');qw.classList.add('hidden');
@@ -3066,7 +2999,7 @@ function showDetail(json){
   const el=document.getElementById('historique-content');
   const g={};c.interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
   let h=`<button class="btn btn-ghost btn-sm" onclick="loadHistorique()" style="margin-bottom:14px;">${t('btn.back')}</button>
-    <div class="consist-header"><div><div class="ch-title">${t('histo.consistanceHeader',{date:formatDateDisplay(c.date)})}</div></div><div class="ch-chef">👷 ${c.chef}</div></div>`;
+    <div class="consist-header"><div><div class="ch-title">${t('histo.consistanceHeader',{date:formatDateDisplay(c.date)})}</div></div></div>`;
   Object.keys(g).forEach(gt=>{
     h+=`<div class="section-block"><div class="section-title">${TI[gt]||'📋'} ${trType(gt)}</div>`;
     g[gt].forEach((inv,i)=>{

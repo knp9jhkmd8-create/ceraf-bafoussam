@@ -17,8 +17,8 @@ function getOrCreateSheet(ss, name) {
   if (!sheet) {
     sheet = ss.insertSheet(name);
     if (name === SHEET_CONSIST) {
-      sheet.appendRow(['ID_Consistance','Date','Chef','Nb_Interventions','Créé_le','Realisees','Instances']);
-      sheet.getRange(1,1,1,7).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
+      sheet.appendRow(['ID_Consistance','Date','Nb_Interventions','Créé_le','Realisees','Instances']);
+      sheet.getRange(1,1,1,6).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('white');
     } else if (name === SHEET_INTERVENTIONS) {
       sheet.appendRow(['ID_Intervention','ID_Consistance','Date',
         'Type','Numero_Ligne','Nom_Client',
@@ -784,11 +784,10 @@ function getConsistIdx(sheet) {
   return {
     id:       h['ID_Consistance']   !== undefined ? h['ID_Consistance']   : 0,
     date:     h['Date']             !== undefined ? h['Date']             : 1,
-    chef:     h['Chef']             !== undefined ? h['Chef']             : 2,
-    nb:       h['Nb_Interventions'] !== undefined ? h['Nb_Interventions'] : 3,
-    creeLe:   h['Créé_le']          !== undefined ? h['Créé_le']          : 4,
-    realisees:h['Realisees']        !== undefined ? h['Realisees']        : 5,
-    instances:h['Instances']        !== undefined ? h['Instances']        : 6,
+    nb:       h['Nb_Interventions'] !== undefined ? h['Nb_Interventions'] : 2,
+    creeLe:   h['Créé_le']          !== undefined ? h['Créé_le']          : 3,
+    realisees:h['Realisees']        !== undefined ? h['Realisees']        : 4,
+    instances:h['Instances']        !== undefined ? h['Instances']        : 5,
     total:    sheet.getLastColumn()
   };
 }
@@ -1084,7 +1083,7 @@ function deleteClient(data) {
 // ============================================================
 function saveConsistance(data, session) {
   const sheet1 = s1(), sheet2 = s2(), sheet3 = s3();
-  const { date, chef, interventions } = data;
+  const { date, interventions } = data;
   const now = new Date().toLocaleString('fr-FR');
   const ci  = getConsistIdx(sheet1);
   ensureInvAuditCols(sheet2);
@@ -1110,7 +1109,6 @@ function saveConsistance(data, session) {
     const row1 = new Array(ci.total).fill('');
     row1[ci.id]   = consistId;
     row1[ci.date] = date;
-    row1[ci.chef] = chef;
     row1[ci.nb]   = interventions.length;
     row1[ci.creeLe] = now;
     sheet1.appendRow(row1);
@@ -1158,7 +1156,7 @@ function saveConsistance(data, session) {
     rowInv[ii.ville]        = inv.ville    || '';
     rowInv[ii.quartier]     = inv.quartier || '';
     rowInv[ii.duree]        = 0; // 0 à la création
-    if (ii.publiePar >= 0) rowInv[ii.publiePar] = session ? session.nom : (chef || '');
+    if (ii.publiePar >= 0) rowInv[ii.publiePar] = session ? session.nom : '';
     sheet2.appendRow(rowInv);
 
     // Upsert clients pour toute intervention identifiable (numéro de ligne
@@ -1267,7 +1265,7 @@ function getByDate(params) {
   let consist = null;
   for (let i = 1; i < cRows.length; i++) {
     if (normDate(cRows[i][ci.date]) === date) {
-      consist = { id:String(cRows[i][ci.id]), date, chef:String(cRows[i][ci.chef]) };
+      consist = { id:String(cRows[i][ci.id]), date };
       break;
     }
   }
@@ -1336,7 +1334,7 @@ function getAll(params) {
   for (let i = 1; i < cRows.length; i++) {
     const rd = normDate(cRows[i][ci.date]);
     if (rd) availableMonths.add(rd.substring(0,7));
-    consistMap[String(cRows[i][ci.id])] = { date: rd, chef: String(cRows[i][ci.chef]) };
+    consistMap[String(cRows[i][ci.id])] = { date: rd };
   }
 
   const allInvsMois = [];
@@ -1353,7 +1351,6 @@ function getAll(params) {
       id:           String(iRows[j][ii.id]),
       cid,
       date:         consist.date,
-      chef:         consist.chef,
       type:         String(iRows[j][ii.type]),
       num:          String(iRows[j][ii.num]),
       nom:          String(iRows[j][ii.nom]),
@@ -1415,7 +1412,7 @@ function getAll(params) {
     const cid = String(cRows[i][ci.id]);
     const rd  = normDate(cRows[i][ci.date]);
     if (monthFilter && rd.substring(0,7) !== monthFilter) continue;
-    ficheMap[cid] = { id:cid, date:rd, chef:String(cRows[i][ci.chef]), interventions:[] };
+    ficheMap[cid] = { id:cid, date:rd, interventions:[] };
   }
 
   Object.values(deduped).forEach(inv => {
@@ -1700,7 +1697,7 @@ function reporterInterventionsEnAttente() {
     for (let i=1; i<cRows.length; i++) {
       const d = normDate(cRows[i][ci.date]);
       if (d && d < todayStr) {
-        pastConsists.push({ id:String(cRows[i][ci.id]), date:d, chef:String(cRows[i][ci.chef]), rowIndex:i+1 });
+        pastConsists.push({ id:String(cRows[i][ci.id]), date:d, rowIndex:i+1 });
       }
     }
     if (pastConsists.length===0) return;
@@ -1749,7 +1746,7 @@ function reporterInterventionsEnAttente() {
       }
       if (!exists) {
         const row1 = new Array(ci.total).fill('');
-        row1[ci.id]=nextId; row1[ci.date]=targetDate; row1[ci.chef]=consist.chef;
+        row1[ci.id]=nextId; row1[ci.date]=targetDate;
         row1[ci.nb]=aReporter.length; row1[ci.creeLe]=now+' (report auto)';
         sheet1.appendRow(row1);
       } else {
@@ -2523,20 +2520,14 @@ function reparerInterventionsCoincees() {
   const now    = new Date().toLocaleString('fr-FR');
   const nextId = 'C_' + todayStr.replace(/-/g,'');
   const cRows2 = sheet1.getDataRange().getValues();
-  let exists=false, exRow=-1, exNb=0, chefDuJour='';
+  let exists=false, exRow=-1, exNb=0;
   for (let i=1; i<cRows2.length; i++) {
-    if (String(cRows2[i][ci.id])===nextId) { exists=true; exRow=i+1; exNb=Number(cRows2[i][ci.nb])||0; chefDuJour=String(cRows2[i][ci.chef]); break; }
-  }
-  if (!chefDuJour) {
-    // Chef du jour inconnu : reprendre celui de la fiche d'origine la plus récente
-    for (let i=1; i<cRows2.length; i++) {
-      if (String(cRows2[i][ci.id])===aDeplacer[0].consistId) { chefDuJour=String(cRows2[i][ci.chef]); break; }
-    }
+    if (String(cRows2[i][ci.id])===nextId) { exists=true; exRow=i+1; exNb=Number(cRows2[i][ci.nb])||0; break; }
   }
 
   if (!exists) {
     const row1 = new Array(ci.total).fill('');
-    row1[ci.id]=nextId; row1[ci.date]=todayStr; row1[ci.chef]=chefDuJour;
+    row1[ci.id]=nextId; row1[ci.date]=todayStr;
     row1[ci.nb]=aDeplacer.length; row1[ci.creeLe]=now+' (réparation)';
     sheet1.appendRow(row1);
   } else {
@@ -2617,6 +2608,20 @@ function migrerColonnesInterventions() {
   });
 
   return { success: true, pannesExtraites: extraites, colonnesSupprimees: supprimees };
+}
+
+// ============================================================
+//  MIGRATION — feuille Consistances (à exécuter UNE FOIS)
+//  Supprime la colonne Chef : la sélection du chef centre à la
+//  publication n'est plus demandée (le nom du publicateur reste
+//  tracé via Publié_par sur chaque intervention, colonne Interventions).
+// ============================================================
+function migrerColonnesConsistances() {
+  const sheet = s1();
+  const h = getColMap(sheet);
+  if (h['Chef'] === undefined) return { success: true, colonneSupprimee: false };
+  sheet.deleteColumn(h['Chef']+1);
+  return { success: true, colonneSupprimee: true };
 }
 
 // ============================================================
