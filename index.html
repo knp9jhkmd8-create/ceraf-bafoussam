@@ -567,6 +567,43 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <div class="card" style="padding:0;overflow:hidden;margin-top:14px;">
         <div id="admin-users-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
       </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" data-i18n="admin.addClient.title">➕ Ajouter un client en BD</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;" data-i18n="admin.addClient.sub">Enregistre directement dans la base clients — aucune intervention créée, rien dans la fiche du jour ni l'historique.</div>
+        <div class="form-row">
+          <div><label data-i18n="admin.client.type">Type de client</label>
+            <select id="adm-cli-type" onchange="admCliTypeChange()">
+              <option value="FTTH">FTTH</option>
+              <option value="CUIVRE">Cuivre</option>
+              <option value="LS">LS</option>
+            </select>
+          </div>
+          <div id="adm-cli-num-wrap"><label data-i18n="clients.th.num">N° Ligne</label><input id="adm-cli-num" maxlength="9" inputmode="numeric" oninput="filterDigits(this)" placeholder="Ex: 233445566"></div>
+          <div id="adm-cli-pop-wrap" style="display:none;"><label data-i18n="label.pop">POP</label>
+            <select id="adm-cli-pop">
+              <option value="" data-i18n="select.pop.default">-- Sélectionner POP --</option>
+              <option value="POP REGION">POP REGION</option>
+              <option value="POP FAISCEAU">POP FAISCEAU</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div><label data-i18n="common.name.label">Nom</label><input id="adm-cli-nom" placeholder="Ex: KAMDEM Paul"></div>
+          <div><label data-i18n="common.tel.label">Téléphone (9 chiffres)</label><input id="adm-cli-tel" maxlength="9" inputmode="numeric" oninput="filterDigits(this)" placeholder="678451495"></div>
+        </div>
+        <div class="form-row">
+          <div><label data-i18n="common.numSec.ph">Numéro secondaire (9 chiffres)</label><input id="adm-cli-tel2" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div><label data-i18n="common.ville.label">Ville</label>
+            <select id="adm-cli-ville"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="adm-cli-loc" placeholder="Localité" data-i18n-ph="common.localite.ph"></div>
+          <div><label data-i18n="label.gpsClient">Coordonnées GPS du client</label><input id="adm-cli-gps" placeholder="Ex: 5.476400, 10.419100"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="adminAddClientUI()" data-i18n="admin.client.saveBtn">💾 Enregistrer</button>
+      </div>
     </div>
 
   </div>
@@ -695,6 +732,13 @@ fr:{
   'clients.merge.keep':'Garder « {nom} »',
   'clients.merge.confirm':'Fusionner « {fusionne} » dans « {garde} » ?\nLes interventions LS de « {fusionne} » seront renommées.',
   'clients.merge.done':'✅ Fiches fusionnées',
+  'admin.addClient.title':'➕ Ajouter un client en BD',
+  'admin.addClient.sub':"Enregistre directement dans la base clients — aucune intervention créée, rien dans la fiche du jour ni l'historique.",
+  'admin.client.type':'Type de client',
+  'admin.client.nomRequired':'⚠️ Le nom est obligatoire',
+  'admin.client.existsConfirm':'Le numéro {num} existe déjà en base. Remplacer la fiche par ces informations ?',
+  'admin.client.saved':'✅ Client enregistré en BD',
+  'admin.client.saveBtn':'💾 Enregistrer',
   'clients.empty':'Aucun client enregistré.',
   'gps.viewLink':'📌 Voir',
   'terrain.title.html':'Fiche du <span id="terrain-date-title">Jour</span>',
@@ -921,6 +965,13 @@ en:{
   'clients.merge.keep':'Keep "{nom}"',
   'clients.merge.confirm':'Merge "{fusionne}" into "{garde}"?\nLS interventions of "{fusionne}" will be renamed.',
   'clients.merge.done':'✅ Records merged',
+  'admin.addClient.title':'➕ Add a customer to the DB',
+  'admin.addClient.sub':"Saves directly into the customer database — no intervention created, nothing in the daily sheet or history.",
+  'admin.client.type':'Customer type',
+  'admin.client.nomRequired':'⚠️ Name is required',
+  'admin.client.existsConfirm':'Number {num} already exists in the database. Replace the record with this information?',
+  'admin.client.saved':'✅ Customer saved to DB',
+  'admin.client.saveBtn':'💾 Save',
   'clients.empty':'No customers registered.',
   'gps.viewLink':'📌 View',
   'terrain.title.html':'Sheet for <span id="terrain-date-title">Today</span>',
@@ -1534,6 +1585,38 @@ async function adminAddUserUI(){
   if(res.success){showToast(t('toast.userCreated'));document.getElementById('adm-matricule').value='';document.getElementById('adm-nom').value='';document.getElementById('adm-pin').value='';loadAdminUsers();}
   else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
+// ── AJOUT DIRECT D'UN CLIENT EN BD (admin) — aucune intervention créée ──
+function admCliTypeChange(){
+  const ty=document.getElementById('adm-cli-type').value;
+  document.getElementById('adm-cli-num-wrap').style.display=ty==='LS'?'none':'';
+  document.getElementById('adm-cli-pop-wrap').style.display=ty==='LS'?'':'none';
+}
+async function adminAddClientUI(){
+  const g=id=>document.getElementById(id).value.trim();
+  const ty=g('adm-cli-type'),num=g('adm-cli-num'),nom=g('adm-cli-nom'),tel=g('adm-cli-tel'),
+        telSec=g('adm-cli-tel2'),loc=g('adm-cli-loc'),ville=g('adm-cli-ville'),
+        pop=g('adm-cli-pop'),gps=g('adm-cli-gps');
+  if(!nom){showToast(t('admin.client.nomRequired'));return;}
+  const quartier=detectQuartier(loc||'');
+  let res;
+  if(ty==='LS'){
+    res=await apiPost({action:'saveClientLs',nom,tel,telSec,loc,ville,quartier,pop,gps});
+  }else{
+    if(!num||num.length!==9){showToast(t('valid.numRequired'));return;}
+    // Une fiche existante serait entièrement remplacée par saveClient :
+    // demander confirmation plutôt que d'écraser silencieusement.
+    const ex=await apiGet({action:'findClient',num});
+    if(ex.success&&ex.found&&!confirm(t('admin.client.existsConfirm',{num})))return;
+    res=await apiPost({action:'saveClient',num,nom,tel,telSec,loc,ville,quartier,service:ty,gps});
+  }
+  if(res.success){
+    showToast(t('admin.client.saved'));
+    ['adm-cli-num','adm-cli-nom','adm-cli-tel','adm-cli-tel2','adm-cli-loc','adm-cli-gps'].forEach(id=>{document.getElementById(id).value='';});
+    document.getElementById('adm-cli-ville').value='';document.getElementById('adm-cli-pop').value='';
+  }
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
+}
+
 async function adminEditRolesUI(id,nom,currentRoles){
   const saisie=prompt(t('prompt.editRoles',{nom}),currentRoles.join(','));
   if(saisie===null)return;

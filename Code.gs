@@ -623,7 +623,7 @@ function doPost(e) {
       result = { success: false, error: 'Rôle non autorisé pour ce compte', authError: true };
     } else {
       const role = data.actingRole;
-      const CHEF_ONLY  = ['deleteClient','deleteIntervention','saveClient','mergeClientsLs'];
+      const CHEF_ONLY  = ['deleteClient','deleteIntervention','saveClient','saveClientLs','mergeClientsLs'];
       const ADMIN_ONLY = ['adminListUsers','adminAddUser','adminUpdateUser','adminDeleteUser','adminResetPin','adminRepairAgregats','adminRepairBase'];
 
       if (CHEF_ONLY.includes(data.action) && role === 'technicien') {
@@ -641,6 +641,7 @@ function doPost(e) {
       else if (data.action === 'getClients')         result = getClients();
       else if (data.action === 'findClient')         result = findClient(data);
       else if (data.action === 'saveClient')         result = saveClient(data);
+      else if (data.action === 'saveClientLs')       result = saveClientLs(data);
       else if (data.action === 'deleteClient')       result = deleteClient(data);
       else if (data.action === 'updateClientGPS')    result = updateClientGPS(data);
       else if (data.action === 'mergeClientsLs')     result = fusionnerClientsLs(data);
@@ -1067,6 +1068,20 @@ function saveClient(data) {
   sheet.appendRow(buildRow());
   sheet.autoResizeColumns(1, c.total);
   return { success: true, action: 'created' };
+}
+
+// ============================================================
+//  CLIENTS LS — sauvegarder (ajout direct en BD, sans intervention)
+//  Réutilise upsertClientLs_ : une fiche existante est complétée,
+//  jamais écrasée par du vide.
+// ============================================================
+function saveClientLs(data) {
+  if (!data.nom || !String(data.nom).trim()) return { success: false, error: 'Nom manquant' };
+  const action = upsertClientLs_({
+    nom: data.nom, tel: data.tel, telSec: data.telSec, loc: data.loc,
+    ville: data.ville, quartier: data.quartier, pop: data.pop, gps: data.gps
+  });
+  return { success: true, action };
 }
 
 // ============================================================
