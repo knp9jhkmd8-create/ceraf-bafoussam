@@ -498,6 +498,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       </div>
       <div class="client-search-bar">
         <input type="text" id="client-search" placeholder="🔍 Rechercher par numéro, nom, localité..." data-i18n-ph="clients.search.ph" oninput="filterClients()">
+        <button class="btn btn-ghost btn-sm" id="btn-merge-ls" style="display:none;" onclick="proposerFusionLs()" data-i18n="clients.merge.btn">🔗 Fusionner</button>
         <button class="btn btn-ghost btn-sm" onclick="refreshClients()" data-i18n="btn.refresh">↺ Actualiser</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
@@ -687,6 +688,13 @@ fr:{
   'clients.th.num':'N° Ligne','clients.th.nom':'Nom','clients.th.tel':'Téléphone','clients.th.tel2':'2ème contact',
   'clients.th.loc':'Localité','clients.th.ville':'Ville','clients.th.quartier':'Quartier','clients.th.service':'Service','clients.th.gps':'GPS',
   'clients.th.pop':'POP','clients.tab.ftth':'📡 FTTH / Cuivre','clients.tab.ls':'🔌 LS',
+  'clients.merge.btn':'🔗 Fusionner',
+  'clients.merge.title':'🔗 Fusion des fiches LS',
+  'clients.merge.none':'Aucun doublon probable parmi les clients LS.',
+  'clients.merge.found':'{n} doublon(s) probable(s) — choisissez l\'orthographe à conserver :',
+  'clients.merge.keep':'Garder « {nom} »',
+  'clients.merge.confirm':'Fusionner « {fusionne} » dans « {garde} » ?\nLes interventions LS de « {fusionne} » seront renommées.',
+  'clients.merge.done':'✅ Fiches fusionnées',
   'clients.empty':'Aucun client enregistré.',
   'gps.viewLink':'📌 Voir',
   'terrain.title.html':'Fiche du <span id="terrain-date-title">Jour</span>',
@@ -906,6 +914,13 @@ en:{
   'clients.th.num':'Line No.','clients.th.nom':'Name','clients.th.tel':'Phone','clients.th.tel2':'2nd contact',
   'clients.th.loc':'Location','clients.th.ville':'City','clients.th.quartier':'Neighborhood','clients.th.service':'Service','clients.th.gps':'GPS',
   'clients.th.pop':'POP','clients.tab.ftth':'📡 FTTH / Copper','clients.tab.ls':'🔌 LS',
+  'clients.merge.btn':'🔗 Merge',
+  'clients.merge.title':'🔗 Merge LS records',
+  'clients.merge.none':'No likely duplicates among LS customers.',
+  'clients.merge.found':'{n} likely duplicate(s) — choose the spelling to keep:',
+  'clients.merge.keep':'Keep "{nom}"',
+  'clients.merge.confirm':'Merge "{fusionne}" into "{garde}"?\nLS interventions of "{fusionne}" will be renamed.',
+  'clients.merge.done':'✅ Records merged',
   'clients.empty':'No customers registered.',
   'gps.viewLink':'📌 View',
   'terrain.title.html':'Sheet for <span id="terrain-date-title">Today</span>',
@@ -2082,6 +2097,8 @@ function setClientsView(v){
     const f=document.getElementById(idF),l=document.getElementById(idL);
     if(f){f.classList.toggle('active',v==='ftth');l.classList.toggle('active',v==='ls');}
   });
+  const mergeBtn=document.getElementById('btn-merge-ls');
+  if(mergeBtn)mergeBtn.style.display=(v==='ls'&&role==='chef')?'':'none';
   filterClients();filterClientsRO();
 }
 function clientsListFiltered(q){
@@ -2162,6 +2179,58 @@ function renderClientsLsTable(list,wrapId){
     </tr>`;
   });
   h+='</tbody></table>';wrap.innerHTML=h;
+}
+
+// ══════════════════════════════════════════════
+//  FUSION DES FICHES LS — le client LS étant identifié par son nom,
+//  une faute de frappe crée une seconde fiche. On détecte les paires
+//  de noms proches (Levenshtein, déjà utilisé pour les quartiers, +
+//  inclusion d'un nom dans l'autre) et le chef choisit l'orthographe
+//  à conserver ; le serveur fusionne fiches et interventions.
+// ══════════════════════════════════════════════
+function detecterDoublonsLs(){
+  const pairs=[];
+  for(let i=0;i<allClientsLsList.length;i++){
+    for(let j=i+1;j<allClientsLsList.length;j++){
+      const a=String(allClientsLsList[i].nom).trim().toUpperCase();
+      const b=String(allClientsLsList[j].nom).trim().toUpperCase();
+      const minLen=Math.min(a.length,b.length);
+      const d=levenshtein(a,b);
+      const seuil=minLen>=8?3:minLen>=5?2:1;
+      const inclusion=minLen>=5&&(a.includes(b)||b.includes(a));
+      if(d>0&&(d<=seuil||inclusion))pairs.push({a:allClientsLsList[i].nom,b:allClientsLsList[j].nom,d});
+    }
+  }
+  return pairs.sort((x,y)=>x.d-y.d);
+}
+function proposerFusionLs(){
+  const content=document.getElementById('quartier-modal-content');
+  const pairs=detecterDoublonsLs();
+  let h=`<div class="modal-title">${t('clients.merge.title')}</div>`;
+  if(pairs.length===0){
+    h+=`<div class="empty"><div class="eicon">✅</div><p>${t('clients.merge.none')}</p></div>`;
+  }else{
+    h+=`<div class="modal-body">${t('clients.merge.found',{n:pairs.length})}</div><div style="max-height:60vh;overflow-y:auto;">`;
+    pairs.forEach(p=>{
+      const ea=String(p.a).replace(/'/g,"\\'"),eb=String(p.b).replace(/'/g,"\\'");
+      h+=`<div class="inv-row"><div class="inv-info">
+        <div class="inv-name">${p.a} ↔ ${p.b}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+          <button class="btn btn-outline btn-sm" onclick="fusionnerLs('${ea}','${eb}')">${t('clients.merge.keep',{nom:p.a})}</button>
+          <button class="btn btn-outline btn-sm" onclick="fusionnerLs('${eb}','${ea}')">${t('clients.merge.keep',{nom:p.b})}</button>
+        </div></div></div>`;
+    });
+    h+=`</div>`;
+  }
+  h+=`<div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button></div>`;
+  content.innerHTML=h;
+  document.getElementById('modal-quartier').classList.add('active');
+}
+async function fusionnerLs(nomGarde,nomFusionne){
+  if(!confirm(t('clients.merge.confirm',{garde:nomGarde,fusionne:nomFusionne})))return;
+  const res=await apiPost({action:'mergeClientsLs',nomGarde,nomFusionne});
+  if(res.success){showToast(t('clients.merge.done'));closeQuartierModal();await refreshClients();}
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 
 // ══════════════════════════════════════════════

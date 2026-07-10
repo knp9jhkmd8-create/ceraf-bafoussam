@@ -623,7 +623,7 @@ function doPost(e) {
       result = { success: false, error: 'Rôle non autorisé pour ce compte', authError: true };
     } else {
       const role = data.actingRole;
-      const CHEF_ONLY  = ['deleteClient','deleteIntervention','saveClient'];
+      const CHEF_ONLY  = ['deleteClient','deleteIntervention','saveClient','mergeClientsLs'];
       const ADMIN_ONLY = ['adminListUsers','adminAddUser','adminUpdateUser','adminDeleteUser','adminResetPin','adminRepairAgregats','adminRepairBase'];
 
       if (CHEF_ONLY.includes(data.action) && role === 'technicien') {
@@ -643,6 +643,7 @@ function doPost(e) {
       else if (data.action === 'saveClient')         result = saveClient(data);
       else if (data.action === 'deleteClient')       result = deleteClient(data);
       else if (data.action === 'updateClientGPS')    result = updateClientGPS(data);
+      else if (data.action === 'mergeClientsLs')     result = fusionnerClientsLs(data);
       else if (data.action === 'deleteIntervention') result = deleteIntervention(data);
       else if (data.action === 'getClientHistory')   result = getClientHistory(data);
       else if (data.action === 'adminListUsers')     result = adminListUsers();
@@ -1219,6 +1220,56 @@ function upsertClientLs_(fields) {
   row[c.maj]      = now;
   sheet.appendRow(row);
   return 'created';
+}
+
+// ============================================================
+//  CLIENTS LS — fusionner deux fiches (doublon d'orthographe)
+//  La fiche « nomFusionne » est absorbée par « nomGarde » : les
+//  champs vides de la fiche gardée sont complétés depuis la fiche
+//  absorbée, les interventions LS de l'ancien nom sont renommées
+//  (l'historique par nom reste complet), puis la fiche absorbée
+//  est supprimée.
+// ============================================================
+function fusionnerClientsLs(data) {
+  const keyGarde = nomKeyLs_(data.nomGarde);
+  const keyFus   = nomKeyLs_(data.nomFusionne);
+  if (!keyGarde || !keyFus) return { success: false, error: 'Deux noms requis' };
+  if (keyGarde === keyFus)  return { success: false, error: 'Les deux noms sont identiques' };
+
+  const sheet = s3ls();
+  const c     = getClientsLsIdx(sheet);
+  const rows  = sheet.getDataRange().getValues();
+  let rowGarde = -1, rowFus = -1;
+  for (let i = 1; i < rows.length; i++) {
+    const k = nomKeyLs_(rows[i][c.nom]);
+    if (k === keyGarde) rowGarde = i;
+    else if (k === keyFus) rowFus = i;
+  }
+  if (rowGarde < 0 || rowFus < 0) {
+    return { success: false, error: 'Fiche introuvable : ' + (rowGarde < 0 ? data.nomGarde : data.nomFusionne) };
+  }
+
+  [c.tel, c.telSec, c.loc, c.ville, c.quartier, c.pop, c.gps].forEach(col => {
+    const garde = String(rows[rowGarde][col] || '').trim();
+    const fus   = String(rows[rowFus][col]   || '').trim();
+    if (!garde && fus) sheet.getRange(rowGarde+1, col+1).setValue(fus);
+  });
+  sheet.getRange(rowGarde+1, c.maj+1).setValue(new Date().toLocaleString('fr-FR'));
+  sheet.deleteRow(rowFus+1);
+
+  // Renommer les interventions LS de l'ancien nom pour que l'historique
+  // et les prochains upserts pointent sur la fiche conservée.
+  const sheet2 = s2();
+  const ii = getInvIdx(sheet2);
+  const iRows = sheet2.getDataRange().getValues();
+  let renommees = 0;
+  for (let i = 1; i < iRows.length; i++) {
+    if (typeToService(iRows[i][ii.type]) !== 'LS') continue;
+    if (nomKeyLs_(iRows[i][ii.nom]) !== keyFus) continue;
+    sheet2.getRange(i+1, ii.nom+1).setValue(keyGarde);
+    renommees++;
+  }
+  return { success: true, interventionsRenommees: renommees };
 }
 
 // ============================================================
