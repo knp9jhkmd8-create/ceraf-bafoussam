@@ -50,7 +50,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .role-tagline{color:var(--muted);font-size:.85rem;margin-bottom:40px;text-align:center;}
 .role-cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;max-width:460px;}
 .role-card{background:var(--surface);border:2px solid var(--border);border-radius:16px;padding:28px 20px;cursor:pointer;flex:1;min-width:170px;text-align:center;transition:all .25s;box-shadow:var(--shadow);}
-.role-card:hover{border-color:var(--blue-mid);transform:translateY(-3px);box-shadow:var(--shadow-md);}
+
 .role-card.chef{border-color:var(--blue-glow);}
 .r-icon{font-size:2.4rem;margin-bottom:12px;}
 .r-title{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:6px;}
@@ -73,12 +73,12 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .sync-lbl{font-size:.7rem;color:var(--muted);}
 .btn-switch{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:.72rem;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
-.btn-switch:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
+
 .btn-logout{border-color:var(--red);color:var(--red);}
-.btn-logout:hover{background:var(--red);color:#fff;}
+
 .nav-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;gap:2px;overflow-x:auto;}
 .nav-tab{padding:10px 12px;font-size:.8rem;font-weight:600;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;}
-.nav-tab:hover{color:var(--blue-mid);}.nav-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid);}
+.nav-tab.active{color:var(--blue-mid);border-bottom-color:var(--blue-mid);}
 
 #ptr-indicator{position:fixed;left:0;right:0;top:0;display:flex;align-items:flex-end;justify-content:center;height:calc(56px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);margin-top:calc(-56px - env(safe-area-inset-top,0px));z-index:200;pointer-events:none;transition:transform .2s ease,opacity .2s ease;opacity:0;}
 #ptr-indicator .ptr-spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--blue-glow);border-top-color:var(--blue-mid);transition:transform .1s linear;}
@@ -116,25 +116,25 @@ textarea{resize:vertical;min-height:60px;}
 .gps-row{display:flex;gap:6px;align-items:flex-end;}
 .gps-row input{flex:1;}
 .btn-gps{padding:9px 12px;border-radius:8px;background:var(--teal-lt);color:var(--teal);border:1.5px solid #a5f3fc;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;transition:all .2s;flex-shrink:0;}
-.btn-gps:hover{background:var(--teal);color:#fff;}
+
 .btn-gps:disabled{opacity:.5;cursor:not-allowed;}
 
 .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;}
 @media(max-width:480px){.type-grid{grid-template-columns:repeat(2,1fr);}}
 .type-card{background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .2s;}
-.type-card:hover,.type-card.selected{border-color:var(--blue-mid);background:var(--blue-lt);}
+.type-card.selected{border-color:var(--blue-mid);background:var(--blue-lt);}
 .tc-icon{font-size:1.35rem;margin-bottom:5px;}
 .tc-lbl{font-size:.7rem;font-weight:700;color:var(--muted);line-height:1.2;}
 .type-card.selected .tc-lbl{color:var(--blue-mid);}
 
 .btn{padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.84rem;font-weight:700;border:none;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
 .btn-primary{background:var(--blue-mid);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3);}
-.btn-primary:hover{background:var(--blue);}
+
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
 .btn-outline{background:transparent;color:var(--blue-mid);border:1.5px solid var(--blue-mid);}
-.btn-outline:hover{background:var(--blue-lt);}
+
 .btn-ghost{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);}
-.btn-ghost:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
+
 .btn-danger{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
 .btn-green{background:var(--green-lt);color:var(--green);border:1px solid #86efac;}
 .btn-sm{padding:5px 11px;font-size:.76rem;}
@@ -151,9 +151,9 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .clients-table{width:100%;border-collapse:collapse;font-size:.82rem;}
 .clients-table th{background:var(--blue-lt);color:var(--blue-mid);font-weight:700;padding:8px 10px;text-align:left;border-bottom:2px solid var(--blue-glow);font-size:.72rem;text-transform:uppercase;letter-spacing:.3px;}
 .clients-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
-.clients-table tr:hover td{background:var(--surface2);}
+
 .gps-link{font-size:.72rem;color:var(--teal);text-decoration:none;font-weight:600;}
-.gps-link:hover{text-decoration:underline;}
+
 .service-badge{padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;}
 .svc-ftth{background:var(--blue-lt);color:var(--blue-mid);border:1px solid var(--blue-glow);}
 .svc-ls{background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;}
@@ -209,7 +209,7 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 
 .month-label{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--blue-glow);}
 .hist-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:13px 16px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;transition:all .2s;box-shadow:var(--shadow);}
-.hist-card:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);transform:translateY(-1px);}
+
 .hc-date{font-weight:700;font-size:.92rem;color:var(--navy);}
 .hc-pills{display:flex;gap:6px;flex-wrap:wrap;}
 .pill{padding:2px 8px;border-radius:20px;font-size:.68rem;font-weight:700;}
@@ -219,13 +219,33 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .stat-num{font-family:'Fraunces',serif;font-size:1.9rem;font-weight:700;color:var(--blue-mid);}
 .stat-lbl{font-size:.7rem;color:var(--muted);margin-top:2px;}
 .qpill{display:inline-flex;align-items:center;gap:6px;background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;border-radius:20px;padding:4px 10px;font-size:.74rem;font-weight:700;margin:0 6px 6px 0;}
-.qpill-clickable{cursor:pointer;transition:all .2s;}.qpill-clickable:hover{background:var(--teal);color:#fff;}
+.qpill-clickable{cursor:pointer;transition:all .2s;}
 .qpill-active{background:var(--teal);color:#fff;border-color:var(--teal);cursor:default;}
 .qpill b{background:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;color:var(--teal);}
 .qpill-active b{background:rgba(255,255,255,0.25);color:#fff;}
 .qpill-clickable{cursor:pointer;transition:all .15s;}
+
+
+
+/* Effets de survol : uniquement pour les appareils a pointeur (souris).
+   Sur tactile, :hover se declenche au toucher et reste colle — une carte de
+   type effleuree semblait selectionnee alors qu une autre l etait. */
+@media(hover:hover){
+.role-card:hover{border-color:var(--blue-mid);transform:translateY(-3px);box-shadow:var(--shadow-md);}
+.btn-switch:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
+.btn-logout:hover{background:var(--red);color:#fff;}
+.nav-tab:hover{color:var(--blue-mid);}
+.btn-gps:hover{background:var(--teal);color:#fff;}
+.type-card:hover{border-color:var(--blue-mid);background:var(--blue-lt);}
+.btn-primary:hover{background:var(--blue);}
+.btn-outline:hover{background:var(--blue-lt);}
+.btn-ghost:hover{border-color:var(--blue-mid);color:var(--blue-mid);}
+.clients-table tr:hover td{background:var(--surface2);}
+.gps-link:hover{text-decoration:underline;}
+.hist-card:hover{border-color:var(--blue-mid);box-shadow:var(--shadow-md);transform:translateY(-1px);}
 .qpill-clickable:hover{background:var(--teal);color:#fff;transform:translateY(-1px);}
 .qpill-clickable:hover b{color:var(--teal);}
+}
 
 .modal-overlay{position:fixed;inset:0;background:rgba(15,32,87,.4);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
 .modal-overlay.active{display:flex;}
