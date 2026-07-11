@@ -3387,10 +3387,17 @@ function refreshCurrentPage(){
   else                       location.reload();
 }
 (function(){
-  const THRESHOLD=60, MAX_PULL=120;
+  // Seuil volontairement haut + amortissement : le doigt doit parcourir
+  // ~150px réels avant déclenchement (l'ancien réglage à 60px partait
+  // trop facilement en scrollant). AMORTI < 1 : l'indicateur descend
+  // moins vite que le doigt, ce qui donne une résistance naturelle.
+  const THRESHOLD=100, MAX_PULL=170, AMORTI=0.65;
   const ind=document.getElementById('ptr-indicator');
   if(!ind)return;
-  let startY=0, pulling=false, refreshing=false, curPull=0;
+  let startY=0, pulling=false, refreshing=false, curPull=0, vibre=false;
+
+  // Petite vibration (Android ; iOS ignore silencieusement)
+  function vibrer(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
 
   function anyModalOpen(){
     return !!document.querySelector('.modal-overlay[style*="flex"]');
@@ -3410,6 +3417,7 @@ function refreshCurrentPage(){
       ind.style.transform=`translateY(${THRESHOLD}px)`;
       ind.style.opacity=1;
       ind.classList.add('spin');
+      vibrer(35); // confirmation du rafraîchissement
       refreshCurrentPage();
       setTimeout(()=>{
         refreshing=false;
@@ -3431,6 +3439,7 @@ function refreshCurrentPage(){
     if(window.scrollY>0)return;
     startY=e.touches[0].clientY;
     curPull=0;
+    vibre=false;
     pulling=true;
   },{passive:true});
 
@@ -3438,10 +3447,13 @@ function refreshCurrentPage(){
     if(!pulling||refreshing)return;
     const dy=e.touches[0].clientY-startY;
     if(dy<=0||window.scrollY>0){curPull=0;ind.style.opacity=0;ind.style.transform='translateY(0)';return;}
-    curPull=Math.min(dy,MAX_PULL);
+    curPull=Math.min(dy*AMORTI,MAX_PULL);
     ind.style.opacity=Math.min(curPull/THRESHOLD,1);
     ind.style.transform=`translateY(${curPull}px)`;
-    ind.classList.toggle('spin',curPull>=THRESHOLD);
+    const arme=curPull>=THRESHOLD;
+    ind.classList.toggle('spin',arme);
+    if(arme&&!vibre){vibre=true;vibrer(15);} // tick : seuil atteint, relâcher rafraîchira
+    else if(!arme)vibre=false;
   },{passive:true});
 
   document.addEventListener('touchend',release,{passive:true});
