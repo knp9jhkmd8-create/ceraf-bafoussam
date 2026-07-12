@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  GESTIONNAIRE
+  AGENT
+  COMPTABLE
+}
+
+enum StatutLogement {
+  DISPONIBLE
+  OCCUPE
+  RESERVE
+  MAINTENANCE
+}
+
+enum StatutPaiement {
+  EN_ATTENTE
+  PAYE
+  ECHOUE
+  REMBOURSE
+}
+
+enum MoyenPaiement {
+  ORANGE_MONEY
+  MOBILE_MONEY
+  CARTE_BANCAIRE
+  ESPECES
+}
+
+enum StatutReservation {
+  EN_ATTENTE
+  CONFIRMEE
+  ANNULEE
+  TERMINEE
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(AGENT)
+  actif         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Residence {
+  id          String     @id @default(cuid())
+  nom         String
+  adresse     String
+  ville       String?
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  logements   Logement[]
+}
+
+model Logement {
+  id            String        @id @default(cuid())
+  residence     Residence     @relation(fields: [residenceId], references: [id], onDelete: Cascade)
+  residenceId   String
+  numero        String
+  type          String
+  capacite      Int           @default(1)
+  prixParNuit   Float         @default(0)
+  prixParMois   Float         @default(0)
+  statut        StatutLogement @default(DISPONIBLE)
+  description   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  occupants     Occupant[]
+  reservations  Reservation[]
+
+  @@unique([residenceId, numero])
+}
+
+model Occupant {
+  id           String    @id @default(cuid())
+  logement     Logement? @relation(fields: [logementId], references: [id])
+  logementId   String?
+  prenom       String
+  nom          String
+  telephone    String
+  email        String?
+  pieceIdentite String?
+  dateEntree   DateTime?
+  dateSortie   DateTime?
+  actif        Boolean   @default(true)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  logement        Logement          @relation(fields: [logementId], references: [id])
+  logementId      String
+  clientNom       String
+  clientTelephone String
+  clientEmail     String?
+  dateDebut       DateTime
+  dateFin         DateTime
+  montantTotal    Float
+  statut          StatutReservation @default(EN_ATTENTE)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  paiements       Paiement[]
+}
+
+model Paiement {
+  id            String         @id @default(cuid())
+  reservation   Reservation    @relation(fields: [reservationId], references: [id])
+  reservationId String
+  montant       Float
+  moyen         MoyenPaiement
+  statut        StatutPaiement @default(EN_ATTENTE)
+  reference     String         @unique
+  detailsMasque String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}

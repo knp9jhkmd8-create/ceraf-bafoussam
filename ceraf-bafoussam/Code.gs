@@ -11,6 +11,10 @@ const SHEET_INTERVENTIONS = 'Interventions';
 const SHEET_CLIENTS_FTTH   = 'Clients FTTH';
 const SHEET_CLIENTS_CUIVRE = 'Clients Cuivre';
 const SHEET_CLIENTS_LS     = 'Clients LS';
+// Depuis le 2026-07-12 : une résiliation Réalisée déplace physiquement la fiche
+// hors des feuilles actives vers cette feuille d'archive (avec motif + date),
+// tout en conservant les interventions (l'historique reste consultable).
+const SHEET_CLIENTS_RESILIES = 'Clients Résiliés';
 const SHEET_USERS         = 'Utilisateurs';
 const SESSION_DUREE_JOURS = 30; // durée de validité d'un token de session
 
@@ -35,6 +39,9 @@ function getOrCreateSheet(ss, name) {
     } else if (name === SHEET_CLIENTS_LS) {
       sheet.appendRow(['Nom','Telephone','Tel_Secondaire','Localite','Ville','Quartier','POP','GPS','Derniere_MAJ']);
       sheet.getRange(1,1,1,9).setFontWeight('bold').setBackground('#0891b2').setFontColor('white');
+    } else if (name === SHEET_CLIENTS_RESILIES) {
+      sheet.appendRow(['Service','Numero','Nom','Telephone','Tel_Secondaire','Localite','Ville','Quartier','POP','GPS','Motif','Date_Resiliation','Resilie_Par','Derniere_MAJ']);
+      sheet.getRange(1,1,1,14).setFontWeight('bold').setBackground('#b91c1c').setFontColor('white');
     } else if (name === SHEET_USERS) {
       sheet.appendRow(['ID','Nom','PIN_Hash','Role','Actif','Token','Token_Expire','Derniere_connexion']);
       sheet.getRange(1,1,1,8).setFontWeight('bold').setBackground('#7c3aed').setFontColor('white');
@@ -63,6 +70,7 @@ function s2()       { return getOrCreateSheet(getSS(), SHEET_INTERVENTIONS); }
 function s3ftth()   { return getOrCreateSheet(getSS(), SHEET_CLIENTS_FTTH); }
 function s3cuivre() { return getOrCreateSheet(getSS(), SHEET_CLIENTS_CUIVRE); }
 function s3ls()     { return getOrCreateSheet(getSS(), SHEET_CLIENTS_LS); }
+function s3res()    { return getOrCreateSheet(getSS(), SHEET_CLIENTS_RESILIES); }
 function s4()       { return getOrCreateSheet(getSS(), SHEET_USERS); }
 
 // Les deux feuilles clients à numéro de ligne, avec leur service dérivé.
@@ -585,13 +593,14 @@ function doGet(e) {
     } else {
       const role = wanted;
       // Actions réservées au chef centre / admin
-      if ((action === 'getAll' || action === 'getClients' || action === 'getClientHistory' || action === 'genererKpi') && role === 'technicien') {
+      if ((action === 'getAll' || action === 'getClients' || action === 'getClientsResilies' || action === 'getClientHistory' || action === 'genererKpi') && role === 'technicien') {
         result = { success: false, error: 'Accès réservé au chef centre' };
       }
       else if (action === 'getByDate')  result = getByDate(e.parameter);
       else if (action === 'genererKpi') result = genererRapportKpi(e.parameter.month);
       else if (action === 'getAll')     result = getAll(e.parameter);
       else if (action === 'getClients') result = getClients();
+      else if (action === 'getClientsResilies') result = getClientsResilies();
       else if (action === 'findClient') result = findClient(e.parameter);
       else if (action === 'getActiveInterventions') result = getActiveInterventions();
       else if (action === 'getClientHistory') result = getClientHistory(e.parameter);
@@ -734,10 +743,39 @@ function getClientsLsIdx(sheet) {
   };
 }
 
-// Clé de dédoublonnage d'un client LS : nom normalisé (majuscules, espaces
-// multiples réduits) — la casse et l'espacement varient à la saisie terrain.
-function nomKeyLs_(nom) {
-  return String(nom || '').trim().toUpperCase().replace(/\s+/g, ' ');
+// Feuille Clients Résiliés — archive : superset des colonnes FTTH/Cuivre/LS,
+// plus Service (l'origine), Motif, Date_Resiliation et Resilie_Par.
+function getClientsResIdx(sheet) {
+  const h = getColMap(sheet);
+  return {
+    service:  h['Service']          !== undefined ? h['Service']          : 0,
+    num:      h['Numero']           !== undefined ? h['Numero']           : 1,
+    nom:      h['Nom']              !== undefined ? h['Nom']              : 2,
+    tel:      h['Telephone']        !== undefined ? h['Telephone']        : 3,
+    telSec:   h['Tel_Secondaire']   !== undefined ? h['Tel_Secondaire']   : 4,
+    loc:      h['Localite']         !== undefined ? h['Localite']         : 5,
+    ville:    h['Ville']            !== undefined ? h['Ville']            : 6,
+    quartier: h['Quartier']         !== undefined ? h['Quartier']         : 7,
+    pop:      h['POP']              !== undefined ? h['POP']              : 8,
+    gps:      h['GPS']              !== undefined ? h['GPS']              : 9,
+    motif:    h['Motif']            !== undefined ? h['Motif']            : 10,
+    dateRes:  h['Date_Resiliation'] !== undefined ? h['Date_Resiliation'] : 11,
+    par:      h['Resilie_Par']      !== undefined ? h['Resilie_Par']      : 12,
+    maj:      h['Derniere_MAJ']     !== undefined ? h['Derniere_MAJ']     : 13,
+    total:    sheet.getLastColumn()
+  };
+}
+
+// Clé de dédoublonnage d'un client LS : Nom + Ville + Quartier normalisés
+// (majuscules, accents retirés, espaces réduits). Un même nom dans deux villes
+// ou deux quartiers = deux clients LS distincts (homonymes fréquents sur le
+// terrain). Ville/quartier absents (ancien cache, rétro-compat) → clé sur le
+// nom seul, comportement historique.
+function nomKeyLs_(nom, ville, quartier) {
+  const seg = (s) => sansAccents_(String(s || '')).trim().toUpperCase().replace(/\s+/g, ' ');
+  const n = seg(nom);
+  if (!n) return ''; // pas de nom → pas de clé (préserve les tests `if (nomLs)`)
+  return [n, seg(ville), seg(quartier)].join('|');
 }
 
 // Feuille Interventions
@@ -881,10 +919,12 @@ function getClients() {
     if (!num) continue;
     const statutInv = String(rows2[i][ii.statut]);
     const numKey = num.replace(/\s/g,'').toLowerCase();
-    if (statutInv === 'Réalisé') {
-      if (sansAccents_(rows2[i][ii.type]).toLowerCase().indexOf('resiliation') !== -1) resilies[numKey] = true;
-      continue;
-    }
+    // Filet de sécurité : un numéro ayant une résiliation (quel que soit le
+    // statut) est exclu des clients actifs. La fiche est normalement déjà
+    // déplacée vers « Clients Résiliés » à la publication ; ceci couvre les
+    // cas où le déplacement n'aurait pas eu lieu.
+    if (sansAccents_(rows2[i][ii.type]).toLowerCase().indexOf('resiliation') !== -1) resilies[numKey] = true;
+    if (statutInv === 'Réalisé') continue;
     activeInterventions.push({
       num:    numKey,
       type:   String(rows2[i][ii.type] || ''),
@@ -951,6 +991,41 @@ function getClients() {
 }
 
 // ============================================================
+//  CLIENTS RÉSILIÉS — liste d'archive (chef centre uniquement)
+//  Les interventions ne sont pas supprimées : l'historique de chaque
+//  résilié reste consultable via getClientHistory (par numéro pour
+//  FTTH/Cuivre, par nom+ville+quartier pour LS).
+// ============================================================
+function getClientsResilies() {
+  const sheet = s3res();
+  const r     = getClientsResIdx(sheet);
+  const rows  = sheet.getDataRange().getValues();
+  const out   = [];
+  for (let i = 1; i < rows.length; i++) {
+    const service = String(rows[i][r.service] || '').trim();
+    const num     = String(rows[i][r.num]     || '').trim();
+    const nom     = String(rows[i][r.nom]     || '').trim();
+    if (!num && !nom) continue;
+    out.push({
+      service,
+      num,
+      nom,
+      tel:      String(rows[i][r.tel]      || ''),
+      telSec:   String(rows[i][r.telSec]   || ''),
+      loc:      String(rows[i][r.loc]      || ''),
+      ville:    String(rows[i][r.ville]    || ''),
+      quartier: String(rows[i][r.quartier] || ''),
+      pop:      String(rows[i][r.pop]      || ''),
+      gps:      String(rows[i][r.gps]      || ''),
+      motif:    String(rows[i][r.motif]    || ''),
+      dateRes:  normDate(rows[i][r.dateRes]) || String(rows[i][r.dateRes] || ''),
+      par:      String(rows[i][r.par]      || '')
+    });
+  }
+  return { success: true, clientsResilies: out };
+}
+
+// ============================================================
 //  CLIENTS — chercher par numéro
 // ============================================================
 function findClient(params) {
@@ -995,7 +1070,7 @@ function getClientHistory(params) {
   // Mode LS : les interventions LS n'ont pas de numéro de ligne — le client
   // est retrouvé par nom normalisé, restreint aux types LS pour ne pas
   // capter un homonyme FTTH/Cuivre.
-  const nomLs = nomKeyLs_(params.nomLs);
+  const nomLs = nomKeyLs_(params.nomLs, params.villeLs, params.quartierLs);
   if (!num && !nomLs) return { success: false, error: 'Numéro manquant' };
 
   const sheet2 = s2();
@@ -1006,7 +1081,7 @@ function getClientHistory(params) {
   for (let j = 1; j < rows.length; j++) {
     if (nomLs) {
       if (typeToService(rows[j][ii.type]) !== 'LS') continue;
-      if (nomKeyLs_(rows[j][ii.nom]) !== nomLs) continue;
+      if (nomKeyLs_(rows[j][ii.nom], rows[j][ii.ville], rows[j][ii.quartier]) !== nomLs) continue;
     } else {
       const rowNum = String(rows[j][ii.num] || '').trim().replace(/\s/g,'');
       if (rowNum !== num) continue;
@@ -1056,6 +1131,86 @@ function trouverClientRow_(numClean) {
     }
   }
   return null;
+}
+
+// ============================================================
+//  RÉSILIATION — archiver (déplacer) la fiche client
+//  Déplace la fiche hors des feuilles actives (FTTH/Cuivre/LS) vers
+//  « Clients Résiliés » avec motif/date/auteur. NE TOUCHE PAS aux
+//  interventions : l'historique du client résilié reste consultable.
+//  Idempotent : si la fiche est déjà absente (déjà archivée), ne fait
+//  rien. Renvoie true si une fiche a été archivée.
+// ============================================================
+function archiverClientResilie_(info) {
+  const service = String(info.service || '').toUpperCase();
+  const now  = new Date().toLocaleString('fr-FR');
+  const dest = s3res();
+  const r    = getClientsResIdx(dest);
+
+  function pousserArchive(f) {
+    const row = new Array(r.total).fill('');
+    row[r.service]  = f.service  || service || '';
+    row[r.num]      = f.num      || '';
+    row[r.nom]      = f.nom      || '';
+    row[r.tel]      = f.tel      || '';
+    row[r.telSec]   = f.telSec   || '';
+    row[r.loc]      = f.loc      || '';
+    row[r.ville]    = f.ville    || '';
+    row[r.quartier] = f.quartier || '';
+    row[r.pop]      = f.pop      || '';
+    row[r.gps]      = f.gps      || '';
+    row[r.motif]    = info.motif || '';
+    row[r.dateRes]  = info.date  || now;
+    row[r.par]      = info.par   || '';
+    row[r.maj]      = now;
+    dest.appendRow(row);
+  }
+
+  if (service === 'LS') {
+    const key = nomKeyLs_(info.nom, info.ville, info.quartier);
+    if (!key) return false;
+    const sheetLs = s3ls();
+    const cl = getClientsLsIdx(sheetLs);
+    const rows = sheetLs.getDataRange().getValues();
+    for (let i = rows.length - 1; i >= 1; i--) {
+      if (nomKeyLs_(rows[i][cl.nom], rows[i][cl.ville], rows[i][cl.quartier]) === key) {
+        pousserArchive({
+          service:  'LS',
+          nom:      String(rows[i][cl.nom]      || ''),
+          tel:      String(rows[i][cl.tel]      || ''),
+          telSec:   String(rows[i][cl.telSec]   || ''),
+          loc:      String(rows[i][cl.loc]      || ''),
+          ville:    String(rows[i][cl.ville]    || ''),
+          quartier: String(rows[i][cl.quartier] || ''),
+          pop:      String(rows[i][cl.pop]      || ''),
+          gps:      String(rows[i][cl.gps]      || '')
+        });
+        sheetLs.deleteRow(i+1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // FTTH / Cuivre : retrouvés par numéro de ligne, feuille auto-détectée.
+  const numClean = String(info.num || '').trim().replace(/\s/g,'');
+  if (!numClean) return false;
+  const cible = trouverClientRow_(numClean);
+  if (!cible) return false;
+  const c = cible.c;
+  pousserArchive({
+    service:  cible.service,
+    num:      String(cible.row[c.num]      || ''),
+    nom:      String(cible.row[c.nom]      || ''),
+    tel:      String(cible.row[c.tel]      || ''),
+    telSec:   String(cible.row[c.telSec]   || ''),
+    loc:      String(cible.row[c.loc]      || ''),
+    ville:    String(cible.row[c.ville]    || ''),
+    quartier: String(cible.row[c.quartier] || ''),
+    gps:      String(cible.row[c.gps]      || '')
+  });
+  cible.sheet.deleteRow(cible.rowIndex);
+  return true;
 }
 
 // ============================================================
@@ -1119,10 +1274,10 @@ function updateClientGPS(data) {
   if (!num && data.nomLs) {
     const sheetLs = s3ls();
     const cl      = getClientsLsIdx(sheetLs);
-    const key     = nomKeyLs_(data.nomLs);
+    const key     = nomKeyLs_(data.nomLs, data.villeLs, data.quartierLs);
     const rowsLs  = sheetLs.getDataRange().getValues();
     for (let i = 1; i < rowsLs.length; i++) {
-      if (nomKeyLs_(rowsLs[i][cl.nom]) === key) {
+      if (nomKeyLs_(rowsLs[i][cl.nom], rowsLs[i][cl.ville], rowsLs[i][cl.quartier]) === key) {
         sheetLs.getRange(i+1, cl.gps+1).setValue(gps || '');
         sheetLs.getRange(i+1, cl.maj+1).setValue(new Date().toLocaleString('fr-FR'));
         return { success: true };
@@ -1146,7 +1301,7 @@ function updateClientGPS(data) {
 // ============================================================
 function deleteClient(data) {
   const num    = String(data.num || '').trim().replace(/\s/g,'');
-  const nomLs  = nomKeyLs_(data.nomLs); // mode LS : suppression par nom
+  const nomLs  = nomKeyLs_(data.nomLs, data.villeLs, data.quartierLs); // mode LS : suppression par Nom+Ville+Quartier
   const sheet1 = s1(), sheet2 = s2();
   const ci = getConsistIdx(sheet1);
   const ii = getInvIdx(sheet2);
@@ -1157,7 +1312,7 @@ function deleteClient(data) {
     const cl      = getClientsLsIdx(sheetLs);
     const rowsLs  = sheetLs.getDataRange().getValues();
     for (let i = rowsLs.length - 1; i >= 1; i--) {
-      if (nomKeyLs_(rowsLs[i][cl.nom]) === nomLs) {
+      if (nomKeyLs_(rowsLs[i][cl.nom], rowsLs[i][cl.ville], rowsLs[i][cl.quartier]) === nomLs) {
         sheetLs.deleteRow(i+1);
         clientFound = true;
         break;
@@ -1172,7 +1327,7 @@ function deleteClient(data) {
   // Cascade : mode LS = mêmes nom + type LS (pour épargner un homonyme
   // FTTH/Cuivre) ; mode numéro = même Numero_Ligne.
   const estCible = (row) => nomLs
-    ? (typeToService(row[ii.type]) === 'LS' && nomKeyLs_(row[ii.nom]) === nomLs)
+    ? (typeToService(row[ii.type]) === 'LS' && nomKeyLs_(row[ii.nom], row[ii.ville], row[ii.quartier]) === nomLs)
     : (String(row[ii.num] || '').trim().replace(/\s/g,'') === num);
 
   const iRows = sheet2.getDataRange().getValues();
@@ -1211,7 +1366,7 @@ function deleteClient(data) {
 //  une étude sans téléphone ne doit pas effacer le contact connu.
 // ============================================================
 function upsertClientLs_(fields) {
-  const key = nomKeyLs_(fields.nom);
+  const key = nomKeyLs_(fields.nom, fields.ville, fields.quartier);
   if (!key) return null;
   const sheet = s3ls();
   const c     = getClientsLsIdx(sheet);
@@ -1219,7 +1374,7 @@ function upsertClientLs_(fields) {
   const rows  = sheet.getDataRange().getValues();
 
   for (let i = 1; i < rows.length; i++) {
-    if (nomKeyLs_(rows[i][c.nom]) !== key) continue;
+    if (nomKeyLs_(rows[i][c.nom], rows[i][c.ville], rows[i][c.quartier]) !== key) continue;
     const setIfValue = (col, val) => {
       if (val && String(val).trim()) sheet.getRange(i+1, col+1).setValue(String(val).trim());
     };
@@ -1235,7 +1390,9 @@ function upsertClientLs_(fields) {
   }
 
   const row = new Array(c.total).fill('');
-  row[c.nom]      = key;
+  // Stocker le nom SIMPLE (majuscules, espaces réduits), plus la clé composite :
+  // Ville/Quartier vivent dans leurs propres colonnes et forment la clé.
+  row[c.nom]      = String(fields.nom || '').trim().toUpperCase().replace(/\s+/g, ' ');
   row[c.tel]      = fields.tel      || '';
   row[c.telSec]   = fields.telSec   || '';
   row[c.loc]      = fields.loc      || '';
@@ -1257,17 +1414,17 @@ function upsertClientLs_(fields) {
 //  est supprimée.
 // ============================================================
 function fusionnerClientsLs(data) {
-  const keyGarde = nomKeyLs_(data.nomGarde);
-  const keyFus   = nomKeyLs_(data.nomFusionne);
-  if (!keyGarde || !keyFus) return { success: false, error: 'Deux noms requis' };
-  if (keyGarde === keyFus)  return { success: false, error: 'Les deux noms sont identiques' };
+  const keyGarde = nomKeyLs_(data.nomGarde,    data.villeGarde, data.quartierGarde);
+  const keyFus   = nomKeyLs_(data.nomFusionne, data.villeFus,   data.quartierFus);
+  if (!keyGarde || !keyFus) return { success: false, error: 'Deux fiches requises' };
+  if (keyGarde === keyFus)  return { success: false, error: 'Les deux fiches sont identiques' };
 
   const sheet = s3ls();
   const c     = getClientsLsIdx(sheet);
   const rows  = sheet.getDataRange().getValues();
   let rowGarde = -1, rowFus = -1;
   for (let i = 1; i < rows.length; i++) {
-    const k = nomKeyLs_(rows[i][c.nom]);
+    const k = nomKeyLs_(rows[i][c.nom], rows[i][c.ville], rows[i][c.quartier]);
     if (k === keyGarde) rowGarde = i;
     else if (k === keyFus) rowFus = i;
   }
@@ -1281,18 +1438,25 @@ function fusionnerClientsLs(data) {
     if (!garde && fus) sheet.getRange(rowGarde+1, col+1).setValue(fus);
   });
   sheet.getRange(rowGarde+1, c.maj+1).setValue(new Date().toLocaleString('fr-FR'));
+
+  // Réaffecter les interventions LS de la fiche absorbée vers la fiche gardée :
+  // on aligne la clé COMPLÈTE (nom + ville + quartier) sur la fiche conservée,
+  // pour que l'historique et les prochains upserts pointent au bon endroit.
+  const nomGardeCell   = String(rows[rowGarde][c.nom]      || '');
+  const villeGardeCell = String(rows[rowGarde][c.ville]    || '');
+  const quartGardeCell = String(rows[rowGarde][c.quartier] || '');
   sheet.deleteRow(rowFus+1);
 
-  // Renommer les interventions LS de l'ancien nom pour que l'historique
-  // et les prochains upserts pointent sur la fiche conservée.
   const sheet2 = s2();
   const ii = getInvIdx(sheet2);
   const iRows = sheet2.getDataRange().getValues();
   let renommees = 0;
   for (let i = 1; i < iRows.length; i++) {
     if (typeToService(iRows[i][ii.type]) !== 'LS') continue;
-    if (nomKeyLs_(iRows[i][ii.nom]) !== keyFus) continue;
-    sheet2.getRange(i+1, ii.nom+1).setValue(keyGarde);
+    if (nomKeyLs_(iRows[i][ii.nom], iRows[i][ii.ville], iRows[i][ii.quartier]) !== keyFus) continue;
+    sheet2.getRange(i+1, ii.nom+1).setValue(nomGardeCell);
+    if (ii.ville    >= 0) sheet2.getRange(i+1, ii.ville+1).setValue(villeGardeCell);
+    if (ii.quartier >= 0) sheet2.getRange(i+1, ii.quartier+1).setValue(quartGardeCell);
     renommees++;
   }
   return { success: true, interventionsRenommees: renommees };
@@ -1337,6 +1501,10 @@ function saveConsistance(data, session) {
   // Pour chaque intervention
   interventions.forEach((inv, idx) => {
     const invId = consistId + '_' + (Date.now() + idx) + '_' + idx;
+    // Résiliation : action définitive, publiée directement « Réalisé » (pas de
+    // tâche en attente côté technicien) et la fiche client est archivée
+    // immédiatement (voir archiverClientResilie_ plus bas).
+    const estResiliation = sansAccents_(inv.typeLabel || inv.type).toLowerCase().indexOf('resiliation') !== -1;
 
     // Écriture dans Interventions via index dynamiques
     const rowInv = new Array(ii.total).fill('');
@@ -1346,7 +1514,7 @@ function saveConsistance(data, session) {
     rowInv[ii.type]         = inv.typeLabel || inv.type;
     rowInv[ii.num]          = inv.customerId ? inv.customerId : (inv.num||'');
     rowInv[ii.nom]          = inv.nom  || '';
-    rowInv[ii.statut]       = 'En attente';
+    rowInv[ii.statut]       = estResiliation ? 'Réalisé' : 'En attente';
     // Installation FTTH : le chef renseigne FDT/FAT (déterminés lors de l'étude
     // préalable) — encodés dans Remarque au même format que la fiche technicien.
     // Installation LS : GPS/chambre/remarque saisis au formulaire n'ont pas de
@@ -1357,6 +1525,7 @@ function saveConsistance(data, session) {
     if (inv.fat) remarqueParts.push('FAT: ' + String(inv.fat).trim());
     if (inv.gps) remarqueParts.push('GPS: ' + String(inv.gps).trim());
     if (inv.chambre) remarqueParts.push('Chambre: ' + String(inv.chambre).trim());
+    if (inv.motif) remarqueParts.push('Motif: ' + String(inv.motif).trim());
     if (inv.extra) remarqueParts.push('Remarque: ' + String(inv.extra).trim());
     // Clé de la fiche Client : numéro de ligne, sinon Customer ID (études
     // FTTH — pas encore de ligne). La jointure de lecture retrouve le
@@ -1378,6 +1547,27 @@ function saveConsistance(data, session) {
     rowInv[ii.duree]        = 0; // 0 à la création
     if (ii.publiePar >= 0) rowInv[ii.publiePar] = session ? session.nom : '';
     sheet2.appendRow(rowInv);
+    // Ligne résiliation créée « Réalisé » : la teinter en vert dès maintenant
+    // (formaterFeuille ne recolore pas par statut, seul updateStatus le fait).
+    if (estResiliation) {
+      sheet2.getRange(sheet2.getLastRow(), 1, 1, ii.total).setBackground('#dcfce7');
+    }
+
+    // Résiliation : ne PAS ré-injecter la fiche dans les feuilles actives —
+    // elle est au contraire retirée et archivée juste après.
+    if (estResiliation) {
+      archiverClientResilie_({
+        service:  typeToService(inv.typeLabel || inv.type),
+        num:      numKey,
+        nom:      inv.nom,
+        ville:    inv.ville,
+        quartier: inv.quartier,
+        motif:    inv.motif,
+        date:     date,
+        par:      session ? session.nom : ''
+      });
+      return; // intervention suivante — pas d'upsert client
+    }
 
     // Upsert clients pour toute intervention identifiable (numéro de ligne
     // réel, ou Customer ID pour les études) — c'est la fiche Client qui
