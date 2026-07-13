@@ -1538,14 +1538,22 @@ function startApp(r){
   document.getElementById('role-badge').textContent=badgeLbl+(SESSION_NOM?' — '+SESSION_NOM:'');
   document.getElementById('btn-role-switch').classList.toggle('hidden',AVAILABLE_ROLES.length<=1);
   const nav=document.getElementById('nav-bar');
+  // Hydratation instantanée du cache clients depuis localStorage (tous rôles) :
+  // autofill, doublons et GPS terrain fonctionnent sans attendre le réseau.
+  const hadClientsCache=hydrateClientsFromCache();
   if(r==='chef'){
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('chef',this)">${t('nav.chef')}</button>
       <button class="nav-tab" onclick="goPage('clients',this)">${t('nav.clients')}</button>
       <button class="nav-tab" onclick="goPage('historique',this)">${t('nav.historique')}</button>`;
     goPage('chef',nav.querySelector('.nav-tab'),false);
-    // Désactiver le bouton Ajouter jusqu'au chargement complet du cache
-    _setCacheLoading(true);
-    preloadClients().finally(()=>_setCacheLoading(false));
+    if(hadClientsCache){
+      // Cache dispo : bouton Ajouter actif tout de suite, refresh en arrière-plan
+      preloadClients();
+    } else {
+      // Premier démarrage (ou cache trop vieux) : bloquer Ajouter le temps du chargement
+      _setCacheLoading(true);
+      preloadClients().finally(()=>_setCacheLoading(false));
+    }
   } else if(r==='admin'){
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('admin',this)">${t('nav.admin')}</button>
       <button class="nav-tab" onclick="goPage('terrain',this)">${t('nav.terrain')}</button>`;
@@ -1702,15 +1710,50 @@ async function preloadClients(){
   if(data.clientsLs) buildClientsLsList(data.clientsLs);
   // Les interventions actives sont incluses dans la même réponse — pas d'appel séparé
   if(data.activeInterventions){
-    activeInterventionsCache={};
-    data.activeInterventions.forEach(item=>{
-      const key=item.num;
-      if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key].date){
-        activeInterventionsCache[key]={date:item.date,statut:item.statut};
-      }
-    });
+    buildActiveInterventionsCache(data.activeInterventions);
     console.log('[DOUBLON] Cache prêt —',Object.keys(activeInterventionsCache).length,'interventions actives');
   }
+  persistClientsCache_(data);
+}
+
+function buildActiveInterventionsCache(list){
+  activeInterventionsCache={};
+  (list||[]).forEach(item=>{
+    const key=item.num;
+    if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key].date){
+      activeInterventionsCache[key]={date:item.date,statut:item.statut};
+    }
+  });
+}
+
+// ── Cache clients persistant (stale-while-revalidate, comme le Terrain) ──
+// La réponse getClients est sauvegardée dans localStorage ; au démarrage on
+// l'hydrate instantanément (bouton Ajouter dispo tout de suite, autofill et
+// détection de doublons opérationnels) pendant que le réseau rafraîchit.
+const CLIENTS_CACHE_MAX_AGE=7*24*3600*1000;   // au-delà : cache ignoré au démarrage
+const CLIENTS_REFRESH_INTERVAL=10*60*1000;    // fraîcheur visée entre deux refreshs
+let clientsCacheSavedAt=0;
+function persistClientsCache_(data){
+  clientsCacheSavedAt=Date.now();
+  try{localStorage.setItem('ceraf_clients_cache',JSON.stringify({data,savedAt:clientsCacheSavedAt}));}catch(e){}
+}
+function hydrateClientsFromCache(){
+  try{
+    const cached=JSON.parse(localStorage.getItem('ceraf_clients_cache')||'null');
+    if(!cached||!cached.data) return false;
+    if(Date.now()-(cached.savedAt||0)>CLIENTS_CACHE_MAX_AGE) return false;
+    const data=cached.data;
+    if(!(data.clients||data.clientsFtth)) return false;
+    buildClientsCache(data);
+    if(data.clientsLs) buildClientsLsList(data.clientsLs);
+    if(data.activeInterventions) buildActiveInterventionsCache(data.activeInterventions);
+    clientsCacheSavedAt=cached.savedAt||0;
+    return true;
+  }catch(e){return false;}
+}
+function refreshClientsIfStale(){
+  // Lancé sans await : ne bloque jamais l'affichage
+  if(Date.now()-clientsCacheSavedAt>CLIENTS_REFRESH_INTERVAL) preloadClients();
 }
 
 async function preloadActiveInterventions(){
@@ -1718,13 +1761,7 @@ async function preloadActiveInterventions(){
   // uniquement comme fallback si le cache est vide au moment de addInv
   const data=await apiGet({action:'getClients'});
   if(data.success&&data.activeInterventions){
-    activeInterventionsCache={};
-    data.activeInterventions.forEach(item=>{
-      const key=item.num;
-      if(!activeInterventionsCache[key]||item.date<activeInterventionsCache[key].date){
-        activeInterventionsCache[key]={date:item.date,statut:item.statut};
-      }
-    });
+    buildActiveInterventionsCache(data.activeInterventions);
   }
 }
 function triParNum_(list){
@@ -2285,7 +2322,7 @@ async function publishConsistance(){
 // ══════════════════════════════════════════════
 async function refreshClients(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&(data.clients||data.clientsFtth)){buildClientsCache(data);buildClientsLsList(data.clientsLs||[]);loadClientsResilies();filterClients();showToast(t('toast.refreshed'));}
+  if(data.success&&(data.clients||data.clientsFtth)){buildClientsCache(data);buildClientsLsList(data.clientsLs||[]);persistClientsCache_(data);loadClientsResilies();filterClients();showToast(t('toast.refreshed'));}
 }
 // Liste d'archive des clients résiliés (chef centre uniquement)
 async function loadClientsResilies(){
@@ -2295,7 +2332,7 @@ async function loadClientsResilies(){
 }
 async function refreshClientsRO(){
   const data=await apiGet({action:'getClients'});
-  if(data.success&&(data.clients||data.clientsFtth)){buildClientsCache(data);buildClientsLsList(data.clientsLs||[]);filterClientsRO();showToast(t('toast.refreshed'));}
+  if(data.success&&(data.clients||data.clientsFtth)){buildClientsCache(data);buildClientsLsList(data.clientsLs||[]);persistClientsCache_(data);filterClientsRO();showToast(t('toast.refreshed'));}
 }
 // Bascule FTTH / Cuivre / LS — état partagé entre la page chef et la page
 // lecture seule (une seule des deux est visible à la fois).
@@ -2588,10 +2625,12 @@ async function loadTerrain(){
   }catch(e){}
   if(!hadCache) el.innerHTML=`<div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
 
-  // Charger la fiche du jour ET le cache clients en parallèle
+  // Charger la fiche du jour ET le cache clients en parallèle.
+  // Si le cache clients est déjà hydraté (localStorage), on ne bloque pas :
+  // simple refresh en arrière-plan s'il commence à dater.
   const [data] = await Promise.all([
     apiGet({action:'getByDate',date:iso}),
-    Object.keys(clientsCache).length===0 ? preloadClients() : Promise.resolve()
+    Object.keys(clientsCache).length===0 ? preloadClients() : Promise.resolve(refreshClientsIfStale())
   ]);
 
   if(!data.success){
