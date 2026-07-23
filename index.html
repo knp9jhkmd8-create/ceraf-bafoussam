@@ -799,6 +799,7 @@ fr:{
   'quartier.unidentified':'Quartier non identifié',
   'quartier.noIntervention':'Aucune intervention dans ce quartier.',
   'quartier.noVille':'Ville non précisée',
+  'quartier.sansQuartier':'Sans quartier',
   'common.today':"aujourd'hui",
   'common.thisMonth':'ce mois-ci',
   'btn.close':'Fermer',
@@ -1032,6 +1033,7 @@ en:{
   'quartier.unidentified':'Unidentified neighborhood',
   'quartier.noIntervention':'No intervention in this neighborhood.',
   'quartier.noVille':'City not specified',
+  'quartier.sansQuartier':'No neighborhood',
   'common.today':'today',
   'common.thisMonth':'this month',
   'btn.close':'Close',
@@ -1285,10 +1287,13 @@ let terrainInterventionsCache=[]; // pour la vue détail quartier côté terrain
 
 // Deux villes différentes peuvent avoir un quartier du même nom : on regroupe
 // donc par (quartier + ville), jamais par quartier seul, pour ne pas les confondre.
+const NO_Q='—'; // clé « sans quartier » (éventuellement suffixée par la ville, ex: "— (BAFOUSSAM)")
+function isNoQ(k){return k===NO_Q||k.startsWith(NO_Q+' (');}
 function quartierKey(i){
   const q=(i.quartier&&i.quartier!=='null'&&i.quartier!=='')?i.quartier:'';
-  if(!q)return'—';
   const v=(i.ville&&i.ville!=='null')?i.ville.trim():'';
+  // Sans quartier : on conserve la ville pour pouvoir regrouper « Sans quartier » par ville
+  if(!q)return v?NO_Q+' ('+v+')':NO_Q;
   return v?q+' ('+v+')':q;
 }
 // Extrait {quartier, ville} depuis une quartierKey ("QUARTIER (VILLE)" ou juste "QUARTIER")
@@ -1323,6 +1328,21 @@ function renderQuartierGroupsHTML(villeGroups,activeQ,onclickBuilder){
     ).join('');
     return `<div class="ville-group"><span class="ville-label">🏙️ ${ville} :</span> ${pills}</div>`;
   }).join('');
+}
+// Pastilles de la rubrique « Sans quartier » : une par ville (clés "— (VILLE)"),
+// la clé sans ville ("—") reléguée en dernier sous le libellé « ville non précisée ».
+function renderSansQuartierPills(qCSansQ,activeQ,onclickBuilder){
+  const noVille=t('quartier.noVille');
+  return Object.entries(qCSansQ).map(([qk,c])=>{
+    const{v}=parseQuartierKey(qk);
+    return[qk,v||noVille,c];
+  }).sort((a,b)=>{
+    if(a[1]===noVille&&b[1]!==noVille)return 1;
+    if(b[1]===noVille&&a[1]!==noVille)return-1;
+    return b[2]-a[2];
+  }).map(([qk,label,c])=>
+    `<span class="qpill${activeQ===qk?' qpill-active':' qpill-clickable'}" onclick="${onclickBuilder(qk)}">🏙️ ${label} <b>${c}</b></span>`
+  ).join('');
 }
 let clientsCache={}, allClientsList=[], allClientsFtthList=[], allClientsCuivreList=[], allClientsLsList=[], allClientsResList=[], clientsView='ftth';
 let activeInterventionsCache={}; // clé: num de ligne → {date,statut} (pour détection doublons)
@@ -1373,6 +1393,13 @@ window.onload=()=>{
   // connu plutôt que d'exiger un choix impossible à faire.
   if(AVAILABLE_ROLES.length===0 && role) AVAILABLE_ROLES=[role];
   setTodayDate();
+  // Auto-login (token déjà en localStorage) : on saute l'écran de connexion et
+  // donc son warmupBackend(). Sans ce ping, le tout premier getByDate de
+  // loadTerrain se prend le cold start Apps Script (10-30s) en entier → l'app
+  // paraît « hors ligne » puis se synchronise d'un coup. On réveille le
+  // conteneur ici, en parallèle du rendu de l'écran (le cache Terrain s'affiche
+  // déjà instantanément pendant que le conteneur chauffe).
+  if(SCRIPT_URL && TOKEN) warmupBackend();
   if(!SCRIPT_URL) show('setup-screen','flex');
   else if(!TOKEN)  show('login-screen','flex');
   else if(AVAILABLE_ROLES.length===0) show('login-screen','flex'); // aucune info exploitable
@@ -2703,13 +2730,15 @@ function renderTerrain(data){
 
   // Répartition par quartier ET par ville — cliquable
   const summaryEl=document.getElementById('terrain-quartier-summary');
-  const qCNoUnknown=Object.fromEntries(Object.entries(qC).filter(([q])=>q!=='—'));
-  const villeGroups=groupQuartierCountsByVille(qCNoUnknown);
+  const qCReal=Object.fromEntries(Object.entries(qC).filter(([q])=>!isNoQ(q)));
+  const qCSansQ=Object.fromEntries(Object.entries(qC).filter(([q])=>isNoQ(q)));
+  const villeGroups=groupQuartierCountsByVille(qCReal);
   if(actives.length>0){
     summaryEl.classList.remove('hidden');
     // "Tous" affiche le total global
     const allQBtnSimple=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">${t('common.all')} <b>${totalActif}</b></span>`;
     const qBtns=renderQuartierGroupsHTML(villeGroups,terrainQuartierFilter,qk=>`setTerrainFilter('q','${qk.replace(/'/g,"\\'")}')`);
+    const sansQPills=renderSansQuartierPills(qCSansQ,terrainQuartierFilter,qk=>`setTerrainFilter('q','${qk.replace(/'/g,"\\'")}')`);
 
     // Filtre par statut
     const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
@@ -2735,6 +2764,10 @@ function renderTerrain(data){
       <div class="card-title">${t('terrain.repartition.title')}</div>
       <div style="margin-bottom:6px">${allQBtnSimple}</div>
       <div style="margin-bottom:8px">${qBtns}</div>
+      ${sansQPills?`<div style="border-top:1px dashed var(--border);padding-top:8px;margin-top:4px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">📭 ${t('quartier.sansQuartier')}</div>
+        ${sansQPills}
+      </div>`:''}
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byStatus')}</div>
         ${allSBtn}${sBtns}
@@ -2796,10 +2829,12 @@ function renderByType(interventions){
 function renderByQuartier(interventions){
   const g={};
   interventions.forEach(i=>{const q=quartierKey(i);if(!g[q])g[q]=[];g[q].push(i);});
-  const keys=Object.keys(g).sort((a,b)=>{if(a==='—')return 1;if(b==='—')return-1;return a.localeCompare(b);});
+  const keys=Object.keys(g).sort((a,b)=>{const sa=isNoQ(a),sb=isNoQ(b);if(sa&&!sb)return 1;if(sb&&!sa)return-1;return a.localeCompare(b);});
   let h='';
   keys.forEach(q=>{
-    h+=`<div class="quartier-block"><div class="quartier-header">📌 ${q==='—'?t('quartier.unidentified'):q} <span style="opacity:.6;font-weight:400">(${g[q].length})</span></div>`;
+    let header=q;
+    if(isNoQ(q)){const{v}=parseQuartierKey(q);header=v?t('quartier.sansQuartier')+' — '+v:t('quartier.sansQuartier');}
+    h+=`<div class="quartier-block"><div class="quartier-header">📌 ${header} <span style="opacity:.6;font-weight:400">(${g[q].length})</span></div>`;
     const sg={};g[q].forEach(i=>{if(!sg[i.type])sg[i.type]=[];sg[i.type].push(i);});
     Object.keys(sg).forEach(gt=>{
       h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[gt]||'📋'} ${trType(gt)}</div>`;
@@ -3286,7 +3321,7 @@ function renderHistoForMonth(){
       if(ignore!=='s'&&activeS&&(SM[i.statut]||'pending')!==activeS)return;
       if(ignore!=='t'&&activeT&&i.type!==activeT)return;
       if(ignore!=='p'&&activeP&&panneKey(i)!==activeP)return;
-      if(ignore==='q') { const qk=quartierKey(i); if(qk!=='—') res[qk]=(res[qk]||0)+1; }
+      if(ignore==='q') { const qk=quartierKey(i); res[qk]=(res[qk]||0)+1; }
       else if(ignore==='s') { const sk=SM[i.statut]||'pending'; res[sk]=(res[sk]||0)+1; }
       else if(ignore==='t') res[i.type]=(res[i.type]||0)+1;
       else if(ignore==='p') { const pk=panneKey(i); if(pk) res[pk]=(res[pk]||0)+1; }
@@ -3298,9 +3333,11 @@ function renderHistoForMonth(){
   const sC=hCountWith('s');
   const tC=hCountWith('t');
   const pC=hCountWith('p');
-  const villeGroups=groupQuartierCountsByVille(qC);
+  const qCReal=Object.fromEntries(Object.entries(qC).filter(([q])=>!isNoQ(q)));
+  const qCSansQ=Object.fromEntries(Object.entries(qC).filter(([q])=>isNoQ(q)));
+  const villeGroups=groupQuartierCountsByVille(qCReal);
 
-  if(villeGroups.length>0){
+  if(Object.keys(qC).length>0){
     qw.classList.remove('hidden');
     const totalQ=Object.values(qC).reduce((a,b)=>a+b,0);
     const totalS=Object.values(sC).reduce((a,b)=>a+b,0);
@@ -3309,6 +3346,7 @@ function renderHistoForMonth(){
     // Filtre quartier, regroupé par ville
     const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">${t('common.all')} <b>${total}</b></span>`;
     const qBtns=renderQuartierGroupsHTML(villeGroups,activeQ,qk=>`filterHistoByQuartier('${qk.replace(/'/g,"\\'")}')`);
+    const sansQPills=renderSansQuartierPills(qCSansQ,activeQ,qk=>`filterHistoByQuartier('${qk.replace(/'/g,"\\'")}')`);
 
     // Filtre statut
     const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
@@ -3332,6 +3370,10 @@ function renderHistoForMonth(){
       <div class="card-title">${t('histo.repartition.title')}</div>
       <div style="margin-bottom:6px">${allBtn}</div>
       <div style="margin-bottom:8px">${qBtns}</div>
+      ${sansQPills?`<div style="border-top:1px dashed var(--border);padding-top:8px;margin-top:4px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">📭 ${t('quartier.sansQuartier')}</div>
+        ${sansQPills}
+      </div>`:''}
       <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byStatus')}</div>
         ${allSBtn}${sBtns}
