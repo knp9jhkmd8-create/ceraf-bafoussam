@@ -2099,18 +2099,39 @@ function genererKpiMoisPrecedentSiBesoin_() {
 }
 
 function reporterInterventionsEnAttente() {
+  // Throttle : ce balayage (report + agrégats + sauvegarde/KPI) n'a de sens
+  // qu'UNE fois par jour. Il est déclenché par le trigger de 1h ET par chaque
+  // getByDate (filet de sécurité au cas où le trigger n'aurait pas tourné).
+  // Sans throttle, chaque lancement d'app relisait TOUTE la feuille
+  // Interventions une fois par jour d'historique (boucle sur pastConsists),
+  // d'où un getByDate à ~5 s ressenti « lent / hors ligne ». Un marqueur
+  // "report:YYYY-MM-DD" dans _Config!B4 (B1=sauvegarde, B2=KPI sheet id,
+  // B3=marqueur KPI) sert de chemin rapide : une fois posé (par le trigger de
+  // nuit ou le 1er getByDate du jour), les appels suivants sortent
+  // immédiatement, sans lock ni relecture de feuille.
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = normDate(today);
+  try {
+    const cfg0 = getSS().getSheetByName('_Config');
+    if (cfg0 && String(cfg0.getRange('B4').getValue()) === 'report:' + todayStr) return;
+  } catch(e) {}
+
   const lock = LockService.getScriptLock();
   const gotLock = lock.tryLock(3000);
   if (!gotLock) return;
 
   try {
+    // Re-vérification sous le lock : une requête concurrente a pu poser le
+    // marqueur pendant qu'on attendait le lock (matinée : toute l'équipe ouvre
+    // l'app en même temps).
+    let cfg = getSS().getSheetByName('_Config');
+    if (cfg && String(cfg.getRange('B4').getValue()) === 'report:' + todayStr) return;
+
     try { sauvegardeHebdoSiDimanche(); } catch(e) { Logger.log('Sauvegarde: ' + e); }
     try { genererKpiMoisPrecedentSiBesoin_(); } catch(e) { Logger.log('KPI: ' + e); }
     const sheet1 = s1(), sheet2 = s2();
     const ci = getConsistIdx(sheet1);
     const ii = getInvIdx(sheet2);
-    const today = new Date(); today.setHours(0,0,0,0);
-    const todayStr = normDate(today);
 
     function nextWorkingDay(fromStr) {
       const [y,m,d] = fromStr.split('-').map(Number);
@@ -2118,6 +2139,12 @@ function reporterInterventionsEnAttente() {
       dt.setDate(dt.getDate()+1);
       while (dt.getDay()===0||dt.getDay()===6) dt.setDate(dt.getDate()+1);
       return normDate(dt);
+    }
+
+    // Pose le marqueur de throttle (chemin rapide pour les appels suivants du jour)
+    function marquerJour() {
+      if (!cfg) { cfg = getSS().getSheetByName('_Config') || getSS().insertSheet('_Config'); cfg.hideSheet(); }
+      cfg.getRange('B4').setValue('report:' + todayStr);
     }
 
     const cRows = sheet1.getDataRange().getValues();
@@ -2128,7 +2155,7 @@ function reporterInterventionsEnAttente() {
         pastConsists.push({ id:String(cRows[i][ci.id]), date:d, rowIndex:i+1 });
       }
     }
-    if (pastConsists.length===0) return;
+    if (pastConsists.length===0) { marquerJour(); return; }
 
     pastConsists.sort((a,b)=>a.date.localeCompare(b.date));
     const now = new Date().toLocaleString('fr-FR');
@@ -2219,6 +2246,7 @@ function reporterInterventionsEnAttente() {
     // avec la logique par date d'origine, immunisée contre le déplacement physique.
     moisAffectes.forEach(m => recalculerAgregatsMois(m));
 
+    marquerJour();
     Logger.log(totalReportees+' intervention(s) reportée(s).');
   } finally {
     lock.releaseLock();
