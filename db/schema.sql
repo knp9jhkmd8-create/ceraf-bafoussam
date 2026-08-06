@@ -100,9 +100,12 @@ CREATE TABLE interventions (
   statut_par        text REFERENCES utilisateurs(matricule),
   mis_a_jour_le     timestamptz NOT NULL DEFAULT now(),
   -- Rend la publication IDEMPOTENTE : saveConsistance faisait des appendRow
-  -- avec un ID Date.now()+idx, donc un rejeu après timeout DUPLIQUAIT la fiche.
-  -- Le front génère cet UUID et le conserve pendant ses retries.
-  client_request_id uuid UNIQUE,
+  -- avec un ID Date.now()+idx, donc un rejeu après timeout DUPLIQUAIT la fiche
+  -- du jour. Le front génère UN identifiant par publication et le conserve
+  -- pendant ses retries ; le backend le suffixe par le rang de l'intervention
+  -- dans le lot (« <uuid>:<idx> »). D'où `text` et non `uuid` : la valeur
+  -- porte ce suffixe.
+  client_request_id text UNIQUE,
   supprime_le       timestamptz
 );
 CREATE INDEX ON interventions (date)                WHERE supprime_le IS NULL;

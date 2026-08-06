@@ -346,6 +346,370 @@ async function updateStatus(d, ctx, session) {
   return { success: true };
 }
 
+const sansAccents = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+const serviceDuType = (t) => {
+  const s = String(t || '').toLowerCase();
+  if (s.includes('ftth')) return 'FTTH';
+  if (s.includes(' ls') || s.endsWith('ls')) return 'LS';
+  if (s.includes('cuivre')) return 'CUIVRE';
+  return 'FTTH';
+};
+
+// Publication de la fiche du jour.
+//
+// IDEMPOTENTE, contrairement à Apps Script : `clientRequestId` (UUID généré par
+// le front et conservé pendant ses retries) est unique en base. Un rejeu après
+// timeout ne duplique donc plus la fiche — c'était le risque le plus coûteux du
+// mode hors ligne.
+async function saveConsistance(d, ctx, session) {
+  const date = String(d.date || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Date invalide' };
+  const interventions = Array.isArray(d.interventions) ? d.interventions : [];
+  if (!interventions.length) return { success: false, error: 'Aucune intervention à publier' };
+
+  // Fiche du jour : créée si absente. `date` est UNIQUE, donc pas de course.
+  const consistId = 'C_' + date.replace(/-/g, '');
+  await sql(
+    `INSERT INTO consistances (id, date, publie_par) VALUES ($1, $2::date, $3)
+     ON CONFLICT (date) DO NOTHING`, [consistId, date, session.matricule]);
+  const c = await un('SELECT id FROM consistances WHERE date = $1::date', [date]);
+
+  const creees = [];
+  for (let idx = 0; idx < interventions.length; idx++) {
+    const inv = interventions[idx];
+    const type = inv.typeLabel || inv.type || '';
+    const service = serviceDuType(type);
+    const estResiliation = sansAccents(type).toLowerCase().includes('resiliation');
+
+    // Clé de la fiche client : numéro de ligne, sinon Customer ID (études FTTH,
+    // pas encore de ligne attribuée).
+    const numKey = String(inv.num || '').trim() || String(inv.customerId || '').trim();
+
+    // Remarque composée — format IDENTIQUE à Apps Script, sinon l'affichage
+    // technicien (displayRemarque) ne sait plus la relire.
+    const parts = [];
+    if (inv.fdt)     parts.push('FDT: ' + String(inv.fdt).trim());
+    if (inv.fat)     parts.push('FAT: ' + String(inv.fat).trim());
+    if (inv.gps)     parts.push('GPS: ' + String(inv.gps).trim());
+    if (inv.chambre) parts.push('Chambre: ' + String(inv.chambre).trim());
+    if (inv.motif)   parts.push('Motif: ' + String(inv.motif).trim());
+    if (inv.extra)   parts.push('Remarque: ' + String(inv.extra).trim());
+    // Sans clé, aucune fiche client ne peut porter le contact : on le garde
+    // dans la remarque plutôt que de le perdre.
+    if (!numKey) {
+      if (inv.tel)    parts.push('Tel: ' + String(inv.tel).trim());
+      if (inv.numSec) parts.push('Tel2: ' + String(inv.numSec).trim());
+      if (inv.loc)    parts.push('Localité: ' + String(inv.loc).trim());
+    }
+
+    const invId = c.id + '_' + (Date.now() + idx) + '_' + idx;
+    // Clé d'idempotence : le front envoie UN identifiant pour toute la
+    // publication et le conserve pendant ses retries ; on le suffixe par le
+    // rang de l'intervention dans le lot. La colonne est `text` et non `uuid`
+    // précisément pour porter ce suffixe.
+    const base = inv.clientRequestId || d.clientRequestId || '';
+    const reqId = base ? `${base}:${idx}` : null;
+
+    const insere = await sql(
+      `INSERT INTO interventions
+         (id, consistance_id, date, type, service, numero_ligne, nom_client, statut,
+          remarque, reporte_depuis, ville, quartier, publie_par, client_request_id)
+       VALUES ($1,$2,$3::date,$4,$5::service_t,$6,$7,$8::statut_t,$9,$10::date,$11,$12,$13,$14)
+       ON CONFLICT (client_request_id) DO NOTHING
+       RETURNING id`,
+      [invId, c.id, date, type, service, numKey || null, String(inv.nom || ''),
+       estResiliation ? 'Réalisé' : 'En attente', parts.join(' • ') || null,
+       inv.reporteDepuis || null, inv.ville || null, inv.quartier || null,
+       session.matricule, reqId]);
+    // Rejeu déjà enregistré : ON CONFLICT n'a rien inséré, on passe à la
+    // suivante sans refaire l'archivage ni l'upsert client.
+    if (!insere.length) continue;
+    creees.push(invId);
+
+    if (estResiliation) {
+      // Action définitive : la fiche part à l'archive et sort des actives.
+      await sql(
+        `INSERT INTO clients_resilies (service, numero, nom, ville, quartier, motif, date_resiliation, resilie_par)
+         VALUES ($1::service_t,$2,$3,$4,$5,$6,$7::date,$8)`,
+        [service, numKey || null, String(inv.nom || ''), inv.ville || null,
+         inv.quartier || null, inv.motif || null, date, session.matricule]);
+      if (numKey) await sql('UPDATE clients SET supprime_le = now() WHERE numero = $1', [numKey]);
+      continue;
+    }
+
+    // Upsert de la fiche client. Le « reclassement » entre services, qui
+    // imposait de DÉPLACER une ligne entre deux feuilles, n'est plus qu'un
+    // UPDATE de la colonne `service`.
+    if (numKey && service !== 'LS') {
+      await sql(
+        `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, derniere_maj)
+         VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8, now())
+         ON CONFLICT (numero) DO UPDATE SET
+           service        = EXCLUDED.service,
+           nom            = CASE WHEN $9 THEN EXCLUDED.nom       ELSE clients.nom END,
+           telephone      = CASE WHEN $9 THEN EXCLUDED.telephone ELSE clients.telephone END,
+           localite       = CASE WHEN $9 THEN EXCLUDED.localite  ELSE clients.localite END,
+           ville          = CASE WHEN $9 THEN EXCLUDED.ville     ELSE clients.ville END,
+           quartier       = CASE WHEN $9 THEN EXCLUDED.quartier  ELSE clients.quartier END,
+           -- Le numéro secondaire doit persister même hors mise à jour complète :
+           -- il n'était écrit qu'à la création dans l'ancien backend.
+           tel_secondaire = COALESCE(NULLIF(EXCLUDED.tel_secondaire, ''), clients.tel_secondaire),
+           supprime_le    = NULL,
+           derniere_maj   = now()`,
+        [numKey, service, String(inv.nom || '').toUpperCase(), inv.tel || null,
+         inv.numSec || null, inv.loc || null, inv.ville || null, inv.quartier || null,
+         !!inv.updateClient]);
+    } else if (service === 'LS' && String(inv.nom || '').trim()) {
+      // Clé métier LS = (nom, ville, quartier) normalisés, calculée par la base.
+      await sql(
+        `INSERT INTO clients_ls (nom, telephone, tel_secondaire, localite, ville, quartier, pop, gps, derniere_maj)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())
+         ON CONFLICT (cle_normalisee) WHERE supprime_le IS NULL DO UPDATE SET
+           telephone      = COALESCE(NULLIF(EXCLUDED.telephone, ''),      clients_ls.telephone),
+           tel_secondaire = COALESCE(NULLIF(EXCLUDED.tel_secondaire, ''), clients_ls.tel_secondaire),
+           localite       = COALESCE(NULLIF(EXCLUDED.localite, ''),       clients_ls.localite),
+           pop            = COALESCE(NULLIF(EXCLUDED.pop, ''),            clients_ls.pop),
+           gps            = COALESCE(NULLIF(EXCLUDED.gps, ''),            clients_ls.gps),
+           derniere_maj   = now()`,
+        [String(inv.nom).trim(), inv.tel || '', inv.numSec || '', inv.loc || '',
+         inv.ville || '', inv.quartier || '', inv.pop || '', inv.gps || '']);
+    }
+  }
+
+  ctx.entite = 'consistance'; ctx.entiteId = c.id;
+  ctx.apres = { date, publiees: creees.length, demandees: interventions.length };
+  return { success: true, consistId: c.id, publiees: creees.length };
+}
+
+// ── Clients ────────────────────────────────────────────────────────────────
+async function saveClient(d, ctx) {
+  const num = String(d.num || '').trim();
+  if (!num) return { success: false, error: 'Numéro manquant' };
+  const service = String(d.service || '').toUpperCase() === 'CUIVRE' ? 'CUIVRE' : 'FTTH';
+  const avant = await un('SELECT * FROM clients WHERE numero = $1', [num]);
+  await sql(
+    `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, gps, derniere_maj)
+     VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$9, now())
+     ON CONFLICT (numero) DO UPDATE SET
+       service=EXCLUDED.service, nom=EXCLUDED.nom, telephone=EXCLUDED.telephone,
+       tel_secondaire=EXCLUDED.tel_secondaire, localite=EXCLUDED.localite,
+       ville=EXCLUDED.ville, quartier=EXCLUDED.quartier,
+       gps=COALESCE(NULLIF(EXCLUDED.gps,''), clients.gps),
+       supprime_le=NULL, derniere_maj=now()`,
+    [num, service, String(d.nom || '').toUpperCase(), d.tel || null, d.telSec || null,
+     d.loc || null, d.ville || null, d.quartier || null, d.gps || '']);
+  ctx.entite = 'client'; ctx.entiteId = num; ctx.avant = avant;
+  return { success: true, action: avant ? 'maj' : 'created' };
+}
+
+async function saveClientLs(d, ctx) {
+  const nom = String(d.nom || '').trim();
+  if (!nom) return { success: false, error: 'Nom manquant' };
+  await sql(
+    `INSERT INTO clients_ls (nom, telephone, tel_secondaire, localite, ville, quartier, pop, gps, derniere_maj)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())
+     ON CONFLICT (cle_normalisee) WHERE supprime_le IS NULL DO UPDATE SET
+       telephone=COALESCE(NULLIF(EXCLUDED.telephone,''), clients_ls.telephone),
+       tel_secondaire=COALESCE(NULLIF(EXCLUDED.tel_secondaire,''), clients_ls.tel_secondaire),
+       localite=COALESCE(NULLIF(EXCLUDED.localite,''), clients_ls.localite),
+       pop=COALESCE(NULLIF(EXCLUDED.pop,''), clients_ls.pop),
+       gps=COALESCE(NULLIF(EXCLUDED.gps,''), clients_ls.gps),
+       derniere_maj=now()`,
+    [nom, d.tel || '', d.telSec || '', d.loc || '', d.ville || '', d.quartier || '', d.pop || '', d.gps || '']);
+  ctx.entite = 'client_ls'; ctx.entiteId = nom;
+  return { success: true };
+}
+
+async function updateClientGPS(d, ctx) {
+  const gps = String(d.gps || '').trim();
+  const num = String(d.num || '').trim();
+  const nomLs = String(d.nomLs || '').trim();
+  if (num) {
+    const r = await sql('UPDATE clients SET gps=$1, derniere_maj=now() WHERE numero=$2 RETURNING numero', [gps, num]);
+    if (!r.length) return { success: false, error: 'Client introuvable' };
+    ctx.entite = 'client'; ctx.entiteId = num;
+  } else if (nomLs) {
+    const r = await sql(
+      `UPDATE clients_ls SET gps=$1, derniere_maj=now()
+        WHERE lower(trim(nom))=lower(trim($2)) AND supprime_le IS NULL RETURNING id`, [gps, nomLs]);
+    if (!r.length) return { success: false, error: 'Client LS introuvable' };
+    ctx.entite = 'client_ls'; ctx.entiteId = nomLs;
+  } else return { success: false, error: 'Numéro ou nom requis' };
+  ctx.apres = { gps };
+  return { success: true };
+}
+
+// Suppression = ARCHIVAGE. Jamais de DELETE sec : une erreur reste rattrapable,
+// et le journal garde qui a fait quoi.
+async function deleteClient(d, ctx) {
+  const num = String(d.num || '').trim();
+  const nomLs = String(d.nomLs || '').trim();
+  if (num) {
+    const avant = await un('SELECT * FROM clients WHERE numero=$1 AND supprime_le IS NULL', [num]);
+    if (!avant) return { success: false, error: 'Client introuvable' };
+    await sql('UPDATE clients SET supprime_le=now() WHERE numero=$1', [num]);
+    // Cascade : les interventions du client partent aussi à l'archive, comme
+    // le faisait deleteClient dans Apps Script.
+    const inv = await sql('UPDATE interventions SET supprime_le=now() WHERE numero_ligne=$1 AND supprime_le IS NULL RETURNING id', [num]);
+    ctx.entite = 'client'; ctx.entiteId = num; ctx.avant = avant;
+    return { success: true, interventionsArchivees: inv.length };
+  }
+  if (nomLs) {
+    const avant = await un('SELECT * FROM clients_ls WHERE lower(trim(nom))=lower(trim($1)) AND supprime_le IS NULL', [nomLs]);
+    if (!avant) return { success: false, error: 'Client LS introuvable' };
+    await sql('UPDATE clients_ls SET supprime_le=now() WHERE id=$1', [avant.id]);
+    ctx.entite = 'client_ls'; ctx.entiteId = nomLs; ctx.avant = avant;
+    return { success: true };
+  }
+  return { success: false, error: 'Numéro ou nom requis' };
+}
+
+async function deleteIntervention(d, ctx) {
+  const id = String(d.invId || '').trim();
+  const avant = await un('SELECT * FROM interventions WHERE id=$1 AND supprime_le IS NULL', [id]);
+  if (!avant) return { success: false, error: 'Intervention introuvable' };
+  await sql('UPDATE interventions SET supprime_le=now() WHERE id=$1', [id]);
+  ctx.entite = 'intervention'; ctx.entiteId = id; ctx.avant = avant;
+  return { success: true };
+}
+
+// ── Administration ─────────────────────────────────────────────────────────
+async function adminListUsers() {
+  const u = await sql(
+    `SELECT u.matricule, u.nom, u.roles, u.actif, u.derniere_connexion, u.pin_hash,
+            (SELECT count(*) FROM sessions s
+              WHERE s.matricule=u.matricule AND s.revoquee_le IS NULL AND s.expire_le > now()) AS sessions_actives
+       FROM utilisateurs u WHERE u.supprime_le IS NULL ORDER BY u.nom`);
+  // `pinParDefaut` rend VISIBLE ce qui est resté invisible jusqu'à l'incident
+  // du 06/08 : un compte encore au PIN par défaut est bloqué et personne ne le
+  // savait.
+  const out = [];
+  for (const x of u) {
+    out.push({ id: x.matricule, nom: x.nom, roles: x.roles || [], actif: x.actif,
+      derniere: x.derniere_connexion, sessions: Number(x.sessions_actives),
+      pinParDefaut: await estPinDefaut(x.pin_hash) });
+  }
+  return { success: true, users: out };
+}
+
+const rolesValides = (r) => {
+  const l = (Array.isArray(r) ? r : String(r || '').split(','))
+    .map(x => String(x).trim()).filter(Boolean);
+  const u = [...new Set(l)];
+  return u.length && u.every(x => ['admin', 'chef', 'technicien'].includes(x)) ? u : null;
+};
+
+async function adminAddUser(d, ctx) {
+  const mat = String(d.matricule || d.id || '').trim();
+  const nom = String(d.nom || '').trim();
+  const pin = String(d.pin || '').trim() || DEFAULT_PIN;
+  const roles = rolesValides(d.roles !== undefined ? d.roles : (d.role || 'technicien'));
+  if (!mat) return { success: false, error: 'Matricule requis' };
+  if (!nom) return { success: false, error: 'Nom requis' };
+  if (!/^\d{4,6}$/.test(pin)) return { success: false, error: 'Le PIN doit contenir 4 à 6 chiffres' };
+  if (!roles) return { success: false, error: 'Rôle(s) invalide(s)' };
+  const existe = await un('SELECT matricule, supprime_le FROM utilisateurs WHERE matricule=$1', [mat]);
+  if (existe && !existe.supprime_le) return { success: false, error: 'Ce matricule existe déjà' };
+  if (existe) {
+    // Le compte existe mais est ARCHIVÉ. Comme les suppressions sont des
+    // archivages, son matricule resterait sinon inutilisable à vie, avec un
+    // « existe déjà » incompréhensible pour l'admin. On le réactive avec les
+    // nouvelles informations — l'historique de ses interventions reste
+    // rattaché, ce qui est le comportement souhaitable pour un matricule qui
+    // désigne une personne.
+    await sql(
+      `UPDATE utilisateurs SET nom=$2, pin_hash=$3, roles=$4::role_t[], actif=true, supprime_le=NULL
+        WHERE matricule=$1`, [mat, nom, await hacherPin(pin), roles]);
+    ctx.entite = 'utilisateur'; ctx.entiteId = mat; ctx.apres = { nom, roles, reactive: true };
+    return { success: true, reactive: true };
+  }
+  await sql(`INSERT INTO utilisateurs (matricule, nom, pin_hash, roles) VALUES ($1,$2,$3,$4::role_t[])`,
+    [mat, nom, await hacherPin(pin), roles]);
+  ctx.entite = 'utilisateur'; ctx.entiteId = mat; ctx.apres = { nom, roles };
+  return { success: true };
+}
+
+async function adminUpdateUser(d, ctx) {
+  const mat = String(d.id || d.matricule || '').trim();
+  const avant = await un('SELECT matricule, nom, roles, actif FROM utilisateurs WHERE matricule=$1', [mat]);
+  if (!avant) return { success: false, error: 'Utilisateur introuvable' };
+  const roles = d.roles !== undefined ? rolesValides(d.roles) : null;
+  if (d.roles !== undefined && !roles) return { success: false, error: 'Rôle(s) invalide(s)' };
+  await sql(
+    `UPDATE utilisateurs SET
+       nom   = COALESCE($2, nom),
+       roles = COALESCE($3::role_t[], roles),
+       actif = COALESCE($4, actif)
+     WHERE matricule = $1`,
+    [mat, d.nom ? String(d.nom).trim() : null, roles,
+     d.actif === undefined ? null : (d.actif === true || d.actif === 'true')]);
+  // Désactiver un compte doit couper ses sessions immédiatement.
+  if (d.actif === false || d.actif === 'false') {
+    await sql('UPDATE sessions SET revoquee_le=now() WHERE matricule=$1 AND revoquee_le IS NULL', [mat]);
+  }
+  ctx.entite = 'utilisateur'; ctx.entiteId = mat; ctx.avant = avant;
+  return { success: true };
+}
+
+async function adminDeleteUser(d, ctx, session) {
+  const mat = String(d.id || d.matricule || '').trim();
+  if (mat === session.matricule) return { success: false, error: 'Impossible de supprimer son propre compte' };
+  const avant = await un('SELECT matricule, nom, roles FROM utilisateurs WHERE matricule=$1 AND supprime_le IS NULL', [mat]);
+  if (!avant) return { success: false, error: 'Utilisateur introuvable' };
+  await sql('UPDATE utilisateurs SET supprime_le=now(), actif=false WHERE matricule=$1', [mat]);
+  await sql('UPDATE sessions SET revoquee_le=now() WHERE matricule=$1 AND revoquee_le IS NULL', [mat]);
+  ctx.entite = 'utilisateur'; ctx.entiteId = mat; ctx.avant = avant;
+  return { success: true };
+}
+
+async function adminResetPin(d, ctx) {
+  const mat = String(d.id || d.matricule || '').trim();
+  const pin = String(d.pin || '').trim() || DEFAULT_PIN;
+  if (!/^\d{4,6}$/.test(pin)) return { success: false, error: 'Le PIN doit contenir 4 à 6 chiffres' };
+  const r = await sql('UPDATE utilisateurs SET pin_hash=$1 WHERE matricule=$2 RETURNING matricule', [await hacherPin(pin), mat]);
+  if (!r.length) return { success: false, error: 'Utilisateur introuvable' };
+  // Un PIN réinitialisé par un tiers doit couper toutes les sessions.
+  await sql('UPDATE sessions SET revoquee_le=now() WHERE matricule=$1 AND revoquee_le IS NULL', [mat]);
+  ctx.entite = 'utilisateur'; ctx.entiteId = mat;
+  return { success: true };
+}
+
+// ── Onglet AUDIT ───────────────────────────────────────────────────────────
+async function adminSessions() {
+  const s = await sql(
+    `SELECT s.id, s.matricule, u.nom, s.cree_le, s.expire_le, s.dernier_acces, s.appareil
+       FROM sessions s JOIN utilisateurs u ON u.matricule = s.matricule
+      WHERE s.revoquee_le IS NULL AND s.expire_le > now()
+      ORDER BY s.dernier_acces DESC`);
+  return { success: true, sessions: s.map(x => ({ id: x.id, matricule: x.matricule, nom: x.nom,
+    creeLe: x.cree_le, expireLe: x.expire_le, dernierAcces: x.dernier_acces, appareil: x.appareil || '' })) };
+}
+
+async function adminRevoquerSession(d, ctx) {
+  const id = Number(d.sessionId);
+  if (!id) return { success: false, error: 'Session requise' };
+  const r = await sql('UPDATE sessions SET revoquee_le=now() WHERE id=$1 AND revoquee_le IS NULL RETURNING matricule', [id]);
+  if (!r.length) return { success: false, error: 'Session introuvable ou déjà révoquée' };
+  ctx.entite = 'session'; ctx.entiteId = String(id);
+  return { success: true, matricule: r[0].matricule };
+}
+
+async function adminAudit(d) {
+  const limite = Math.min(Math.max(Number(d.limite) || 100, 1), 500);
+  const lignes = await sql(
+    `SELECT id, ts, matricule, role_actif, action, entite, entite_id, avant, apres, succes, erreur, ip::text
+       FROM audit_log
+      WHERE ($1 = '' OR matricule = $1)
+        AND ($2 = '' OR action = $2)
+        AND ($3 = '' OR entite = $3)
+        AND ($4 = '' OR ts >= $4::date)
+        AND ($5 = '' OR ts < ($5::date + 1))
+      ORDER BY ts DESC LIMIT $6`,
+    [String(d.matricule || ''), String(d.actionFiltre || ''), String(d.entite || ''),
+     String(d.depuis || ''), String(d.jusqua || ''), limite]);
+  return { success: true, lignes };
+}
+
 // ============================================================================
 //  DISPATCH
 // ============================================================================
@@ -354,21 +718,19 @@ const CHEF_READ  = ['getAll', 'getClientHistory', 'getClientsResilies'];
 const ADMIN_ONLY = ['adminListUsers', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser',
                     'adminResetPin', 'adminAudit', 'adminSessions', 'adminRevoquerSession'];
 
-// Portées ici pour l'instant ; le reste des actions d'écriture (saveConsistance,
-// saveClient, gestion des utilisateurs, onglets Audit et Édition manuelle) est
-// à porter — le frontend continue de les servir via Apps Script tant qu'elles
-// ne sont pas listées ici, puisque la bascule se fait par URL et par appareil.
 const ACTIONS = {
   ping:               async () => ({ success: true, pong: true }),
-  login,
-  logout,
-  changePin,
-  getByDate,
-  getClients,
-  getAll,
-  getClientHistory,
-  getClientsResilies,
-  updateStatus
+  // Authentification
+  login, logout, changePin,
+  // Lectures
+  getByDate, getClients, getAll, getClientHistory, getClientsResilies,
+  // Écritures
+  updateStatus, saveConsistance, saveClient, saveClientLs, updateClientGPS,
+  deleteClient, deleteIntervention,
+  // Administration
+  adminListUsers, adminAddUser, adminUpdateUser, adminDeleteUser, adminResetPin,
+  // Onglet Audit — sans équivalent dans le backend Sheets
+  adminSessions, adminRevoquerSession, adminAudit
 };
 
 export default async (req, context) => {

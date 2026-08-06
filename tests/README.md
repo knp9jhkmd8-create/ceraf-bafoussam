@@ -5,9 +5,20 @@ déploiement live **est** la production. Ces scripts sont le premier filet
 automatisé — ils tournent avec node seul, sans dépendance à installer.
 
 ```bash
-node tests/test-auth.js          # logique d'authentification (Code.gs)
-node tests/check-inline-js.js index.html   # validité du JS inline du frontend
+# Backend Apps Script (l'ancien)
+node tests/test-auth.js
+node tests/check-inline-js.js index.html
+
+# API Neon/Netlify (le nouveau) — la chaîne de connexion est passée en
+# ARGUMENT, jamais écrite dans le dépôt.
+node tests/test-api-lectures.mjs  <fichier-conn> file:///<chemin>/netlify/functions/api.mjs
+node tests/test-api-ecritures.mjs <fichier-conn> file:///<chemin>/netlify/functions/api.mjs
+node tests/test-api-live.mjs      https://ceraf-bafoussam-api.netlify.app/api
 ```
+
+⚠️ **Ne jamais tuyauter ces tests vers `head`** : le SIGPIPE interrompt le
+script avant son nettoyage final, et il laisse alors des données de test en
+base (PIN modifié, interventions fictives). Rediriger vers un fichier.
 
 ## `test-auth.js`
 
@@ -33,3 +44,20 @@ Ce script extrait chaque bloc `<script>` et le passe au parseur avant
 publication.
 
 À lancer systématiquement avant un `git push` touchant `index.html`.
+
+## `test-api-lectures.mjs` / `test-api-ecritures.mjs`
+
+Chargent la vraie fonction `netlify/functions/api.mjs` avec un stub de l'objet
+global `Netlify`, et la font tourner **contre la vraie base**. 80 assertions au
+total : verrou `mustChangePin`, sessions et révocation, contrôle des rôles,
+comptes clients exacts, dédoublonnage mensuel, idempotence de `saveConsistance`
+et d'`updateStatus`, reclassement de service, suppression = archivage,
+administration des utilisateurs, onglet Audit.
+
+Les deux harnais **restaurent tout ce qu'ils modifient** et vérifient en fin de
+parcours qu'ils n'ont laissé aucune fiche résiduelle.
+
+## `test-api-live.mjs`
+
+Même principe mais contre l'API **déployée**, en HTTP. Mesure aussi la latence
+client et la sépare du temps serveur (`_ms` renvoyé par l'API).
