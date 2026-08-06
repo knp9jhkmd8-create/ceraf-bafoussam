@@ -39,6 +39,13 @@ self.addEventListener('fetch', e => {
   // Ne jamais intercepter les requêtes Apps Script
   if (url.hostname.includes('script.google.com')) return;
 
+  // Ne JAMAIS intercepter la sonde de connectivité (ping.txt?p=…). Elle n'est
+  // pas dans CACHE_FILES aujourd'hui, donc elle passe déjà au réseau — mais si
+  // quelqu'un l'y ajoutait un jour, le cache répondrait et la sonde MENTIRAIT
+  // (« en ligne » alors qu'on est hors ligne). Bug quasi indiagnosticable plus
+  // tard : on ferme la porte tout de suite.
+  if (url.searchParams.has('p')) return;
+
   // Pour index.html et manifest.json : NETWORK-FIRST — on tente le réseau
   // d'abord (toujours la dernière version en ligne), on met à jour le cache
   // au passage, et on ne retombe sur le cache qu'en cas d'échec réseau
@@ -49,12 +56,22 @@ self.addEventListener('fetch', e => {
       || url.pathname.endsWith('/')) {
     e.respondWith(
       caches.open(CACHE_VERSION).then(cache =>
-        // cache:'reload' force le navigateur à ignorer son propre cache HTTP
-        // (pas seulement notre Cache API) — sans ça, une PWA iOS ajoutée à
-        // l'écran d'accueil peut rester bloquée sur une version ancienne
-        // même quand ce fetch "réseau" s'exécute, si le HTTP cache du
-        // WebView sert une réponse périmée.
-        fetch(e.request, { cache: 'reload' })
+        // cache:'no-cache' — et NON 'reload'.
+        //
+        //   'reload'   ignore le cache HTTP ET ses validateurs → les 213 Ko
+        //              d'index.html étaient RETÉLÉCHARGÉS EN ENTIER à chaque
+        //              lancement de l'app, de façon bloquante, avant qu'une
+        //              seule ligne de JS ne s'exécute.
+        //   'no-cache' force la REVALIDATION mais envoie If-None-Match.
+        //              GitHub Pages renvoie un ETag → 304, ~200 octets.
+        //
+        // La propriété qui motivait 'reload' est strictement préservée : on
+        // revalide toujours auprès du serveur, donc une PWA iOS ne peut pas
+        // rester bloquée sur une version périmée servie par le cache du
+        // WebView. C'est toujours du network-first, un déploiement est
+        // toujours vu immédiatement — on économise juste le corps de la
+        // réponse quand rien n'a changé.
+        fetch(e.request, { cache: 'no-cache' })
           .then(response => {
             cache.put(e.request, response.clone());
             return response;
