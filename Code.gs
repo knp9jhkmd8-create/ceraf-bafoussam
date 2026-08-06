@@ -16,7 +16,7 @@ const SHEET_CLIENTS_LS     = 'Clients LS';
 // tout en conservant les interventions (l'historique reste consultable).
 const SHEET_CLIENTS_RESILIES = 'Clients Résiliés';
 const SHEET_USERS         = 'Utilisateurs';
-const SESSION_DUREE_JOURS = 30; // durée de validité d'un token de session
+const SESSION_DUREE_JOURS = 7; // durée de validité d'un token de session
 
 // ============================================================
 //  HELPER — obtenir/créer une feuille automatiquement
@@ -109,16 +109,100 @@ function hashPin(pin, salt) {
   const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(pin) + ':' + salt);
   return digest.map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('');
 }
-// Sel fixe par déploiement — suffisant ici car le secret réel est le PIN
-// combiné à l'accès physique au Sheet, pas le sel lui-même.
+// Sel fixe par déploiement — UNIQUEMENT pour les comptes créés avant la
+// migration vers le sel par utilisateur (format "<hash>:<sel>"). Le secret
+// réel reste le PIN, mais un sel fixe public rend le précalcul des hash d'un
+// PIN court trivial.
 const PIN_SALT = 'ceraf-bafoussam-2026';
 
-// PIN attribué par défaut à tout nouveau compte. La connexion signale
-// mustChangePin tant que le PIN reste celui-ci, pour proposer (sans forcer)
-// à l'utilisateur de le personnaliser après sa première connexion.
+// PIN attribué par défaut à tout nouveau compte. La connexion renvoie
+// mustChangePin tant que le PIN reste celui-ci, et doPost BLOQUE toutes les
+// actions hors changePin/logout tant qu'il n'a pas été personnalisé.
 const DEFAULT_PIN = '0000';
-function isDefaultPin(hash) {
-  return hash === hashPin(DEFAULT_PIN, PIN_SALT);
+
+// Découpe une valeur PIN_Hash stockée au format "<hash>:<sel>". Les comptes
+// existants (hex simple, sans ':') retombent sur PIN_SALT — compatible rétro.
+function parsePinHash(stored) {
+  const s = String(stored || '');
+  const idx = s.lastIndexOf(':');
+  if (idx > 0 && idx < s.length - 1) return { hash: s.slice(0, idx), salt: s.slice(idx + 1) };
+  return { hash: s, salt: PIN_SALT };
+}
+
+// Hash d'un nouveau PIN avec un sel aléatoire par utilisateur, stocké avec
+// le sel : "<hash>:<sel>". Neutralise le précalcul de table rainbow.
+function hacherPin(pin) {
+  const salt = Utilities.getUuid().slice(0, 8);
+  return hashPin(pin, salt) + ':' + salt;
+}
+
+// Vérifie un PIN saisi contre la valeur stockée (avec ou sans sel intégré).
+function verifierPin(stored, pin) {
+  const { hash, salt } = parsePinHash(stored);
+  return Boolean(hash) && hash === hashPin(pin, salt);
+}
+
+function isDefaultPin(stored) {
+  return verifierPin(stored, DEFAULT_PIN);
+}
+
+// ── RATE-LIMITING LOGIN ─────────────────────────────
+// CacheService est partagé entre toutes les exécutions du script (contrairement
+// aux variables globales) : les compteurs survivent aux cold starts et aux
+// requêtes concurrentes. Après 5 échecs consécutifs sur un matricule, on bloque
+// ce matricule pendant 15 minutes.
+const LOGIN_MAX_ECHECS = 5;      // échecs consécutifs autorisés par matricule
+const LOGIN_FENETRE_S  = 900;    // fenêtre de comptage (15 min)
+function tentativesEchec_(key) {
+  return Number(CacheService.getScriptCache().get(key) || 0);
+}
+function compteEchec_(key) {
+  const cache = CacheService.getScriptCache();
+  cache.put(key, tentativesEchec_(key) + 1, LOGIN_FENETRE_S);
+}
+function effaceEchecs_(key) {
+  CacheService.getScriptCache().remove(key);
+}
+
+// ── SÉRIALISATION DES ÉCRITURES ─────────────────────
+// LockService.getScriptLock() est partagé par toutes les exécutions du script
+// (chaque requête webapp = thread séparé) : il protège les lecture-modif-écriture
+// contre les écritures concurrentes (deux techniciens sur la même fiche, ou le
+// report nocturne pendant une mise à jour). En cas d'échec d'obtention du verrou,
+// on renvoie { success:false, retry:true } pour que le frontend réessaie.
+function withEcritureLock_(fn, timeoutMs) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(timeoutMs || 15000)) {
+    return { success: false, error: 'Feuille occupée — réessayez', retry: true };
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ── INJECTION DE FORMULE SHEETS (CWE-1236) ──────────
+// Un texte utilisateur commençant par = + - @ serait interprété comme une
+// formule par Google Sheets (setValue("=...") crée une formule). On préfixe
+// d'une apostrophe à l'écriture et on la retire à la lecture (depolluer_).
+function protegerCellule_(v) {
+  const s = String(v == null ? '' : v);
+  if (!s) return s;
+  const c = s.charAt(0);
+  return (c === '=' || c === '+' || c === '-' || c === '@') ? "'" + s : s;
+}
+// Variante pour champs structurés (numéro de ligne, téléphone, GPS) : on
+// n'échappe que = et @ pour ne pas casser les numéros de téléphone "+237…".
+function protegerChampStrict_(v) {
+  const s = String(v == null ? '' : v);
+  if (!s) return s;
+  const c = s.charAt(0);
+  return (c === '=' || c === '@') ? "'" + s : s;
+}
+function depolluer_(v) {
+  const s = String(v == null ? '' : v);
+  return (s.charAt(0) === "'" && s.length > 1) ? s.slice(1) : s;
 }
 
 function generateToken() {
@@ -145,7 +229,7 @@ function resolveSession(token) {
       const exp = rows[i][u.tokenExp];
       if (!(exp instanceof Date) || exp < now) return null; // expiré
       if (String(rows[i][u.actif]) === 'false') return null; // désactivé
-      return { id: String(rows[i][u.id]), nom: String(rows[i][u.nom]), roles: parseRoles(rows[i][u.role]) };
+      return { id: String(rows[i][u.id]), nom: String(rows[i][u.nom]), roles: parseRoles(rows[i][u.role]), mustChangePin: isDefaultPin(rows[i][u.pinHash]) };
     }
   }
   return null;
@@ -160,31 +244,41 @@ function loginUser(data) {
   const pin = String(data.pin || '').trim();
   if (!matricule || !pin) return { success: false, error: 'Matricule et PIN requis' };
 
+  // Rate-limiting : blocage temporaire d'un matricule après trop d'échecs.
+  const cleEchecs = 'login_echecs_' + matricule.toLowerCase();
+  if (tentativesEchec_(cleEchecs) >= LOGIN_MAX_ECHECS) {
+    return { success: false, error: 'Trop de tentatives — réessayez dans quelques minutes', retryAfter: true };
+  }
+
   const sheet = s4();
   const u = getUsersIdx(sheet);
   const rows = sheet.getDataRange().getValues();
-  const hash = hashPin(pin, PIN_SALT);
 
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][u.id]).trim() === matricule) {
       if (String(rows[i][u.actif]) === 'false') return { success: false, error: 'Compte désactivé' };
-      if (String(rows[i][u.pinHash]) !== hash) return { success: false, error: 'PIN incorrect' };
+      if (!verifierPin(rows[i][u.pinHash], pin)) {
+        compteEchec_(cleEchecs);
+        return { success: false, error: 'PIN incorrect' };
+      }
 
+      effaceEchecs_(cleEchecs);
       const token = generateToken();
       const expire = new Date();
       expire.setDate(expire.getDate() + SESSION_DUREE_JOURS);
       sheet.getRange(i+1, u.token+1).setValue(token);
       sheet.getRange(i+1, u.tokenExp+1).setValue(expire);
-      sheet.getRange(i+1, u.derniereConn+1).setValue(new Date().toLocaleString('fr-FR'));
+      sheet.getRange(i+1, u.derniereConn+1).setValue(normDate(new Date()));
 
       return {
         success: true, token,
         nom: String(rows[i][u.nom]),
         roles: parseRoles(rows[i][u.role]),
-        mustChangePin: isDefaultPin(hash)
+        mustChangePin: isDefaultPin(rows[i][u.pinHash])
       };
     }
   }
+  compteEchec_(cleEchecs);
   return { success: false, error: 'Matricule introuvable' };
 }
 
@@ -205,7 +299,21 @@ function logoutUser(data) {
 }
 
 // Un utilisateur change son propre PIN (self-service, tous rôles).
+//
+// Le PIN actuel n'est exigé QUE si le compte a déjà un PIN personnel. Tant
+// qu'il est resté au PIN par défaut (0000, publiquement connu), le redemander
+// ne protège rien — et surtout, un frontend publié avant l'ajout de cette
+// exigence ne l'envoie pas : le backend refusait alors « PIN actuel requis »,
+// le PIN restait 0000, et l'utilisateur rebouclait indéfiniment sur l'écran
+// « définissez un nouveau PIN » à chaque connexion (incident du 2026-08-06).
+//
+// La session en cours n'est PAS révoquée. La feuille Utilisateurs n'a qu'une
+// seule colonne Token : « révoquer tous les tokens » ne déconnectait donc que
+// l'appelant lui-même — aucun gain de sécurité, et le frontend déployé se
+// retrouvait avec un token mort juste après avoir changé son PIN. La rotation
+// se fait naturellement à la reconnexion (loginUser réécrit la colonne Token).
 function changePin(data, session) {
+  const currentPin = String(data.currentPin || '').trim();
   const newPin = String(data.newPin || '').trim();
   if (!/^\d{4,6}$/.test(newPin)) return { success: false, error: 'Le PIN doit contenir 4 à 6 chiffres' };
   const sheet = s4();
@@ -213,8 +321,23 @@ function changePin(data, session) {
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][u.id]) === session.id) {
-      sheet.getRange(i+1, u.pinHash+1).setValue(hashPin(newPin, PIN_SALT));
-      return { success: true };
+      const stored = rows[i][u.pinHash];
+      const auDefaut = isDefaultPin(stored);
+      if (!auDefaut && !/^\d{4,6}$/.test(currentPin)) {
+        return { success: false, error: 'PIN actuel requis' };
+      }
+      // Si un PIN actuel est fourni, il doit être juste — même au PIN par
+      // défaut (un frontend à jour envoie « 0000 », autant le vérifier).
+      if (currentPin && !verifierPin(stored, currentPin)) {
+        return { success: false, error: 'PIN actuel incorrect' };
+      }
+      // Rejouer le même PIN laisserait mustChangePin à true : l'utilisateur
+      // repartirait pour un tour de boucle sans comprendre pourquoi.
+      if (verifierPin(stored, newPin)) {
+        return { success: false, error: 'Le nouveau PIN doit être différent de l\'ancien' };
+      }
+      sheet.getRange(i+1, u.pinHash+1).setValue(hacherPin(newPin));
+      return { success: true, relogin: true };
     }
   }
   return { success: false, error: 'Utilisateur introuvable' };
@@ -243,7 +366,7 @@ function bootstrapAdmin(data) {
   const row = new Array(u.total).fill('');
   row[u.id]    = matricule || 'U_' + Date.now();
   row[u.nom]   = nom;
-  row[u.pinHash] = hashPin(pin, PIN_SALT);
+  row[u.pinHash] = hacherPin(pin);
   row[u.role]  = 'admin';
   row[u.actif] = 'true';
   sheet.appendRow(row);
@@ -291,7 +414,7 @@ function seedUtilisateurs() {
 function seedUtilisateursCore() {
   const sheet = s4();
   const u = getUsersIdx(sheet);
-  const defaultHash = hashPin(DEFAULT_PIN, PIN_SALT);
+  const defaultHash = hacherPin(DEFAULT_PIN);
   const report = [];
 
   const seeds = [
@@ -419,7 +542,7 @@ function adminAddUser(data) {
   const row = new Array(u.total).fill('');
   row[u.id]      = matricule;
   row[u.nom]     = nom;
-  row[u.pinHash] = hashPin(pin, PIN_SALT);
+  row[u.pinHash] = hacherPin(pin);
   row[u.role]    = roles;
   row[u.actif]   = 'true';
   sheet.appendRow(row);
@@ -478,7 +601,7 @@ function adminResetPin(data) {
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][u.id]) === id) {
-      sheet.getRange(i+1, u.pinHash+1).setValue(hashPin(pin, PIN_SALT));
+      sheet.getRange(i+1, u.pinHash+1).setValue(hacherPin(pin));
       // Réinitialiser le PIN invalide aussi les sessions en cours par précaution
       sheet.getRange(i+1, u.token+1).setValue('');
       sheet.getRange(i+1, u.tokenExp+1).setValue('');
@@ -641,13 +764,23 @@ function doPost(e) {
       result = { success: false, error: 'Session invalide, reconnectez-vous', authError: true };
     } else if (!session.roles.includes(data.actingRole)) {
       result = { success: false, error: 'Rôle non autorisé pour ce compte', authError: true };
+    } else if (session.mustChangePin && data.action !== 'changePin' && data.action !== 'logout') {
+      // PIN par défaut (0000) : on ne bloque pas l'app, mais aucune action
+      // n'est possible avant d'avoir défini un PIN personnel (server-side).
+      result = { success: false, error: 'Définissez un nouveau PIN avant de continuer', mustChangePin: true };
     } else {
       const role = data.actingRole;
       const CHEF_ONLY  = ['deleteClient','deleteIntervention','saveClient','saveClientLs','mergeClientsLs'];
+      const CHEF_READ  = ['getAll','getClientHistory','getClientsResilies'];
       const ADMIN_ONLY = ['adminListUsers','adminAddUser','adminUpdateUser','adminDeleteUser','adminResetPin','adminRepairAgregats','adminRepairBase'];
 
       if (CHEF_ONLY.includes(data.action) && role === 'technicien') {
         result = { success: false, error: 'Action réservée au chef centre' };
+      }
+      // Lectures sensibles : même restriction que doGet. (getClients reste
+      // ouvert à tous les rôles : le technicien s'en sert pour l'autofill.)
+      else if (CHEF_READ.includes(data.action) && role === 'technicien') {
+        result = { success: false, error: 'Accès réservé au chef centre' };
       }
       else if (ADMIN_ONLY.includes(data.action) && role !== 'admin') {
         result = { success: false, error: 'Action réservée à l\'administrateur' };
@@ -659,6 +792,7 @@ function doPost(e) {
       else if (data.action === 'getByDate')          result = getByDate(data);
       else if (data.action === 'getAll')             result = getAll(data);
       else if (data.action === 'getClients')         result = getClients();
+      else if (data.action === 'getClientsResilies') result = getClientsResilies();
       else if (data.action === 'findClient')         result = findClient(data);
       else if (data.action === 'saveClient')         result = saveClient(data);
       else if (data.action === 'saveClientLs')       result = saveClientLs(data);
@@ -830,12 +964,12 @@ function getClientsJoinMap() {
     const c = getClientsIdx(sheet);
     const rows = sheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
-      const num = String(rows[i][c.num] || '').trim().replace(/\s/g,'');
+      const num = depolluer_(rows[i][c.num] || '').trim().replace(/\s/g,'');
       if (!num) continue;
       map[num] = {
-        tel:    String(rows[i][c.tel] || ''),
-        telSec: String(rows[i][c.telSec] || ''),
-        loc:    String(rows[i][c.loc] || '')
+        tel:    depolluer_(rows[i][c.tel] || ''),
+        telSec: depolluer_(rows[i][c.telSec] || ''),
+        loc:    depolluer_(rows[i][c.loc] || '')
       };
     }
   });
@@ -945,16 +1079,16 @@ function getClients() {
       if (!num) continue;
       if (resilies[num.replace(/\s/g,'').toLowerCase()]) continue;
       dest.push({
-        num:      String(rows[i][c.num]),
-        nom:      String(rows[i][c.nom]      || ''),
-        tel:      String(rows[i][c.tel]      || ''),
-        telSec:   String(rows[i][c.telSec]   || ''),
-        loc:      String(rows[i][c.loc]      || ''),
-        ville:    String(rows[i][c.ville]    || ''),
-        quartier: String(rows[i][c.quartier] || ''),
+        num:      depolluer_(rows[i][c.num]),
+        nom:      depolluer_(rows[i][c.nom]      || ''),
+        tel:      depolluer_(rows[i][c.tel]      || ''),
+        telSec:   depolluer_(rows[i][c.telSec]   || ''),
+        loc:      depolluer_(rows[i][c.loc]      || ''),
+        ville:    depolluer_(rows[i][c.ville]    || ''),
+        quartier: depolluer_(rows[i][c.quartier] || ''),
         service,
-        gps:      String(rows[i][c.gps]      || ''),
-        maj:      String(rows[i][c.maj]      || '')
+        gps:      depolluer_(rows[i][c.gps]      || ''),
+        maj:      depolluer_(rows[i][c.maj]      || '')
       });
     }
   });
@@ -969,14 +1103,14 @@ function getClients() {
     if (!nom) continue;
     clientsLs.push({
       nom,
-      tel:      String(rowsLs[i][cl.tel]      || ''),
-      telSec:   String(rowsLs[i][cl.telSec]   || ''),
-      loc:      String(rowsLs[i][cl.loc]      || ''),
-      ville:    String(rowsLs[i][cl.ville]    || ''),
-      quartier: String(rowsLs[i][cl.quartier] || ''),
-      pop:      String(rowsLs[i][cl.pop]      || ''),
-      gps:      String(rowsLs[i][cl.gps]      || ''),
-      maj:      String(rowsLs[i][cl.maj]      || '')
+      tel:      depolluer_(rowsLs[i][cl.tel]      || ''),
+      telSec:   depolluer_(rowsLs[i][cl.telSec]   || ''),
+      loc:      depolluer_(rowsLs[i][cl.loc]      || ''),
+      ville:    depolluer_(rowsLs[i][cl.ville]    || ''),
+      quartier: depolluer_(rowsLs[i][cl.quartier] || ''),
+      pop:      depolluer_(rowsLs[i][cl.pop]      || ''),
+      gps:      depolluer_(rowsLs[i][cl.gps]      || ''),
+      maj:      depolluer_(rowsLs[i][cl.maj]      || '')
     });
   }
 
@@ -1229,14 +1363,14 @@ function saveClient(data) {
 
   function buildRow() {
     const row = new Array(c.total).fill('');
-    row[c.num]      = num;
-    row[c.nom]      = String(nom || '').toUpperCase();
-    row[c.tel]      = tel      || '';
-    row[c.telSec]   = telSec   || '';
-    row[c.loc]      = loc      || '';
-    row[c.ville]    = ville    || '';
-    row[c.quartier] = quartier || '';
-    row[c.gps]      = gps      || '';
+    row[c.num]      = protegerChampStrict_(num);
+    row[c.nom]      = protegerChampStrict_(String(nom || '').toUpperCase());
+    row[c.tel]      = protegerChampStrict_(tel      || '');
+    row[c.telSec]   = protegerChampStrict_(telSec   || '');
+    row[c.loc]      = protegerChampStrict_(loc      || '');
+    row[c.ville]    = protegerChampStrict_(ville    || '');
+    row[c.quartier] = protegerChampStrict_(quartier || '');
+    row[c.gps]      = protegerChampStrict_(gps      || '');
     row[c.maj]      = now;
     return row;
   }
@@ -1278,7 +1412,7 @@ function updateClientGPS(data) {
     const rowsLs  = sheetLs.getDataRange().getValues();
     for (let i = 1; i < rowsLs.length; i++) {
       if (nomKeyLs_(rowsLs[i][cl.nom], rowsLs[i][cl.ville], rowsLs[i][cl.quartier]) === key) {
-        sheetLs.getRange(i+1, cl.gps+1).setValue(gps || '');
+        sheetLs.getRange(i+1, cl.gps+1).setValue(protegerChampStrict_(gps || ''));
         sheetLs.getRange(i+1, cl.maj+1).setValue(new Date().toLocaleString('fr-FR'));
         return { success: true };
       }
@@ -1288,7 +1422,7 @@ function updateClientGPS(data) {
   if (!num) return { success: false, error: 'Numéro manquant' };
   const cible = trouverClientRow_(String(num).trim().replace(/\s/g,''));
   if (!cible) return { success: false, error: 'Client introuvable' };
-  cible.sheet.getRange(cible.rowIndex, cible.c.gps+1).setValue(gps || '');
+  cible.sheet.getRange(cible.rowIndex, cible.c.gps+1).setValue(protegerChampStrict_(gps || ''));
   cible.sheet.getRange(cible.rowIndex, cible.c.maj+1).setValue(new Date().toLocaleString('fr-FR'));
   return { success: true };
 }
@@ -1300,6 +1434,7 @@ function updateClientGPS(data) {
 //  ensuite les compteurs Nb_Interventions affectés.
 // ============================================================
 function deleteClient(data) {
+  return withEcritureLock_(() => {
   const num    = String(data.num || '').trim().replace(/\s/g,'');
   const nomLs  = nomKeyLs_(data.nomLs, data.villeLs, data.quartierLs); // mode LS : suppression par Nom+Ville+Quartier
   const sheet1 = s1(), sheet2 = s2();
@@ -1358,6 +1493,7 @@ function deleteClient(data) {
   });
 
   return { success: true, deletedInterventions: deletedCount };
+  });
 }
 
 // ============================================================
@@ -1376,7 +1512,7 @@ function upsertClientLs_(fields) {
   for (let i = 1; i < rows.length; i++) {
     if (nomKeyLs_(rows[i][c.nom], rows[i][c.ville], rows[i][c.quartier]) !== key) continue;
     const setIfValue = (col, val) => {
-      if (val && String(val).trim()) sheet.getRange(i+1, col+1).setValue(String(val).trim());
+      if (val && String(val).trim()) sheet.getRange(i+1, col+1).setValue(protegerChampStrict_(String(val).trim()));
     };
     setIfValue(c.tel,      fields.tel);
     setIfValue(c.telSec,   fields.telSec);
@@ -1392,14 +1528,14 @@ function upsertClientLs_(fields) {
   const row = new Array(c.total).fill('');
   // Stocker le nom SIMPLE (majuscules, espaces réduits), plus la clé composite :
   // Ville/Quartier vivent dans leurs propres colonnes et forment la clé.
-  row[c.nom]      = String(fields.nom || '').trim().toUpperCase().replace(/\s+/g, ' ');
-  row[c.tel]      = fields.tel      || '';
-  row[c.telSec]   = fields.telSec   || '';
-  row[c.loc]      = fields.loc      || '';
-  row[c.ville]    = fields.ville    || '';
-  row[c.quartier] = fields.quartier || '';
-  row[c.pop]      = fields.pop      || '';
-  row[c.gps]      = fields.gps      || '';
+  row[c.nom]      = protegerChampStrict_(String(fields.nom || '').trim().toUpperCase().replace(/\s+/g, ' '));
+  row[c.tel]      = protegerChampStrict_(fields.tel      || '');
+  row[c.telSec]   = protegerChampStrict_(fields.telSec   || '');
+  row[c.loc]      = protegerChampStrict_(fields.loc      || '');
+  row[c.ville]    = protegerChampStrict_(fields.ville    || '');
+  row[c.quartier] = protegerChampStrict_(fields.quartier || '');
+  row[c.pop]      = protegerChampStrict_(fields.pop      || '');
+  row[c.gps]      = protegerChampStrict_(fields.gps      || '');
   row[c.maj]      = now;
   sheet.appendRow(row);
   return 'created';
@@ -1414,6 +1550,7 @@ function upsertClientLs_(fields) {
 //  est supprimée.
 // ============================================================
 function fusionnerClientsLs(data) {
+  return withEcritureLock_(() => {
   const keyGarde = nomKeyLs_(data.nomGarde,    data.villeGarde, data.quartierGarde);
   const keyFus   = nomKeyLs_(data.nomFusionne, data.villeFus,   data.quartierFus);
   if (!keyGarde || !keyFus) return { success: false, error: 'Deux fiches requises' };
@@ -1435,7 +1572,7 @@ function fusionnerClientsLs(data) {
   [c.tel, c.telSec, c.loc, c.ville, c.quartier, c.pop, c.gps].forEach(col => {
     const garde = String(rows[rowGarde][col] || '').trim();
     const fus   = String(rows[rowFus][col]   || '').trim();
-    if (!garde && fus) sheet.getRange(rowGarde+1, col+1).setValue(fus);
+    if (!garde && fus) sheet.getRange(rowGarde+1, col+1).setValue(protegerChampStrict_(fus));
   });
   sheet.getRange(rowGarde+1, c.maj+1).setValue(new Date().toLocaleString('fr-FR'));
 
@@ -1460,6 +1597,7 @@ function fusionnerClientsLs(data) {
     renommees++;
   }
   return { success: true, interventionsRenommees: renommees };
+  });
 }
 
 // ============================================================
@@ -1467,6 +1605,7 @@ function fusionnerClientsLs(data) {
 //  Correction : upsert client même pour le premier enregistrement
 // ============================================================
 function saveConsistance(data, session) {
+  return withEcritureLock_(() => {
   const sheet1 = s1(), sheet2 = s2();
   const { date, interventions } = data;
   const now = new Date().toLocaleString('fr-FR');
@@ -1512,8 +1651,8 @@ function saveConsistance(data, session) {
     rowInv[ii.cid]          = consistId;
     rowInv[ii.date]         = date;
     rowInv[ii.type]         = inv.typeLabel || inv.type;
-    rowInv[ii.num]          = inv.customerId ? inv.customerId : (inv.num||'');
-    rowInv[ii.nom]          = inv.nom  || '';
+    rowInv[ii.num]          = inv.customerId ? protegerChampStrict_(inv.customerId) : protegerChampStrict_(inv.num||'');
+    rowInv[ii.nom]          = protegerChampStrict_(inv.nom  || '');
     rowInv[ii.statut]       = estResiliation ? 'Réalisé' : 'En attente';
     // Installation FTTH : le chef renseigne FDT/FAT (déterminés lors de l'étude
     // préalable) — encodés dans Remarque au même format que la fiche technicien.
@@ -1539,11 +1678,11 @@ function saveConsistance(data, session) {
       if (inv.numSec) remarqueParts.push('Tel2: ' + String(inv.numSec).trim());
       if (inv.loc)    remarqueParts.push('Localité: ' + String(inv.loc).trim());
     }
-    rowInv[ii.remarque]     = remarqueParts.join(' • ');
+    rowInv[ii.remarque]     = protegerCellule_(remarqueParts.join(' • '));
     rowInv[ii.reporteDepuis]= inv.reporteDepuis || '';
     rowInv[ii.maj]          = now;
-    rowInv[ii.ville]        = inv.ville    || '';
-    rowInv[ii.quartier]     = inv.quartier || '';
+    rowInv[ii.ville]        = protegerChampStrict_(inv.ville    || '');
+    rowInv[ii.quartier]     = protegerChampStrict_(inv.quartier || '');
     rowInv[ii.duree]        = 0; // 0 à la création
     if (ii.publiePar >= 0) rowInv[ii.publiePar] = session ? session.nom : '';
     sheet2.appendRow(rowInv);
@@ -1582,13 +1721,13 @@ function saveConsistance(data, session) {
 
       function buildClientRow() {
         const row = new Array(c.total).fill('');
-        row[c.num]      = numKey;
-        row[c.nom]      = String(inv.nom || '').toUpperCase();
-        row[c.tel]      = inv.tel    || '';
-        row[c.telSec]   = inv.numSec || '';
-        row[c.loc]      = inv.loc      || '';
-        row[c.ville]    = inv.ville    || '';
-        row[c.quartier] = inv.quartier || '';
+        row[c.num]      = protegerChampStrict_(numKey);
+        row[c.nom]      = protegerChampStrict_(String(inv.nom || '').toUpperCase());
+        row[c.tel]      = protegerChampStrict_(inv.tel    || '');
+        row[c.telSec]   = protegerChampStrict_(inv.numSec || '');
+        row[c.loc]      = protegerChampStrict_(inv.loc      || '');
+        row[c.ville]    = protegerChampStrict_(inv.ville    || '');
+        row[c.quartier] = protegerChampStrict_(inv.quartier || '');
         row[c.gps]      = '';
         row[c.maj]      = now;
         return row;
@@ -1599,12 +1738,12 @@ function saveConsistance(data, session) {
         if (inv.updateClient) {
           // Préserver le GPS existant lors d'une mise à jour complète
           const row = buildClientRow();
-          row[c.gps] = String(existant.row[existant.c.gps] || '');
+          row[c.gps] = depolluer_(existant.row[existant.c.gps] || '');
           sheetCli.getRange(existant.rowIndex, 1, 1, c.total).setValues([row]);
         } else {
           // Le numéro secondaire saisi doit persister même sans mise à
           // jour complète de la fiche (il n'était écrit qu'à la création).
-          if (inv.numSec) sheetCli.getRange(existant.rowIndex, c.telSec+1).setValue(String(inv.numSec).trim());
+          if (inv.numSec) sheetCli.getRange(existant.rowIndex, c.telSec+1).setValue(protegerChampStrict_(String(inv.numSec).trim()));
           sheetCli.getRange(existant.rowIndex, c.maj+1).setValue(now);
         }
       } else if (existant) {
@@ -1612,13 +1751,13 @@ function saveConsistance(data, session) {
         // en préservant ses champs déjà connus (complétés par la saisie).
         const ec = existant.c;
         const row = buildClientRow();
-        row[c.nom]      = String(inv.nom || existant.row[ec.nom] || '').toUpperCase();
-        row[c.tel]      = inv.tel      || String(existant.row[ec.tel]      || '');
-        row[c.telSec]   = inv.numSec   || String(existant.row[ec.telSec]   || '');
-        row[c.loc]      = inv.loc      || String(existant.row[ec.loc]      || '');
-        row[c.ville]    = inv.ville    || String(existant.row[ec.ville]    || '');
-        row[c.quartier] = inv.quartier || String(existant.row[ec.quartier] || '');
-        row[c.gps]      = String(existant.row[ec.gps] || '');
+        row[c.nom]      = protegerChampStrict_(String(inv.nom || depolluer_(existant.row[ec.nom]) || '').toUpperCase());
+        row[c.tel]      = protegerChampStrict_(inv.tel      || depolluer_(existant.row[ec.tel]      || ''));
+        row[c.telSec]   = protegerChampStrict_(inv.numSec   || depolluer_(existant.row[ec.telSec]   || ''));
+        row[c.loc]      = protegerChampStrict_(inv.loc      || depolluer_(existant.row[ec.loc]      || ''));
+        row[c.ville]    = protegerChampStrict_(inv.ville    || depolluer_(existant.row[ec.ville]    || ''));
+        row[c.quartier] = protegerChampStrict_(inv.quartier || depolluer_(existant.row[ec.quartier] || ''));
+        row[c.gps]      = depolluer_(existant.row[ec.gps] || '');
         existant.sheet.deleteRow(existant.rowIndex);
         sheetCli.appendRow(row);
       } else {
@@ -1640,51 +1779,63 @@ function saveConsistance(data, session) {
   formaterFeuille(sheet2);
   recalculerAgregatsMois(date.substring(0,7));
   return { success: true, consistId };
+  });
 }
 
 // ============================================================
 //  METTRE À JOUR STATUT
 // ============================================================
 function updateStatus(data, session) {
-  const sheet = s2();
-  const { invId, statut, remarque } = data;
-  ensureInvAuditCols(sheet);
-  const rows = sheet.getDataRange().getValues();
-  const ii   = getInvIdx(sheet);
+  return withEcritureLock_(() => {
+    const sheet = s2();
+    const { invId, statut, remarque } = data;
+    ensureInvAuditCols(sheet);
+    const rows = sheet.getDataRange().getValues();
+    const ii   = getInvIdx(sheet);
 
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][ii.id]) === String(invId)) {
-      sheet.getRange(i+1, ii.statut+1).setValue(statut);
-      sheet.getRange(i+1, ii.remarque+1).setValue(remarque||'');
-      sheet.getRange(i+1, ii.maj+1).setValue(new Date().toLocaleString('fr-FR'));
-      if (ii.statutPar >= 0 && session) sheet.getRange(i+1, ii.statutPar+1).setValue(session.nom);
-      if (ii.panne >= 0) {
-        let panne = data.panne;
-        if (panne === undefined) {
-          // Ancien client en cache : la panne arrive encore composée dans la
-          // remarque ("Panne: X • …") — l'extraire pour remplir la colonne.
-          const m = /(?:^|• )Panne: ([^•]+)/.exec(String(remarque || ''));
-          panne = m ? m[1].trim() : undefined;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][ii.id]) === String(invId)) {
+        const statutAvant = String(rows[i][ii.statut]);
+        sheet.getRange(i+1, ii.statut+1).setValue(statut);
+        sheet.getRange(i+1, ii.remarque+1).setValue(protegerCellule_(remarque||''));
+        sheet.getRange(i+1, ii.maj+1).setValue(new Date().toLocaleString('fr-FR'));
+        if (ii.statutPar >= 0 && session) sheet.getRange(i+1, ii.statutPar+1).setValue(session.nom);
+        if (ii.panne >= 0) {
+          let panne = data.panne;
+          if (panne === undefined) {
+            // Ancien client en cache : la panne arrive encore composée dans la
+            // remarque ("Panne: X • …") — l'extraire pour remplir la colonne.
+            const m = /(?:^|• )Panne: ([^•]+)/.exec(String(remarque || ''));
+            panne = m ? m[1].trim() : undefined;
+          }
+          if (panne !== undefined) sheet.getRange(i+1, ii.panne+1).setValue(protegerCellule_(String(panne)));
         }
-        if (panne !== undefined) sheet.getRange(i+1, ii.panne+1).setValue(String(panne));
+        const colors = {'Réalisé':'#dcfce7','Injoignable':'#fee2e2','Problème':'#ede9fe','En attente':'#ffffff'};
+        sheet.getRange(i+1, 1, 1, ii.total).setBackground(colors[statut]||'#ffffff');
+        // Les agrégats du mois ne dépendent que du statut : inutile de tout
+        // recalculer si le statut n'a pas changé (simple édition de remarque).
+        if (statutAvant !== statut) {
+          const dateStr = normDate(rows[i][ii.date]);
+          if (dateStr) recalculerAgregatsMois(dateStr.substring(0,7));
+        }
+        return { success: true };
       }
-      const colors = {'Réalisé':'#dcfce7','Injoignable':'#fee2e2','Problème':'#ede9fe','En attente':'#ffffff'};
-      sheet.getRange(i+1, 1, 1, ii.total).setBackground(colors[statut]||'#ffffff');
-      const dateStr = normDate(rows[i][ii.date]);
-      if (dateStr) recalculerAgregatsMois(dateStr.substring(0,7));
-      return { success: true };
     }
-  }
-  return { success: false, error: 'Intervention introuvable : '+invId };
+    return { success: false, error: 'Intervention introuvable : '+invId };
+  });
 }
 
 // ============================================================
 //  RÉCUPÉRER PAR DATE
 // ============================================================
 function getByDate(params) {
-  try { reporterInterventionsEnAttente(); } catch(e) {}
-
   const date   = String(params.date||new Date().toISOString().split('T')[0]).trim();
+  const today  = new Date().toISOString().split('T')[0];
+  // Le report des « En attente » ne s'exécute qu'en consultant le jour
+  // courant : lire une date passée doit rester une lecture pure (l'audit du
+  // mois ne doit pas muter les données).
+  if (date === today) { try { reporterInterventionsEnAttente(); } catch(e) {} }
+
   const sheet1 = s1(), sheet2 = s2();
   const ci     = getConsistIdx(sheet1);
   const ii     = getInvIdx(sheet2);
@@ -1704,26 +1855,26 @@ function getByDate(params) {
   const interventions = [];
   for (let i = 1; i < iRows.length; i++) {
     if (String(iRows[i][ii.cid]) === consist.id) {
-      const remarque      = String(iRows[i][ii.remarque]);
+      const remarque      = depolluer_(iRows[i][ii.remarque]);
       const reporteDepuis = normDate(iRows[i][ii.reporteDepuis]);
       const statut        = String(iRows[i][ii.statut]);
       const dateLigne      = normDate(iRows[i][ii.date]);
-      const numClean      = String(iRows[i][ii.num] || '').trim().replace(/\s/g,'');
+      const numClean      = depolluer_(iRows[i][ii.num] || '').trim().replace(/\s/g,'');
       const cli           = joinMap[numClean] || contactDepuisRemarque(remarque);
       interventions.push({
         id:           String(iRows[i][ii.id]),
         type:         String(iRows[i][ii.type]),
-        num:          String(iRows[i][ii.num]),
-        nom:          String(iRows[i][ii.nom]),
+        num:          depolluer_(iRows[i][ii.num]),
+        nom:          depolluer_(iRows[i][ii.nom]),
         tel:          cli.tel,
         telSec:       cli.telSec || '',
         loc:          cli.loc,
         statut,
-        panne:        ii.panne >= 0 ? String(iRows[i][ii.panne] || '') : '',
+        panne:        ii.panne >= 0 ? depolluer_(iRows[i][ii.panne] || '') : '',
         remarque,
         reporteDepuis,
-        ville:        String(iRows[i][ii.ville]    || ''),
-        quartier:     String(iRows[i][ii.quartier] || ''),
+        ville:        depolluer_(iRows[i][ii.ville]    || ''),
+        quartier:     depolluer_(iRows[i][ii.quartier] || ''),
         gps:          '',
         duree:        calculerDuree(reporteDepuis, dateLigne, statut),
         estTransfere: remarque.startsWith('➡️ Reporté au'),
@@ -1772,25 +1923,25 @@ function getAll(params) {
     const consist = consistMap[cid];
     if (!consist) continue;
     if (monthFilter && consist.date.substring(0,7) !== monthFilter) continue;
-    const remarque = String(iRows[j][ii.remarque]);
-    const numClean = String(iRows[j][ii.num] || '').trim().replace(/\s/g,'');
+    const remarque = depolluer_(iRows[j][ii.remarque]);
+    const numClean = depolluer_(iRows[j][ii.num] || '').trim().replace(/\s/g,'');
     const cli      = joinMap[numClean] || contactDepuisRemarque(remarque);
     allInvsMois.push({
       id:           String(iRows[j][ii.id]),
       cid,
       date:         consist.date,
       type:         String(iRows[j][ii.type]),
-      num:          String(iRows[j][ii.num]),
-      nom:          String(iRows[j][ii.nom]),
+      num:          depolluer_(iRows[j][ii.num]),
+      nom:          depolluer_(iRows[j][ii.nom]),
       tel:          cli.tel,
       telSec:       cli.telSec || '',
       loc:          cli.loc,
       statut:       String(iRows[j][ii.statut]),
-      panne:        ii.panne >= 0 ? String(iRows[j][ii.panne] || '') : '',
+      panne:        ii.panne >= 0 ? depolluer_(iRows[j][ii.panne] || '') : '',
       remarque,
       reporteDepuis:normDate(iRows[j][ii.reporteDepuis]),
-      ville:        String(iRows[j][ii.ville]    || ''),
-      quartier:     String(iRows[j][ii.quartier] || ''),
+      ville:        depolluer_(iRows[j][ii.ville]    || ''),
+      quartier:     depolluer_(iRows[j][ii.quartier] || ''),
       gps:          '',
       duree:        Number(iRows[j][ii.duree]    || 0)
     });
@@ -1820,7 +1971,9 @@ function getAll(params) {
       if (garder) {
         deduped[cle] = {
           ...inv,
-          datePremiere: ex.datePremiere || origine // conserver la date d'origine la plus ancienne
+          // conserver la date d'origine la plus ancienne (la ligne gagnante
+          // peut avoir un reporteDepuis plus récent que le duplicata perdant)
+          datePremiere: (origine && (!ex.datePremiere || origine < ex.datePremiere)) ? origine : ex.datePremiere
         };
       } else {
         // Conserver la date d'origine la plus ancienne
@@ -2259,6 +2412,7 @@ function reporterInterventionsEnAttente() {
 //  la fiche du jour si elle devient vide.
 // ============================================================
 function deleteIntervention(data) {
+  return withEcritureLock_(() => {
   const sheet1 = s1(), sheet2 = s2();
   const invId = String(data.invId || '');
   if (!invId) return { success: false, error: 'ID intervention manquant' };
@@ -2300,6 +2454,7 @@ function deleteIntervention(data) {
   }
   if (moisARecalculer) recalculerAgregatsMois(moisARecalculer);
   return { success: true };
+  });
 }
 
 // ============================================================
