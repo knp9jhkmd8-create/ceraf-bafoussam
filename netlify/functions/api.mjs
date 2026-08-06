@@ -216,6 +216,19 @@ const ligneInv = (r) => ({
 async function getByDate(d) {
   const date = String(d.date || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Date invalide' };
+
+  // Filet de sécurité : si la fonction planifiée n'a pas tourné (panne, déploiement
+  // en cours), la fiche du jour serait amputée de tout l'arriéré et personne ne
+  // le verrait avant que le terrain ne le signale. `reporter_interventions()`
+  // est idempotente et ne fait rien quand il n'y a rien à reporter, donc
+  // l'appeler ici ne coûte qu'une requête indexée.
+  // On ne le fait QUE pour la date du jour : consulter une date passée ne doit
+  // évidemment pas déclencher un report.
+  if (date === new Date().toISOString().slice(0, 10)) {
+    try { await sql('SELECT reporter_interventions()'); }
+    catch (e) { console.error('[report/filet]', e.message); }   // ne jamais casser la lecture
+  }
+
   const c = await un('SELECT id, date FROM v_consistances WHERE date = $1::date', [date]);
   if (!c) return { success: true, consist: null, interventions: [] };
   // Un seul aller-retour, et le GPS est joint côté base : remplace les deux
