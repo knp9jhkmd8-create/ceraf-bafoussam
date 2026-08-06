@@ -1,0 +1,25 @@
+# Rapports d'audit / sécurité / tests : jamais versionnés (dépôt public),
+# tant qu'ils décrivent des vulnérabilités non corrigées. Stockés hors dépôt.
+# Les rapports TEST-*.md listent les anomalies de sécurité trouvées dans le
+# code EN PRODUCTION (verrous manquants, contrôles d'auth incomplets) —
+# même sensibilité que les audits.
+docs/AUDIT-*.md
+docs/audit-*.md
+docs/TEST-*.md
+
+# Outillage d'un agent tiers (opencode) : contient un node_modules complet.
+# Jamais versionné — un `git add .` distrait y expédierait des milliers de
+# fichiers.
+.opencode/
+
+# Artefact de session opencode qui double la mémoire projet tenue hors dépôt
+# (~/.claude/projects/.../memory/). Deux sources de vérité concurrentes sur
+# l'état du projet, c'est ce qui a rendu invisible le décalage frontend/backend
+# à l'origine de l'incident du 2026-08-06. Le fichier reste sur le disque, il
+# ne remonte simplement plus dans git.
+/MEMORY.md
+
+# Fichiers de travail
+*.log
+.DS_Store
+Thumbs.db
