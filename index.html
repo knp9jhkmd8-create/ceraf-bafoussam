@@ -313,7 +313,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <label data-i18n="setup.url.label">URL du serveur</label>
       <!-- Pré-remplie avec l'API en service : une installation neuve n'a plus
            rien à saisir, il suffit d'enregistrer. -->
-      <input type="url" id="setup-url" placeholder="https://ceraf-bafoussam-api.netlify.app/api" style="margin-bottom:12px;">
+      <input type="url" id="setup-url" placeholder="https://ceraf-bafoussam-api.knp9jhkmd8.workers.dev" style="margin-bottom:12px;">
       <button class="btn btn-primary" style="width:100%" onclick="saveSetup()" data-i18n="setup.save.btn">✅ Enregistrer</button>
     </div>
   </div>
@@ -1532,14 +1532,19 @@ function setTodayDate(){
 //
 // RETOUR ARRIÈRE : republier cette page avec API_URL remise sur l'URL
 // script.google.com. Rien d'autre à faire, aucun redéploiement backend.
-const API_URL='https://ceraf-bafoussam-api.netlify.app/api';
+const API_URL='https://ceraf-bafoussam-api.knp9jhkmd8.workers.dev';
+// Backends que l'on remplace automatiquement. Apps Script est l'historique ;
+// Netlify a servi quelques heures le 06/08 avant d'être gelé par une limite de
+// crédits de build — les appareils qui y sont passés doivent suivre, sinon ils
+// resteraient sur une API qu'on ne peut plus corriger.
+const BACKENDS_OBSOLETES=[/script\.google\.com/, /ceraf-bafoussam-api\.netlify\.app/];
 function migrerUrlBackend(){
   const actuelle=localStorage.getItem('ceraf_url')||'';
   if(!actuelle) return '';
   if(actuelle===API_URL) return actuelle;
-  // On ne touche QUE les anciennes URL Apps Script : une URL saisie
-  // manuellement pour un autre déploiement doit être respectée.
-  if(/script\.google\.com/.test(actuelle)){
+  // On ne touche QUE les backends connus : une URL saisie manuellement pour un
+  // autre déploiement doit être respectée.
+  if(BACKENDS_OBSOLETES.some(r=>r.test(actuelle))){
     localStorage.setItem('ceraf_url',API_URL);
     // Le token vient de l'ancien backend : il n'a aucun sens pour le nouveau.
     // On le retire pour envoyer proprement l'utilisateur sur l'écran de
@@ -1645,7 +1650,7 @@ function saveSetup(){
   // l'API Neon, ça REFUSAIT la bonne URL et rendait toute installation neuve
   // impossible à configurer. On accepte désormais les deux backends.
   const valide=/^https:\/\//.test(url) &&
-    (url.includes('script.google.com') || url.includes('/api'));
+    (url.includes('script.google.com') || url.includes('/api') || url.includes('.workers.dev'));
   if(!valide){showToast(t('err.invalidUrl'));return;}
   SCRIPT_URL=url;localStorage.setItem('ceraf_url',url);show('login-screen','flex');
 }

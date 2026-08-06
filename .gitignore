@@ -27,3 +27,6 @@ Thumbs.db
 # Netlify
 .netlify/
 netlify-public/
+
+# Secrets de developpement wrangler — JAMAIS versionnes (depot public)
+cloudflare/.dev.vars
