@@ -23,3 +23,7 @@ docs/TEST-*.md
 *.log
 .DS_Store
 Thumbs.db
+
+# Netlify
+.netlify/
+netlify-public/

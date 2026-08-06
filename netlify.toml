@@ -1,0 +1,18 @@
+# ============================================================================
+#  CERAF Bafoussam — configuration Netlify
+#
+#  Ce site n'héberge QUE l'API (la fonction serverless qui remplace Code.gs).
+#  Le frontend reste sur GitHub Pages : y toucher changerait l'URL de la PWA
+#  déjà installée sur les téléphones de l'équipe, pour aucun gain.
+# ============================================================================
+
+[build]
+  # Aucune étape de build : la fonction est du JavaScript natif, sans
+  # dépendance npm — elle parle à Neon via le point d'entrée SQL-sur-HTTP
+  # avec le `fetch` intégré.
+  command = ""
+  publish = "netlify-public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
