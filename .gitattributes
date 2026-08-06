@@ -1,0 +1,12 @@
+# Les polices sont binaires. Sans cette règle, core.autocrlf (actif sur les
+# postes Windows de ce projet) pourrait leur appliquer une conversion de fins
+# de ligne et les corrompre silencieusement — la police ne se chargerait plus
+# sur les téléphones, sans erreur visible côté build.
+*.woff2 binary
+*.woff  binary
+*.png   binary
+*.ico   binary
+
+# Sonde de connectivité : contenu sans importance, mais on fige LF pour que le
+# fichier serve exactement les mêmes octets partout.
+ping.txt text eol=lf

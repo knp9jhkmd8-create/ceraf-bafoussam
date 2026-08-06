@@ -11,10 +11,29 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>CERAF Bafoussam — Consistance des Travaux</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:wght@700;800&display=swap" rel="stylesheet">
 <style>
+/* ── POLICES AUTO-HÉBERGÉES ──────────────────────────────────────────────
+   Avant : une feuille CSS bloquante sur fonts.googleapis.com (1,14 s mesurée)
+   qui référençait 8 fichiers woff2 sur fonts.gstatic.com — deux origines
+   supplémentaires (DNS + TCP + TLS chacune) sur le chemin critique du rendu,
+   et rien de tout ça n'était mis en cache par le service worker.
+
+   Maintenant : 3 fichiers servis depuis la même origine que l'app, 67 Ko au
+   total, déclarés inline (zéro requête CSS). Plus Jakarta Sans est une police
+   VARIABLE — un seul fichier couvre 400 à 700, ce qui est vérifiable au fait
+   que Google servait la même URL pour les trois graisses.
+   `font-display: swap` : le texte s'affiche immédiatement dans la police
+   système et bascule quand la vraie police arrive — jamais d'écran vide. */
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(fonts/pjs-var-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(fonts/pjs-var-latin-ext.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:700 800;font-display:swap;
+  src:url(fonts/fraunces-var-latin.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+
 :root{
   --bg:#f0f4ff;--surface:#fff;--surface2:#f8faff;
   --border:#dde5f4;--border2:#c7d4f0;
@@ -70,6 +89,12 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .sync-row{display:flex;align-items:center;gap:5px;}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);transition:background .3s;}
 .sync-dot.ok{background:var(--green);}.sync-dot.loading{background:var(--yellow);animation:pulse .9s infinite;}.sync-dot.err{background:var(--red);}
+/* Ambre = le serveur a répondu mais mal (quota, 5xx, page HTML au lieu de
+   JSON). C'est un état DIFFÉRENT du rouge « hors ligne » : le réseau marche,
+   inutile de faire croire au technicien qu'il a perdu la connexion. */
+.sync-dot.warn{background:var(--orange);}
+/* Bannière ambre pour le même cas. */
+.offline-banner.serveur{background:#b45309;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .sync-lbl{font-size:.7rem;color:var(--muted);}
 .btn-switch{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:.72rem;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
@@ -919,6 +944,9 @@ fr:{
   'toast.syncedStatuses':'✅ {n} statut(s) synchronisé(s)',
   'toast.droppedStatuses':'⚠️ {n} statut(s) obsolète(s) ignoré(s)',
   'sync.syncing':'Sync...','sync.synced':'Synchronisé','sync.offline':'Hors ligne','sync.loading':'Chargement...',
+  'sync.slow':'Réseau lent...','sync.serverDown':'Serveur indisponible',
+  'offline.serverBanner':'⚠️ Serveur indisponible — réessayez dans un instant',
+  'err.serverDown':'Serveur indisponible — réessayez dans un instant.',
   'err.connectionImpossible':'Connexion impossible.',
   'err.deleteImpossible':'suppression impossible',
   'role.chef.titre':'Chef centre','role.chef.desc':'Créer et publier la consistance du jour',
@@ -1154,6 +1182,9 @@ en:{
   'toast.syncedStatuses':'✅ {n} status(es) synced',
   'toast.droppedStatuses':'⚠️ {n} obsolete status(es) ignored',
   'sync.syncing':'Syncing...','sync.synced':'Synced','sync.offline':'Offline','sync.loading':'Loading...',
+  'sync.slow':'Slow network...','sync.serverDown':'Server unavailable',
+  'offline.serverBanner':'⚠️ Server unavailable — try again shortly',
+  'err.serverDown':'Server unavailable — try again shortly.',
   'err.connectionImpossible':'Connection failed.',
   'err.deleteImpossible':'deletion failed',
   'role.chef.titre':'Center Supervisor','role.chef.desc':"Create and publish today's task sheet",
@@ -1395,13 +1426,13 @@ window.onload=()=>{
   // connu plutôt que d'exiger un choix impossible à faire.
   if(AVAILABLE_ROLES.length===0 && role) AVAILABLE_ROLES=[role];
   setTodayDate();
-  // Auto-login (token déjà en localStorage) : on saute l'écran de connexion et
-  // donc son warmupBackend(). Sans ce ping, le tout premier getByDate de
-  // loadTerrain se prend le cold start Apps Script (10-30s) en entier → l'app
-  // paraît « hors ligne » puis se synchronise d'un coup. On réveille le
-  // conteneur ici, en parallèle du rendu de l'écran (le cache Terrain s'affiche
-  // déjà instantanément pendant que le conteneur chauffe).
-  if(SCRIPT_URL && TOKEN) warmupBackend();
+  // PAS de warmupBackend() ici. Ce ping partait dans le MÊME tick que le
+  // getByDate de loadTerrain : les deux requêtes courent en parallèle, la
+  // seconde ne profite donc d'aucun conteneur réchauffé par la première — elle
+  // paie le cold start de toute façon. Le ping n'ajoutait qu'une 3e exécution
+  // Apps Script concurrente, à ~3,2 s de plancher chacune, qui se disputait la
+  // bande passante et le quota. Il garde tout son sens sur l'écran de connexion
+  // (voir show()), où l'utilisateur passe 10-20 s à taper son matricule.
   if(!SCRIPT_URL) show('setup-screen','flex');
   else if(!TOKEN)  show('login-screen','flex');
   else if(AVAILABLE_ROLES.length===0) show('login-screen','flex'); // aucune info exploitable
@@ -2659,13 +2690,22 @@ async function loadTerrain(){
   }catch(e){}
   if(!hadCache) el.innerHTML=`<div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
 
-  // Charger la fiche du jour ET le cache clients en parallèle.
-  // Si le cache clients est déjà hydraté (localStorage), on ne bloque pas :
-  // simple refresh en arrière-plan s'il commence à dater.
-  const [data] = await Promise.all([
-    apiGet({action:'getByDate',date:iso}),
-    Object.keys(clientsCache).length===0 ? preloadClients() : Promise.resolve(refreshClientsIfStale())
-  ]);
+  // On n'ATTEND que la fiche du jour. Le cache clients part en parallèle mais
+  // ne bloque plus le premier rendu : c'est l'appel le plus lourd du backend
+  // (4 feuilles entières), et au tout premier démarrage le terrain n'apparaissait
+  // qu'une fois CE dernier revenu. Il ne sert qu'à enrichir les lignes (GPS,
+  // voir invRowHTML) → on redessine quand il arrive.
+  const monIso = iso;
+  if(Object.keys(clientsCache).length===0){
+    preloadClients().then(()=>{
+      // Ne redessiner que si l'utilisateur est toujours sur le même jour :
+      // il a pu changer de date pendant que getClients revenait.
+      if(terrainData && terrainData.consist && terrainData.consist.date===monIso) renderTerrain(terrainData);
+    }).catch(()=>{});
+  } else {
+    refreshClientsIfStale();
+  }
+  const data = await apiGet({action:'getByDate',date:iso});
 
   if(!data.success){
     if(!hadCache){
@@ -3133,7 +3173,11 @@ async function updStatut(invId,statut){
   if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[LANG][sk];}
   if(invRef){invRef.statut=statut;invRef.remarque=remarque;if(panne!==undefined)invRef.panne=panne;}
 
-  if(!navigator.onLine){
+  // On TENTE TOUJOURS l'envoi, sauf hors ligne CONFIRMÉ par la sonde. Avant,
+  // un simple `!navigator.onLine` (faux sur bascule WiFi↔4G ou sortie de
+  // veille) suffisait à détourner la mise à jour vers la file — le technicien
+  // croyait avoir enregistré, rien ne partait.
+  if(estHorsLigne()){
     offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
     saveTerrainCache();
     showToast(t('toast.statusOfflineSaved'));
@@ -3144,11 +3188,17 @@ async function updStatut(invId,statut){
   if(res.success){
     showToast(t('toast.statusUpdated'));
     saveTerrainCache();
-  } else {
-    // Échec réseau : mettre en file
+  } else if(res.networkError||res.serverError){
+    // Transitoire (réseau ou serveur) : l'écriture n'a pas eu lieu, on rejouera.
+    // updateStatus est idempotent (valeurs absolues repérées par invId), le
+    // rejeu est donc sûr même si l'écriture était en fait passée.
     offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
     saveTerrainCache();
     showToast(t('toast.savedLocally'));
+  } else {
+    // Échec APPLICATIF (validation, rôle, intervention supprimée ailleurs) :
+    // le rejouer échouerait indéfiniment. On affiche la vraie cause.
+    showToast(t('err.prefix')+(res.error||t('err.generic')));
   }
 }
 
@@ -3157,13 +3207,15 @@ async function updRemarque(invId,remarque){
   const statut=row?(row.querySelector('select[onchange^="updStatut("]')||{value:'En attente'}).value:'En attente';
   if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv)inv.remarque=remarque;}
 
-  if(!navigator.onLine){
+  if(estHorsLigne()){
     offlineEnqueue({action:'updateStatus',invId,statut,remarque});
     saveTerrainCache();
     return;
   }
   const res=await apiPost({action:'updateStatus',invId,statut,remarque});
-  if(!res.success){offlineEnqueue({action:'updateStatus',invId,statut,remarque});saveTerrainCache();}
+  if(!res.success&&(res.networkError||res.serverError)){
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque});saveTerrainCache();
+  }
 }
 
 // Sauvegarde les champs structurés (FDT/FAT/distance/conclusion ou nature de
@@ -3182,13 +3234,15 @@ async function updStructured(invId){
   invRef.remarque=remarque;
   if(panne!==undefined)invRef.panne=panne;
 
-  if(!navigator.onLine){
+  if(estHorsLigne()){
     offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
     saveTerrainCache();
     return;
   }
   const res=await apiPost({action:'updateStatus',invId,statut,remarque,panne});
-  if(!res.success){offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});saveTerrainCache();}
+  if(!res.success&&(res.networkError||res.serverError)){
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});saveTerrainCache();
+  }
 }
 
 async function deleteInvUI(invId){
@@ -3551,32 +3605,104 @@ async function deleteInvFromHisto(invId){
 //  API
 // ══════════════════════════════════════════════
 function setSS(s,m){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-lbl').textContent=m;}
-async function apiPost(payload){
-  setSS('loading',t('sync.syncing'));
+
+// ── RÉGLAGES RÉSEAU ─────────────────────────────────────────
+// Apps Script a un PLANCHER mesuré de ~3,2 s par appel (même un ping qui ne
+// lit aucune feuille), et un démarrage à froid documenté jusqu'à 30 s. Les
+// délais ci-dessous en tiennent compte : couper trop tôt ferait échouer des
+// appels parfaitement sains.
+const T_SOFT   =  8000;  // au-delà : on AFFICHE « réseau lent », on n'abandonne PAS
+const T_READ   = 45000;  // abandon d'une lecture  (3,2 s + cold start 30 s + marge)
+const T_WRITE  = 60000;  // abandon d'une écriture (plus tolérant : on ne veut pas perdre une saisie)
+const T_PROBE_NET = 6000;   // sonde même origine
+const T_PROBE_API = 12000;  // sonde backend
+const N_FAIL   = 2;      // échecs RÉSEAU consécutifs avant de déclarer hors ligne
+const DEBOUNCE_SHOW = 1500; // délai avant d'AFFICHER la bannière (le masquage, lui, est immédiat)
+
+// État réseau. `navigator.onLine` n'est PAS la source de vérité : il passe à
+// false sur un basculement WiFi↔4G, un portail captif ou une sortie de veille,
+// alors que la connexion fonctionne. On ne s'en sert que comme signal pour
+// déclencher une sonde réelle.
+const NET = { etat:'online', echecs:0, dernierSucces:0, sonde:false, timerShow:null };
+function estHorsLigne(){ return NET.etat==='offline'; }
+
+// ── INSTRUMENTATION ─────────────────────────────────────────
+// Anneau de 200 mesures dans localStorage. C'est le seul moyen d'obtenir des
+// chiffres de TERRAIN (réseau camerounais, vrais téléphones) et pas des
+// chiffres de laboratoire. Consultable via l'écran diagnostic (5 taps sur le
+// badge de rôle).
+const PERF_MAX = 200;
+function perfLog(e){
   try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...payload, token:TOKEN, actingRole:role})});
-    const data=JSON.parse(await res.text());
-    if(data.authError){handleAuthError();return data;}
-    if(data.mustChangePin){await proposerChangementPin(true);return data;}
-    setSS('ok',t('sync.synced'));return data;
-  }
-  catch(e){setSS('err',t('sync.offline'));return{success:false,error:e.toString()};}
+    const a = JSON.parse(localStorage.getItem('ceraf_perf')||'[]');
+    e.t = Date.now();
+    const c = navigator.connection;
+    if(c && c.effectiveType) e.net = c.effectiveType;
+    a.push(e);
+    while(a.length > PERF_MAX) a.shift();
+    localStorage.setItem('ceraf_perf', JSON.stringify(a));
+  }catch(_){ /* quota plein ou mode privé : l'instrumentation ne doit JAMAIS casser l'app */ }
 }
+
+// ── APPEL API UNIFIÉ ────────────────────────────────────────
+// Tout passe par ici (lecture comme écriture). Le point clé est la
+// CLASSIFICATION de l'échec : jusqu'ici un `catch` unique confondait panne
+// réseau, page d'erreur HTML d'Apps Script et JSON illisible, et annonçait
+// « Hors ligne » dans les trois cas — y compris quand le réseau marchait
+// parfaitement et que c'était le serveur qui toussait.
+async function apiCall(payload, ecriture){
+  const t0 = performance.now();
+  const ctrl = new AbortController();
+  const tHard = setTimeout(()=>ctrl.abort(), ecriture?T_WRITE:T_READ);
+  const tSoft = setTimeout(()=>{ setSS('loading', t('sync.slow')); }, T_SOFT);
+  setSS('loading', ecriture?t('sync.syncing'):t('sync.loading'));
+
+  let genre='ok', data=null, octets=0;
+  try{
+    const res = await fetch(SCRIPT_URL,{
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({...payload, token:TOKEN, actingRole:role}),
+      signal: ctrl.signal
+    });
+    const txt = await res.text();
+    octets = txt.length;
+    if(!res.ok) genre='http';                       // le serveur a RÉPONDU → le réseau marche
+    else { try{ data = JSON.parse(txt); } catch(_){ genre='badbody'; } }
+  }catch(e){
+    genre = (e && e.name==='AbortError') ? 'timeout' : 'network';
+  }finally{
+    clearTimeout(tHard); clearTimeout(tSoft);
+  }
+
+  perfLog({a:payload.action, ms:Math.round(performance.now()-t0), b:octets, k:genre,
+           ok: !!(data && data.success)});
+
+  if(genre==='ok'){
+    noterSucces();
+    if(data.authError){ handleAuthError(); setSS('err',t('err.sessionExpired')); return data; }
+    if(data.mustChangePin){ setSS('ok',t('sync.synced')); await proposerChangementPin(true); return data; }
+    setSS('ok', t('sync.synced'));
+    return data;
+  }
+  if(genre==='http' || genre==='badbody'){
+    // Le serveur a parlé, même mal : ce n'est PAS une panne de réseau.
+    noterSucces();                       // le lien fonctionne, on ne compte pas d'échec réseau
+    passerEn('serveur');
+    setSS('warn', t('sync.serverDown'));
+    return { success:false, error:t('err.serverDown'), serverError:true };
+  }
+  // network | timeout → seuls ces deux-là comptent vers « hors ligne »
+  noterEchec();
+  setSS('err', estHorsLigne()?t('sync.offline'):t('err.connectionImpossible'));
+  return { success:false, error:t('err.connectionImpossible'), networkError:true };
+}
+
+async function apiPost(payload){ return apiCall(payload, true); }
 // Lecture par POST : le token ne circule plus dans la query string (il
 // atterrirait dans les logs du serveur/proxy). Le backend route les actions
 // de lecture aussi bien dans doPost que dans doGet — le comportement est
 // strictement identique.
-async function apiGet(params){
-  setSS('loading',t('sync.loading'));
-  try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...params, token:TOKEN, actingRole:role})});
-    const data=JSON.parse(await res.text());
-    if(data.authError){handleAuthError();return data;}
-    if(data.mustChangePin){await proposerChangementPin(true);return data;}
-    setSS('ok',t('sync.synced'));return data;
-  }
-  catch(e){setSS('err',t('sync.offline'));return{success:false,error:t('err.connectionImpossible')};}
-}
+async function apiGet(params){ return apiCall(params, false); }
 
 // ══════════════════════════════════════════════
 //  UTILS
@@ -3639,29 +3765,188 @@ function displayRemarque(r){
     // version dès qu'il y a du réseau.
   }
 
-  // Bannière hors ligne
-  const banner = document.getElementById('offline-banner');
-  function updateOnlineStatus(){
-    if(!navigator.onLine){
-      banner.classList.add('visible');
-      document.body.classList.add('offline');
-      // La bannière est maintenant affichée : on mesure sa hauteur RÉELLE
-      // (texte + padding + safe-area déjà inclus dans offsetHeight) et on
-      // décale l'entête d'exactement ça — plus de valeur figée à 24px.
-      document.documentElement.style.setProperty('--offline-h', banner.offsetHeight + 'px');
-    } else {
-      banner.classList.remove('visible');
+  // ── BANNIÈRE ──────────────────────────────────────────────
+  function majBanniere(){
+    const banner = document.getElementById('offline-banner');
+    if(!banner) return;
+    const masquer = (NET.etat==='online' || NET.etat==='lent');
+    if(masquer){
+      banner.classList.remove('visible','serveur');
       document.body.classList.remove('offline');
-      offlineFlushQueue();
+      return;
     }
+    banner.textContent = (NET.etat==='serveur') ? t('offline.serverBanner') : t('offline.banner');
+    banner.classList.toggle('serveur', NET.etat==='serveur');
+    banner.classList.add('visible');
+    document.body.classList.add('offline');
+    // Hauteur RÉELLE de la bannière (texte + padding + safe-area) pour décaler
+    // l'entête d'exactement ça — plus de valeur figée.
+    document.documentElement.style.setProperty('--offline-h', banner.offsetHeight + 'px');
   }
-  window.addEventListener('online', ()=>{
-    updateOnlineStatus();
-    offlineFlushQueue();
-  });
-  window.addEventListener('offline', updateOnlineStatus);
-  updateOnlineStatus();
+  window._majBanniere = majBanniere;
 })();
+
+// ══════════════════════════════════════════════
+//  CONNECTIVITÉ — état réel, pas navigator.onLine
+// ══════════════════════════════════════════════
+// Le problème corrigé ici : `navigator.onLine` passe à false sur un
+// basculement WiFi↔4G, un portail captif ou une sortie de veille du téléphone.
+// L'app affichait alors « Hors ligne » à tort, et — bien pire — refusait
+// d'envoyer les mises à jour de statut, qui partaient en file d'attente. D'où
+// les « ça n'a pas été enregistré » alors que le réseau fonctionnait.
+//
+// Désormais `navigator.onLine === false` ne fait que DÉCLENCHER une sonde
+// réelle ; seul l'échec de cette sonde bascule l'app hors ligne.
+
+function passerEn(etat){
+  if(NET.etat === etat) return;
+  NET.etat = etat;
+  if(etat === 'online'){
+    NET.echecs = 0;
+    clearTimeout(NET.timerShow); NET.timerShow = null;
+    if(window._majBanniere) window._majBanniere();   // masquage IMMÉDIAT
+    offlineFlushQueue();
+  } else {
+    // Affichage RETARDÉ : absorbe les micro-coupures (changement de cellule,
+    // ascenseur, tunnel) sans faire clignoter une bannière rouge anxiogène.
+    clearTimeout(NET.timerShow);
+    NET.timerShow = setTimeout(()=>{ if(window._majBanniere) window._majBanniere(); }, DEBOUNCE_SHOW);
+  }
+}
+function noterSucces(){
+  NET.echecs = 0;
+  NET.dernierSucces = Date.now();
+  passerEn('online');
+}
+function noterEchec(){
+  NET.echecs++;
+  if(NET.echecs >= N_FAIL) sonder();
+}
+
+// Requête de test : renvoie true seulement si le serveur a répondu.
+async function _joignable(url, ms){
+  const c = new AbortController();
+  const tm = setTimeout(()=>c.abort(), ms);
+  try{ const r = await fetch(url, {cache:'no-store', signal:c.signal}); return r.ok; }
+  catch(_){ return false; }
+  finally{ clearTimeout(tm); }
+}
+
+// Sonde à DEUX étages — c'est elle qui distingue « pas d'internet » de
+// « Apps Script en panne », deux situations que l'app confondait.
+//  1. ping.txt : même origine, 3 octets, ne consomme aucun quota Apps Script.
+//  2. action=ping : répond AVANT toute résolution de session ou lecture de
+//     feuille côté backend, donc c'est un test du serveur, pas des données.
+async function sonder(){
+  if(NET.sonde) return;              // jamais deux sondes en parallèle
+  NET.sonde = true;
+  try{
+    const reseau = await _joignable('./ping.txt?p='+Date.now(), T_PROBE_NET);
+    if(!reseau){ passerEn('offline'); return; }
+    if(!SCRIPT_URL){ passerEn('online'); return; }
+    const api = await _joignable(SCRIPT_URL+'?action=ping', T_PROBE_API);
+    passerEn(api ? 'online' : 'serveur');
+  } finally { NET.sonde = false; }
+}
+
+(function(){
+  // On NE bascule PLUS directement sur les événements natifs : on sonde.
+  // C'est tout l'objet du correctif.
+  window.addEventListener('online',  ()=>{ sonder(); });
+  window.addEventListener('offline', ()=>{ sonder(); });
+  // Retour au premier plan après une inactivité : l'état a pu changer pendant
+  // que l'écran était éteint.
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && Date.now()-NET.dernierSucces > 60000) sonder();
+  });
+  // Au démarrage on part optimiste (aucune bannière). Si le système se déclare
+  // hors ligne, on vérifie nous-mêmes avant d'y croire.
+  if(!navigator.onLine) sonder();
+})();
+
+// ══════════════════════════════════════════════
+//  ÉCRAN DIAGNOSTIC (5 taps sur le badge de rôle)
+// ══════════════════════════════════════════════
+// Volontairement caché : c'est un outil de terrain, pas une fonctionnalité.
+// Il sert à récupérer des mesures RÉELLES depuis les téléphones de l'équipe
+// (réseau camerounais) plutôt que d'optimiser sur des chiffres de laboratoire.
+(function(){
+  const badge = document.getElementById('role-badge');
+  if(!badge) return;
+  let taps = 0, dernier = 0;
+  badge.addEventListener('click', ()=>{
+    const now = Date.now();
+    taps = (now - dernier < 800) ? taps+1 : 1;
+    dernier = now;
+    if(taps >= 5){ taps = 0; afficherDiagnostic(); }
+  });
+})();
+
+function _pct(arr, p){
+  if(!arr.length) return 0;
+  const s = arr.slice().sort((a,b)=>a-b);
+  return s[Math.min(s.length-1, Math.floor(s.length*p))];
+}
+function afficherDiagnostic(){
+  let mesures = [];
+  try{ mesures = JSON.parse(localStorage.getItem('ceraf_perf')||'[]'); }catch(_){}
+  const parAction = {};
+  mesures.forEach(m=>{ (parAction[m.a] = parAction[m.a] || []).push(m); });
+
+  let txt = 'DIAGNOSTIC CERAF — '+new Date().toLocaleString('fr-FR')+'\n';
+  txt += 'etat reseau : '+NET.etat+'  echecs:'+NET.echecs+'\n';
+  txt += 'mesures : '+mesures.length+' (max '+PERF_MAX+')\n';
+  const c = navigator.connection;
+  if(c) txt += 'lien : '+(c.effectiveType||'?')+'\n';
+  txt += '\naction                p50    p90    max   n   KB\n';
+  Object.keys(parAction).sort().forEach(a=>{
+    const ms = parAction[a].map(m=>m.ms);
+    const kb = Math.round(parAction[a].reduce((s,m)=>s+(m.b||0),0)/1024);
+    txt += (a+'                    ').slice(0,20)
+        + String(_pct(ms,.5)).padStart(6)
+        + String(_pct(ms,.9)).padStart(7)
+        + String(Math.max.apply(null,ms)).padStart(7)
+        + String(ms.length).padStart(4)
+        + String(kb).padStart(5) + '\n';
+  });
+  const echecs = mesures.filter(m=>m.k&&m.k!=='ok');
+  if(echecs.length){
+    const parGenre = {};
+    echecs.forEach(m=>{ parGenre[m.k]=(parGenre[m.k]||0)+1; });
+    txt += '\nechecs : '+Object.keys(parGenre).map(k=>k+'='+parGenre[k]).join('  ')+'\n';
+  }
+
+  const fond = document.createElement('div');
+  fond.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;flex-direction:column;padding:16px;gap:10px;';
+  const pre = document.createElement('pre');
+  pre.textContent = txt;
+  pre.style.cssText = 'flex:1;overflow:auto;background:#fff;color:#111;padding:12px;border-radius:8px;font-size:.7rem;line-height:1.35;margin:0;white-space:pre;';
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:flex;gap:8px;';
+  const mk = (libelle, fn, bg)=>{
+    const b = document.createElement('button');
+    b.textContent = libelle;
+    b.style.cssText = 'flex:1;padding:10px;border:0;border-radius:8px;font-weight:700;background:'+bg+';color:#fff;';
+    b.onclick = fn; return b;
+  };
+  barre.appendChild(mk('Copier', ()=>{
+    // clipboard peut être absent hors HTTPS ou refusé : repli sur une sélection
+    // manuelle plutôt que d'échouer en silence.
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(()=>showToast('Copié'),()=>showToast('Copie refusée'));
+    } else {
+      const r=document.createRange(); r.selectNodeContents(pre);
+      const s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      showToast('Sélectionné — copiez manuellement');
+    }
+  }, '#2563eb'));
+  barre.appendChild(mk('Vider', ()=>{
+    localStorage.removeItem('ceraf_perf'); showToast('Mesures effacées'); document.body.removeChild(fond);
+  }, '#b45309'));
+  barre.appendChild(mk('Fermer', ()=>document.body.removeChild(fond), '#475569'));
+  fond.appendChild(pre); fond.appendChild(barre);
+  document.body.appendChild(fond);
+}
 
 let _tt;
 function showToast(msg){clearTimeout(_tt);const elToast=document.getElementById('toast');elToast.textContent=msg;elToast.style.display='block';_tt=setTimeout(()=>{elToast.style.display='none';},2800);}
