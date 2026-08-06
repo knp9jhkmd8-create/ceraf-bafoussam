@@ -711,7 +711,7 @@ fr:{
   'login.err.notFound':'Matricule introuvable',
   'login.err.badPin':'PIN incorrect',
   'login.err.disabled':'Compte désactivé',
-  'pin.propose':'Vous utilisez le mot de passe par défaut (0000). Voulez-vous le modifier maintenant ?',
+  'pin.propose':'Vous utilisez le mot de passe par défaut (0000). Un code personnel est obligatoire : définissez-le maintenant ?',
   'pin.newPrompt':'Nouveau code PIN (4 à 6 chiffres) :',
   'pin.changed':'✅ Code PIN modifié',
   'roleswitch.tagline':'Sous quel rôle voulez-vous continuer ?',
@@ -917,6 +917,7 @@ fr:{
   'err.displayError':"❌ Erreur d'affichage",
   'err.corruptData':"❌ Erreur d'affichage de la fiche — données corrompues",
   'toast.syncedStatuses':'✅ {n} statut(s) synchronisé(s)',
+  'toast.droppedStatuses':'⚠️ {n} statut(s) obsolète(s) ignoré(s)',
   'sync.syncing':'Sync...','sync.synced':'Synchronisé','sync.offline':'Hors ligne','sync.loading':'Chargement...',
   'err.connectionImpossible':'Connexion impossible.',
   'err.deleteImpossible':'suppression impossible',
@@ -945,7 +946,7 @@ en:{
   'login.err.notFound':'Staff ID not found',
   'login.err.badPin':'Incorrect PIN',
   'login.err.disabled':'Account disabled',
-  'pin.propose':'You are using the default password (0000). Do you want to change it now?',
+  'pin.propose':'You are using the default password (0000). A personal code is required: set it now?',
   'pin.newPrompt':'New PIN code (4 to 6 digits):',
   'pin.changed':'✅ PIN code changed',
   'roleswitch.tagline':'Which role do you want to continue as?',
@@ -1151,6 +1152,7 @@ en:{
   'err.displayError':'❌ Display error',
   'err.corruptData':'❌ Error displaying the sheet — corrupted data',
   'toast.syncedStatuses':'✅ {n} status(es) synced',
+  'toast.droppedStatuses':'⚠️ {n} obsolete status(es) ignored',
   'sync.syncing':'Syncing...','sync.synced':'Synced','sync.offline':'Offline','sync.loading':'Loading...',
   'err.connectionImpossible':'Connection failed.',
   'err.deleteImpossible':'deletion failed',
@@ -1324,9 +1326,9 @@ function groupQuartierCountsByVille(qC){
 function renderQuartierGroupsHTML(villeGroups,activeQ,onclickBuilder){
   return villeGroups.map(([ville,items])=>{
     const pills=items.map(([qk,qLabel,c])=>
-      `<span class="qpill${activeQ===qk?' qpill-active':' qpill-clickable'}" onclick="${onclickBuilder(qk)}"> ${qLabel} <b>${c}</b></span>`
+      `<span class="qpill${activeQ===qk?' qpill-active':' qpill-clickable'}" onclick="${onclickBuilder(qk)}"> ${esc(qLabel)} <b>${c}</b></span>`
     ).join('');
-    return `<div class="ville-group"><span class="ville-label">🏙️ ${ville} :</span> ${pills}</div>`;
+    return `<div class="ville-group"><span class="ville-label">🏙️ ${esc(ville)} :</span> ${pills}</div>`;
   }).join('');
 }
 // Pastilles de la rubrique « Sans quartier » : une par ville (clés "— (VILLE)"),
@@ -1341,7 +1343,7 @@ function renderSansQuartierPills(qCSansQ,activeQ,onclickBuilder){
     if(b[1]===noVille&&a[1]!==noVille)return-1;
     return b[2]-a[2];
   }).map(([qk,label,c])=>
-    `<span class="qpill${activeQ===qk?' qpill-active':' qpill-clickable'}" onclick="${onclickBuilder(qk)}">🏙️ ${label} <b>${c}</b></span>`
+    `<span class="qpill${activeQ===qk?' qpill-active':' qpill-clickable'}" onclick="${onclickBuilder(qk)}">🏙️ ${esc(label)} <b>${c}</b></span>`
   ).join('');
 }
 let clientsCache={}, allClientsList=[], allClientsFtthList=[], allClientsCuivreList=[], allClientsLsList=[], allClientsResList=[], clientsView='ftth';
@@ -1452,7 +1454,7 @@ function showRoleSwitch(){
   const wrap=document.getElementById('roleswitch-cards');
   wrap.innerHTML=AVAILABLE_ROLES.map(r=>{
     const m=ROLE_META[r]||{icon:'🔘',titre:r,desc:''};
-    return `<div class="role-card" onclick="chooseActiveRole('${r}')"><div class="r-icon">${m.icon}</div><div class="r-title">${m.titre}</div><div class="r-desc">${m.desc}</div></div>`;
+    return `<div class="role-card" onclick="chooseActiveRole('${escJsAttr(r)}')"><div class="r-icon">${m.icon}</div><div class="r-title">${esc(m.titre)}</div><div class="r-desc">${esc(m.desc)}</div></div>`;
   }).join('');
   show('roleswitch-screen','flex');
 }
@@ -1483,11 +1485,11 @@ function localizeAuthError(msg){
   return map[msg]?t(map[msg]):(msg||t('err.loginFailed'));
 }
 
-async function doLogin(){
+async function doLogin(matriculeParam,pinParam){
   const btn=document.getElementById('btn-login');
-  if(btn.disabled)return; // garde anti double-tap (fréquent sur mobile)
-  const matricule=document.getElementById('login-matricule').value.trim();
-  const pin=document.getElementById('login-pin').value.trim();
+  if(btn.disabled&&matriculeParam===undefined)return; // garde anti double-tap (fréquent sur mobile)
+  const matricule=(matriculeParam!==undefined?matriculeParam:document.getElementById('login-matricule').value.trim());
+  const pin=(pinParam!==undefined?pinParam:document.getElementById('login-pin').value.trim());
   const errEl=document.getElementById('login-error');
   errEl.classList.add('hidden');
   if(!matricule||!pin){errEl.textContent=t('login.err.required');errEl.classList.remove('hidden');return;}
@@ -1520,20 +1522,29 @@ async function doLogin(){
 }
 
 // Proposé après connexion quand le PIN est encore celui par défaut (0000).
-// Non bloquant : l'utilisateur peut refuser et garder 0000. Appelé avant le
-// routage vers le rôle, donc `role` peut ne pas être encore défini — on passe
-// alors le premier rôle disponible comme actingRole (changePin est autorisé
-// pour tous les rôles côté backend).
-async function proposerChangementPin(){
-  if(!confirm(t('pin.propose')))return;
+// Appelé avant le routage vers le rôle, donc `role` peut ne pas être encore
+// défini — on passe alors le premier rôle disponible comme actingRole (changePin
+// est autorisé pour tous les rôles côté backend). Le backend exige l'ancien PIN
+// et révoque TOUS les tokens au changement → on se reconnecte automatiquement
+// avec le nouveau PIN (doLogin accepte des paramètres pour ça).
+async function proposerChangementPin(force){
+  if(!force&&!confirm(t('pin.propose')))return;
   const np=prompt(t('pin.newPrompt'));
   if(np===null)return;
   if(!/^\d{4,6}$/.test(np.trim())){showToast(t('valid.pinInvalid'));return;}
   const actingRole=role||AVAILABLE_ROLES[0]||'';
   try{
-    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'changePin',newPin:np.trim(),token:TOKEN,actingRole})});
+    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'changePin',currentPin:'0000',newPin:np.trim(),token:TOKEN,actingRole})});
     const data=JSON.parse(await res.text());
-    if(data.success)showToast(t('pin.changed'));
+    if(data.success){
+      showToast(t('pin.changed'));
+      // Token révoqué par le backend → reconnexion avec le nouveau PIN.
+      const m=localStorage.getItem('ceraf_last_matricule')||'';
+      TOKEN='';SESSION_NOM='';AVAILABLE_ROLES=[];
+      localStorage.removeItem('ceraf_token');localStorage.removeItem('ceraf_role');
+      localStorage.removeItem('ceraf_nom');localStorage.removeItem('ceraf_roles');
+      await doLogin(m,np.trim());
+    }
     else showToast(t('err.prefix')+(data.error||t('err.generic')));
   }catch(e){showToast(t('err.loginNetwork'));}
 }
@@ -1628,7 +1639,7 @@ function goPage(p,el,load=true){
 async function loadAdminUsers(){
   const res=await apiGet({action:'adminListUsers'});
   if(res.success) renderAdminUsers(res.users);
-  else document.getElementById('admin-users-wrap').innerHTML='<div class="empty"><p>❌ '+(res.error||t('err.generic'))+'</p></div>';
+  else document.getElementById('admin-users-wrap').innerHTML='<div class="empty"><p>❌ '+esc(res.error||t('err.generic'))+'</p></div>';
 }
 function renderAdminUsers(users){
   const wrap=document.getElementById('admin-users-wrap');
@@ -1636,19 +1647,18 @@ function renderAdminUsers(users){
   const roleLbl=ROLE_LBL[LANG];
   let h=`<table class="clients-table"><thead><tr><th>${t('admin.th.matricule')}</th><th>${t('common.name.label')}</th><th>${t('admin.th.roles')}</th><th>${t('admin.th.actif')}</th><th>${t('admin.th.lastLogin')}</th><th></th></tr></thead><tbody>`;
   users.forEach(u=>{
-    const nomEsc=u.nom.replace(/'/g,"\\'");
     const rolesTxt=(u.roles||[]).map(r=>roleLbl[r]||r).join(', ')||'—';
     h+=`<tr>
-      <td><strong>${u.id}</strong></td>
-      <td>${u.nom}</td>
-      <td>${rolesTxt}</td>
+      <td><strong>${esc(u.id)}</strong></td>
+      <td>${esc(u.nom)}</td>
+      <td>${esc(rolesTxt)}</td>
       <td>${u.actif?'✅':'⛔'}</td>
-      <td>${u.derniereConnexion||'—'}</td>
+      <td>${esc(u.derniereConnexion)||'—'}</td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" onclick="adminEditRolesUI('${u.id}','${nomEsc}',${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">${t('btn.editRoles')}</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminResetPinUI('${u.id}','${nomEsc}')">${t('btn.resetPin')}</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminToggleActive('${u.id}',${u.actif?'false':'true'})">${u.actif?t('btn.deactivate'):t('btn.activate')}</button>
-        <button class="btn btn-danger btn-sm" onclick="adminDeleteUserUI('${u.id}','${nomEsc}')">🗑️</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminEditRolesUI('${escJsAttr(u.id)}','${escJsAttr(u.nom)}',${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">${t('btn.editRoles')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminResetPinUI('${escJsAttr(u.id)}','${escJsAttr(u.nom)}')">${t('btn.resetPin')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminToggleActive('${escJsAttr(u.id)}',${u.actif?'false':'true'})">${u.actif?t('btn.deactivate'):t('btn.activate')}</button>
+        <button class="btn btn-danger btn-sm" onclick="adminDeleteUserUI('${escJsAttr(u.id)}','${escJsAttr(u.nom)}')">🗑️</button>
       </td>
     </tr>`;
   });
@@ -1738,7 +1748,6 @@ async function preloadClients(){
   // Les interventions actives sont incluses dans la même réponse — pas d'appel séparé
   if(data.activeInterventions){
     buildActiveInterventionsCache(data.activeInterventions);
-    console.log('[DOUBLON] Cache prêt —',Object.keys(activeInterventionsCache).length,'interventions actives');
   }
   persistClientsCache_(data);
 }
@@ -1757,7 +1766,7 @@ function buildActiveInterventionsCache(list){
 // La réponse getClients est sauvegardée dans localStorage ; au démarrage on
 // l'hydrate instantanément (bouton Ajouter dispo tout de suite, autofill et
 // détection de doublons opérationnels) pendant que le réseau rafraîchit.
-const CLIENTS_CACHE_MAX_AGE=7*24*3600*1000;   // au-delà : cache ignoré au démarrage
+const CLIENTS_CACHE_MAX_AGE=48*3600*1000;   // au-delà : cache ignoré au démarrage
 const CLIENTS_REFRESH_INTERVAL=10*60*1000;    // fraîcheur visée entre deux refreshs
 let clientsCacheSavedAt=0;
 function persistClientsCache_(data){
@@ -2179,7 +2188,7 @@ function confirmDoublon(num,dateExistante,statutExistant){
     el.innerHTML=`
       <div class="modal-title">${t('doublon.title')}</div>
       <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px;">
-        ${t('doublon.body',{date:formatDateDisplay(dateExistante),statut:statutTxt})}
+        ${t('doublon.body',{date:formatDateDisplay(dateExistante),statut:esc(statutTxt)})}
       </p>
       <div class="mt-3 flex gap-2" style="flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="window._resolveDoublonModal(false)">${t('btn.cancel')}</button>
@@ -2197,12 +2206,12 @@ function confirmQuartierInconnu(loc,suggestions){
   return new Promise(resolve=>{
     const el=document.getElementById('quartier-modal-content');
     const sugBtns=suggestions.map(q=>
-      `<button class="btn btn-primary btn-sm" style="margin:4px 6px 0 0;" onclick="window._resolveQuartierModal('${q.replace(/'/g,"\\'")}')">${q}</button>`
+      `<button class="btn btn-primary btn-sm" style="margin:4px 6px 0 0;" onclick="window._resolveQuartierModal('${escJsAttr(q)}')">${esc(q)}</button>`
     ).join('');
     el.innerHTML=`
       <div class="modal-title">${t('quartierInconnu.title')}</div>
       <p style="font-size:.85rem;color:var(--muted);margin-bottom:10px;">
-        ${t('quartierInconnu.body',{loc})}
+        ${t('quartierInconnu.body',{loc:esc(loc)})}
       </p>
       ${suggestions.length>0?`
         <p style="font-size:.82rem;font-weight:700;margin-bottom:6px;">${t('quartierInconnu.didYouMean')}</p>
@@ -2224,10 +2233,10 @@ function askUpdateConfirm(oldC,newF){
   return new Promise(resolve=>{
     const diff=document.getElementById('modal-diff');
     let h='';
-    if(oldC.nom!==newF.nom&&newF.nom)h+=`<div><b>${t('diff.nom')}</b><span class="old">${oldC.nom}</span> → <span class="new">${newF.nom}</span></div>`;
-    if(oldC.tel!==newF.tel&&newF.tel)h+=`<div><b>${t('diff.tel')}</b><span class="old">${oldC.tel}</span> → <span class="new">${newF.tel}</span></div>`;
-    if(oldC.loc!==newF.loc&&newF.loc)h+=`<div><b>${t('diff.loc')}</b><span class="old">${oldC.loc}</span> → <span class="new">${newF.loc}</span></div>`;
-    if(oldC.ville!==newF.ville&&newF.ville)h+=`<div><b>${t('diff.ville')}</b><span class="old">${oldC.ville}</span> → <span class="new">${newF.ville}</span></div>`;
+    if(oldC.nom!==newF.nom&&newF.nom)h+=`<div><b>${t('diff.nom')}</b><span class="old">${esc(oldC.nom)}</span> → <span class="new">${esc(newF.nom)}</span></div>`;
+    if(oldC.tel!==newF.tel&&newF.tel)h+=`<div><b>${t('diff.tel')}</b><span class="old">${esc(oldC.tel)}</span> → <span class="new">${esc(newF.tel)}</span></div>`;
+    if(oldC.loc!==newF.loc&&newF.loc)h+=`<div><b>${t('diff.loc')}</b><span class="old">${esc(oldC.loc)}</span> → <span class="new">${esc(newF.loc)}</span></div>`;
+    if(oldC.ville!==newF.ville&&newF.ville)h+=`<div><b>${t('diff.ville')}</b><span class="old">${esc(oldC.ville)}</span> → <span class="new">${esc(newF.ville)}</span></div>`;
     diff.innerHTML=h||`<em>${t('diff.detected')}</em>`;
     document.getElementById('modal-update').classList.add('active');
     pendingUpdateClient=resolve;
@@ -2240,9 +2249,9 @@ function confirmUpdate(ok){document.getElementById('modal-update').classList.rem
 // ══════════════════════════════════════════════
 function buildLabel(inv){
   const p=[];
-  if(inv.customerId&&inv.customerId!=='null'&&inv.customerId!=='')p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${inv.customerId}</span>`);
-  if(inv.num)p.push(`<strong>${inv.num}</strong>`);
-  if(inv.nom)p.push(inv.nom);
+  if(inv.customerId&&inv.customerId!=='null'&&inv.customerId!=='')p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${esc(inv.customerId)}</span>`);
+  if(inv.num)p.push(`<strong>${esc(inv.num)}</strong>`);
+  if(inv.nom)p.push(esc(inv.nom));
   // Affichage téléphone — tel et telSec séparés ou tel contenant déjà "/"
   if(inv.tel){
     let telSec='';
@@ -2250,18 +2259,18 @@ function buildLabel(inv){
     if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') telSec=inv.numSec;
     else if(inv.telSec&&inv.telSec!=='null'&&inv.telSec!=='') telSec=inv.telSec;
     const display=telSec&&!inv.tel.includes('/')?inv.tel+' / '+telSec:inv.tel;
-    p.push(display);
+    p.push(esc(display));
   } else if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!==''){
-    p.push(inv.numSec);
+    p.push(esc(inv.numSec));
   }
-  if(inv.pop)p.push(inv.pop);
-  if(inv.loc)p.push(`<em style="color:var(--muted)">${inv.loc}</em>`);
+  if(inv.pop)p.push(esc(inv.pop));
+  if(inv.loc)p.push(`<em style="color:var(--muted)">${esc(inv.loc)}</em>`);
   return p.join(' – ');
 }
 function buildTags(inv){
   let h='';
-  if(inv.ville&&inv.ville!=='null'&&inv.ville!=='')h+=`<span class="tag tag-ville">📍 ${inv.ville}</span>`;
-  if(inv.quartier&&inv.quartier!=='null'&&inv.quartier!=='')h+=`<span class="tag tag-quartier">${inv.quartier}</span>`;
+  if(inv.ville&&inv.ville!=='null'&&inv.ville!=='')h+=`<span class="tag tag-ville">📍 ${esc(inv.ville)}</span>`;
+  if(inv.quartier&&inv.quartier!=='null'&&inv.quartier!=='')h+=`<span class="tag tag-quartier">${esc(inv.quartier)}</span>`;
   if(inv.gps&&inv.gps!=='null'&&inv.gps!==''){
     const gRaw=String(inv.gps).trim();
     const gValide=/\d/.test(gRaw)&&/,/.test(gRaw)&&!/^(FTTH|LS|CUIVRE)$/i.test(gRaw);
@@ -2279,7 +2288,7 @@ function renderPreview(){
   const g={};pending.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
   let h='';
   Object.keys(g).forEach(gt=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[gt]} ${trType(gt)}</div>`;
+    h+=`<div class="section-block"><div class="section-title">${TI[gt]} ${esc(trType(gt))}</div>`;
     g[gt].forEach((inv,i)=>{h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}</div>
       <div class="flex gap-2">
         <button class="btn btn-outline btn-sm" onclick="editInv(${inv.id})">✏️</button>
@@ -2412,12 +2421,12 @@ function renderClientsTable(list,wrapId){
       ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">${t('gps.viewLink')}</a>`:'—';
     const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
     h+=`<tr>
-      <td><strong>${c.num}</strong></td><td>${c.nom||'—'}</td><td>${c.tel||'—'}</td>
-      <td>${telSec}</td>
-      <td>${c.loc||'—'}</td><td>${c.ville||'—'}</td>
-      <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
+      <td><strong>${esc(c.num)}</strong></td><td>${esc(c.nom)||'—'}</td><td>${esc(c.tel)||'—'}</td>
+      <td>${esc(telSec)}</td>
+      <td>${esc(c.loc)||'—'}</td><td>${esc(c.ville)||'—'}</td>
+      <td>${c.quartier?`<span class="tag tag-quartier">${esc(c.quartier)}</span>`:'—'}</td>
       <td>${gpsH}</td>
-      ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('${String(c.num).replace(/'/g,"\\'")}','${String(c.nom||'').replace(/'/g,"\\'")}')">📜</button></td>`:''}
+      ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('${escJsAttr(c.num)}','${escJsAttr(c.nom||'')}')">📜</button></td>`:''}
     </tr>`;
   });
   h+='</tbody></table>';wrap.innerHTML=h;
@@ -2439,13 +2448,13 @@ function renderClientsLsTable(list,wrapId){
       ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">${t('gps.viewLink')}</a>`:'—';
     const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
     h+=`<tr>
-      <td><strong>${c.nom}</strong></td><td>${c.tel||'—'}</td>
-      <td>${telSec}</td>
-      <td>${c.loc||'—'}</td><td>${c.ville||'—'}</td>
-      <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
-      <td>${c.pop||'—'}</td>
+      <td><strong>${esc(c.nom)}</strong></td><td>${esc(c.tel)||'—'}</td>
+      <td>${esc(telSec)}</td>
+      <td>${esc(c.loc)||'—'}</td><td>${esc(c.ville)||'—'}</td>
+      <td>${c.quartier?`<span class="tag tag-quartier">${esc(c.quartier)}</span>`:'—'}</td>
+      <td>${esc(c.pop)||'—'}</td>
       <td>${gpsH}</td>
-      ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('','${String(c.nom).replace(/'/g,"\\'")}',true,'${String(c.ville||'').replace(/'/g,"\\'")}','${String(c.quartier||'').replace(/'/g,"\\'")}')">📜</button></td>`:''}
+      ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('','${escJsAttr(c.nom)}',true,'${escJsAttr(c.ville||'')}','${escJsAttr(c.quartier||'')}')">📜</button></td>`:''}
     </tr>`;
   });
   h+='</tbody></table>';wrap.innerHTML=h;
@@ -2456,24 +2465,23 @@ function renderClientsLsTable(list,wrapId){
 function renderClientsResTable(list,wrapId){
   const wrap=document.getElementById(wrapId);
   if(!list||list.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">🚫</div><p>Aucun client résilié</p></div>`;return;}
-  const svcTag=s=>{const u=String(s||'').toUpperCase();const m={FTTH:['📡 FTTH','#e0f2fe','#0369a1'],CUIVRE:['🪙 Cuivre','#fef3c7','#92400e'],LS:['🔌 LS','#dcfce7','#166534']}[u]||[u||'—','#f1f5f9','#64748b'];return `<span style="padding:2px 8px;border-radius:6px;background:${m[1]};color:${m[2]};font-weight:700;font-size:.72rem;">${m[0]}</span>`;};
+  const svcTag=s=>{const u=String(s||'').toUpperCase();const m={FTTH:['📡 FTTH','#e0f2fe','#0369a1'],CUIVRE:['🪙 Cuivre','#fef3c7','#92400e'],LS:['🔌 LS','#dcfce7','#166534']}[u]||[u||'—','#f1f5f9','#64748b'];return `<span style="padding:2px 8px;border-radius:6px;background:${m[1]};color:${m[2]};font-weight:700;font-size:.72rem;">${esc(m[0])}</span>`;};
   let h=`<table class="clients-table"><thead><tr>
     <th>Service</th><th>${t('clients.th.nom')}</th><th>N°</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>Motif</th><th>Date</th><th></th>
   </tr></thead><tbody>`;
   list.forEach(c=>{
     const isLs=String(c.service||'').toUpperCase()==='LS';
     const num=c.num&&c.num!=='null'&&c.num!==''?c.num:'—';
-    const en=s=>String(s||'').replace(/'/g,"\\'");
     const hist=isLs
-      ?`showClientHistory('','${en(c.nom)}',true,'${en(c.ville)}','${en(c.quartier)}')`
-      :`showClientHistory('${en(c.num)}','${en(c.nom)}')`;
+      ?`showClientHistory('','${escJsAttr(c.nom)}',true,'${escJsAttr(c.ville)}','${escJsAttr(c.quartier)}')`
+      :`showClientHistory('${escJsAttr(c.num)}','${escJsAttr(c.nom)}')`;
     h+=`<tr>
       <td>${svcTag(c.service)}</td>
-      <td><strong>${c.nom||'—'}</strong></td>
-      <td>${num}</td>
-      <td>${c.ville||'—'}</td>
-      <td>${c.quartier?`<span class="tag tag-quartier">${c.quartier}</span>`:'—'}</td>
-      <td>${c.motif||'—'}</td>
+      <td><strong>${esc(c.nom)||'—'}</strong></td>
+      <td>${esc(num)}</td>
+      <td>${esc(c.ville)||'—'}</td>
+      <td>${c.quartier?`<span class="tag tag-quartier">${esc(c.quartier)}</span>`:'—'}</td>
+      <td>${esc(c.motif)||'—'}</td>
       <td>${c.dateRes?formatDateDisplay(c.dateRes):'—'}</td>
       <td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="${hist}">📜</button></td>
     </tr>`;
@@ -2517,16 +2525,15 @@ function proposerFusionLs(){
   }else{
     h+=`<div class="modal-body">${t('clients.merge.found',{n:pairs.length})}</div><div style="max-height:60vh;overflow-y:auto;">`;
     pairs.forEach(p=>{
-      const esc=s=>String(s||'').replace(/'/g,"\\'");
       const A=p.a,B=p.b;
-      const argsAB=`'${esc(A.nom)}','${esc(A.ville)}','${esc(A.quartier)}','${esc(B.nom)}','${esc(B.ville)}','${esc(B.quartier)}'`;
-      const argsBA=`'${esc(B.nom)}','${esc(B.ville)}','${esc(B.quartier)}','${esc(A.nom)}','${esc(A.ville)}','${esc(A.quartier)}'`;
-      const loc=(A.ville||A.quartier)?` <span style="color:var(--muted);font-size:.75rem;">(${[A.ville,A.quartier].filter(Boolean).join(' · ')})</span>`:'';
+      const argsAB=`'${escJsAttr(A.nom)}','${escJsAttr(A.ville)}','${escJsAttr(A.quartier)}','${escJsAttr(B.nom)}','${escJsAttr(B.ville)}','${escJsAttr(B.quartier)}'`;
+      const argsBA=`'${escJsAttr(B.nom)}','${escJsAttr(B.ville)}','${escJsAttr(B.quartier)}','${escJsAttr(A.nom)}','${escJsAttr(A.ville)}','${escJsAttr(A.quartier)}'`;
+      const loc=(A.ville||A.quartier)?` <span style="color:var(--muted);font-size:.75rem;">(${esc([A.ville,A.quartier].filter(Boolean).join(' · '))})</span>`:'';
       h+=`<div class="inv-row"><div class="inv-info">
-        <div class="inv-name">${A.nom} ↔ ${B.nom}${loc}</div>
+        <div class="inv-name">${esc(A.nom)} ↔ ${esc(B.nom)}${loc}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-          <button class="btn btn-outline btn-sm" onclick="fusionnerLs(${argsAB})">${t('clients.merge.keep',{nom:A.nom})}</button>
-          <button class="btn btn-outline btn-sm" onclick="fusionnerLs(${argsBA})">${t('clients.merge.keep',{nom:B.nom})}</button>
+          <button class="btn btn-outline btn-sm" onclick="fusionnerLs(${argsAB})">${t('clients.merge.keep',{nom:esc(A.nom)})}</button>
+          <button class="btn btn-outline btn-sm" onclick="fusionnerLs(${argsBA})">${t('clients.merge.keep',{nom:esc(B.nom)})}</button>
         </div></div></div>`;
     });
     h+=`</div>`;
@@ -2549,13 +2556,13 @@ async function fusionnerLs(nomGarde,villeGarde,quartierGarde,nomFusionne,villeFu
 // ══════════════════════════════════════════════
 async function showClientHistory(num,nom,isLs,ville,quartier){
   const content=document.getElementById('quartier-modal-content');
-  content.innerHTML=`<div class="modal-title">📜 ${nom||num}</div><div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
+  content.innerHTML=`<div class="modal-title">📜 ${esc(nom||num)}</div><div class="empty"><div class="eicon">⏳</div><p>${t('common.loadingP')}</p></div>`;
   document.getElementById('modal-quartier').classList.add('active');
 
   const res=await apiGet(isLs?{action:'getClientHistory',nomLs:nom,villeLs:ville||'',quartierLs:quartier||''}:{action:'getClientHistory',num});
-  if(!res.success){content.innerHTML=`<div class="modal-title">📜 ${nom||num}</div><div class="empty"><p>❌ ${res.error||t('err.generic')}</p></div><div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button></div>`;return;}
+  if(!res.success){content.innerHTML=`<div class="modal-title">📜 ${esc(nom||num)}</div><div class="empty"><p>❌ ${esc(res.error||t('err.generic'))}</p></div><div class="mt-3"><button class="btn btn-ghost btn-sm" onclick="closeQuartierModal()">${t('btn.close')}</button></div>`;return;}
 
-  let h=`<div class="modal-title">📜 ${nom||num}</div>
+  let h=`<div class="modal-title">📜 ${esc(nom||num)}</div>
     <div class="modal-body">${t('clientHist.count',{n:res.history.length})}</div>
     <div style="max-height:60vh;overflow-y:auto;">`;
   if(res.history.length===0){
@@ -2565,9 +2572,9 @@ async function showClientHistory(num,nom,isLs,ville,quartier){
       const sk=SM[inv.statut]||'pending';
       h+=`<div class="inv-row">
         <div class="inv-info">
-          <div class="inv-name">${TI[inv.type]||'📋'} ${trType(inv.type)}</div>
+          <div class="inv-name">${TI[inv.type]||'📋'} ${esc(trType(inv.type))}</div>
           <div style="font-size:.74rem;color:var(--muted);margin-top:3px;">📅 ${formatDateDisplay(inv.date)}</div>
-          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
+          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${esc(trPanne(inv.panne))}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
           <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
@@ -2663,7 +2670,7 @@ async function loadTerrain(){
   if(!data.success){
     if(!hadCache){
       terrainData=null;
-      el.innerHTML=`<div class="empty"><div class="eicon">📋</div><p>${t('terrain.empty')}<br><small style="color:var(--muted2)">${data.error||''}</small></p></div>`;
+      el.innerHTML=`<div class="empty"><div class="eicon">📋</div><p>${t('terrain.empty')}<br><small style="color:var(--muted2)">${esc(data.error||'')}</small></p></div>`;
     } else {
       showToast(t('terrain.offlineCache'));
     }
@@ -2737,8 +2744,8 @@ function renderTerrain(data){
     summaryEl.classList.remove('hidden');
     // "Tous" affiche le total global
     const allQBtnSimple=`<span class="qpill${terrainQuartierFilter===''?' qpill-active':' qpill-clickable'}" onclick="setTerrainFilter('q','')">${t('common.all')} <b>${totalActif}</b></span>`;
-    const qBtns=renderQuartierGroupsHTML(villeGroups,terrainQuartierFilter,qk=>`setTerrainFilter('q','${qk.replace(/'/g,"\\'")}')`);
-    const sansQPills=renderSansQuartierPills(qCSansQ,terrainQuartierFilter,qk=>`setTerrainFilter('q','${qk.replace(/'/g,"\\'")}')`);
+    const qBtns=renderQuartierGroupsHTML(villeGroups,terrainQuartierFilter,qk=>`setTerrainFilter('q','${escJsAttr(qk)}')`);
+    const sansQPills=renderSansQuartierPills(qCSansQ,terrainQuartierFilter,qk=>`setTerrainFilter('q','${escJsAttr(qk)}')`);
 
     // Filtre par statut
     const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
@@ -2757,7 +2764,7 @@ function renderTerrain(data){
     const allTBtn=`<span class="qpill${terrainTypeFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainTypeFilter===''?'var(--navy)':'#e2e8f0'};color:${terrainTypeFilter===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="setTerrainFilter('t','')">${t('common.all')} <b>${totalT}</b></span>`;
     const tBtns=Object.entries(tC).map(([gt,c])=>{
       const active=terrainTypeFilter===gt;
-      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="setTerrainFilter('t','${gt.replace(/'/g,"\\'")}')"> ${TI[gt]||'📋'} ${trType(gt)} <b>${c}</b></span>`;
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="setTerrainFilter('t','${escJsAttr(gt)}')"> ${TI[gt]||'📋'} ${esc(trType(gt))} <b>${c}</b></span>`;
     }).join('');
 
     summaryEl.innerHTML=`<div class="card">
@@ -2819,7 +2826,7 @@ function renderByType(interventions){
   Object.keys(g).forEach(gt=>{
     // Type mis en évidence comme les quartiers
     h+=`<div class="section-block">
-      <div class="type-header">${TI[gt]||'📋'} ${trType(gt)} <span style="opacity:.6;font-weight:400;font-size:.75rem">(${g[gt].length} intervention${g[gt].length>1?'s':''})</span></div>`;
+      <div class="type-header">${TI[gt]||'📋'} ${esc(trType(gt))} <span style="opacity:.6;font-weight:400;font-size:.75rem">(${g[gt].length} intervention${g[gt].length>1?'s':''})</span></div>`;
     g[gt].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
     h+='</div>';
   });
@@ -2837,7 +2844,7 @@ function renderByQuartier(interventions){
     h+=`<div class="quartier-block"><div class="quartier-header">📌 ${header} <span style="opacity:.6;font-weight:400">(${g[q].length})</span></div>`;
     const sg={};g[q].forEach(i=>{if(!sg[i.type])sg[i.type]=[];sg[i.type].push(i);});
     Object.keys(sg).forEach(gt=>{
-      h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[gt]||'📋'} ${trType(gt)}</div>`;
+      h+=`<div class="section-title" style="font-size:.78rem;margin-bottom:8px;">${TI[gt]||'📋'} ${esc(trType(gt))}</div>`;
       sg[gt].forEach((inv,i)=>{h+=invRowHTML(inv,i);});
     });
     h+='</div>';
@@ -2861,7 +2868,7 @@ function invRowHTML(inv,idx){
       <div class="inv-info">
         <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
         ${buildTags(inv)}
-        <div class="inv-report">➡️ ${inv.remarque}</div>
+        <div class="inv-report">➡️ ${esc(inv.remarque)}</div>
       </div>
       <span class="badge b-transfere">${t('badge.transferred')}</span>
     </div>`;
@@ -2876,9 +2883,9 @@ function invRowHTML(inv,idx){
         <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
         ${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
-        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
-        ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
-        ${(inv.publiePar||inv.statutPar)?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${inv.publiePar?'🖊️ '+t('terrain.publishedBy',{nom:inv.publiePar}):''}${inv.publiePar&&inv.statutPar?' — ':''}${inv.statutPar?'🔄 '+t('terrain.statusBy',{nom:inv.statutPar}):''}</div>`:''}
+        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${esc(trPanne(inv.panne))}</div>`:''}
+        ${esc(displayRemarque(inv.remarque))?`<div class="inv-remark-disp">💬 ${esc(displayRemarque(inv.remarque))}</div>`:''}
+        ${(inv.publiePar||inv.statutPar)?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${inv.publiePar?'🖊️ '+t('terrain.publishedBy',{nom:esc(inv.publiePar)}):''}${inv.publiePar&&inv.statutPar?' — ':''}${inv.statutPar?'🔄 '+t('terrain.statusBy',{nom:esc(inv.statutPar)}):''}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
@@ -2891,7 +2898,7 @@ function invRowHTML(inv,idx){
   const isEtudeFtth=inv.type===TL.etude_ftth;
   const isDerangFtth=inv.type===TL.derang_ftth;
 
-  let structuredHTML='', rightRemarqueHTML=`<input class="remark-inp" type="text" placeholder="${t('ph.remarque')}" value="${(inv.remarque&&inv.remarque!='null')?inv.remarque:''}" style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">`;
+  let structuredHTML='', rightRemarqueHTML=`<input class="remark-inp" type="text" placeholder="${t('ph.remarque')}" value="${esc(inv.remarque)}" style="width:140px;" onblur="updRemarque('${inv.id}',this.value)">`;
 
   if(isEtudeFtth){
     const e=parseEtudeInfo(inv.remarque);
@@ -2900,16 +2907,16 @@ function invRowHTML(inv,idx){
       <div class="etude-fields" style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">${t('etude.title')}</div>
         <div class="form-row" style="gap:6px;">
-          <div><input type="text" id="fdt-${inv.id}" class="remark-inp" placeholder="${t('ph.fdtEx')}" value="${e.fdt.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
-          <div><input type="text" id="fat-${inv.id}" class="remark-inp" placeholder="${t('ph.fatEx')}" value="${e.fat.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
+          <div><input type="text" id="fdt-${inv.id}" class="remark-inp" placeholder="${t('ph.fdtEx')}" value="${esc(e.fdt)}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
+          <div><input type="text" id="fat-${inv.id}" class="remark-inp" placeholder="${t('ph.fatEx')}" value="${esc(e.fat)}" onblur="updStructured('${inv.id}')" style="margin-top:0;"></div>
         </div>
-        <input type="text" id="dist-${inv.id}" class="remark-inp" placeholder="${t('ph.distanceEx')}" inputmode="numeric" value="${e.distance.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
+        <input type="text" id="dist-${inv.id}" class="remark-inp" placeholder="${t('ph.distanceEx')}" inputmode="numeric" value="${esc(e.distance)}" onblur="updStructured('${inv.id}')">
         <select id="conclu-${inv.id}" class="field-sel" style="width:100%;margin-top:7px;" onchange="updStructured('${inv.id}')">
           <option value="">${t('select.conclusion.default')}</option>
           <option value="FAVORABLE" ${e.conclusion==='FAVORABLE'?'selected':''}>${t('conclusion.favorable')}</option>
           <option value="DEFAVORABLE" ${e.conclusion==='DEFAVORABLE'?'selected':''}>${t('conclusion.defavorable')}</option>
         </select>
-        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="${t('ph.smallRemark')}" value="${e.note.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
+        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="${t('ph.smallRemark')}" value="${esc(e.note)}" onblur="updStructured('${inv.id}')">
       </div>`;
   } else if(isDerangFtth){
     const p=parsePanneInfo(inv.remarque);
@@ -2923,7 +2930,7 @@ function invRowHTML(inv,idx){
           <option value="">${t('common.select.default')}</option>
           ${options}
         </select>
-        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="${t('ph.smallRemark')}" value="${p.note.replace(/"/g,'&quot;')}" onblur="updStructured('${inv.id}')">
+        <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="${t('ph.smallRemark')}" value="${esc(p.note)}" onblur="updStructured('${inv.id}')">
       </div>`;
   }
 
@@ -2932,14 +2939,14 @@ function invRowHTML(inv,idx){
       <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
       ${buildTags(inv)}
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
-      ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
+      ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${esc(displayRemarque(inv.remarque))}</div>`:''}
       ${structuredHTML}
       <div class="gps-row" style="margin-top:8px;">
-        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="${t('ph.gpsCoord')}" value="${gpsValue}">
+        <input type="text" id="gps-${inv.id}" class="remark-inp" placeholder="${t('ph.gpsCoord')}" value="${esc(gpsValue)}">
         <button class="btn-gps" onclick="getGPSField('gps-${inv.id}',this)">📍</button>
       </div>
-      ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">${t('gps.saved')}${gpsSource} — <button class="btn-gps" style="padding:3px 10px;font-size:.7rem;margin-left:4px;" data-gps="${gpsValue.replace(/"/g,'&quot;')}" onclick="ouvrirMaps(this.dataset.gps)">${t('btn.openMaps')}</button></div>`:''}
-      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${inv.num||''}','${estTypeLs(inv.type)?String(inv.nom||'').replace(/'/g,"\\'"):''}')">${t('btn.updateGps')}</button>
+      ${hasGps?`<div style="font-size:.7rem;color:var(--teal);margin-top:2px;">${t('gps.saved')}${gpsSource} — <button class="btn-gps" style="padding:3px 10px;font-size:.7rem;margin-left:4px;" data-gps="${esc(gpsValue)}" onclick="ouvrirMaps(this.dataset.gps)">${t('btn.openMaps')}</button></div>`:''}
+      <button class="btn btn-ghost btn-sm" style="margin-top:5px;font-size:.7rem;" onclick="saveGPS('${inv.id}','${escJsAttr(inv.num||'')}','${estTypeLs(inv.type)?escJsAttr(String(inv.nom||'')):''}')">${t('btn.updateGps')}</button>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
       <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
@@ -3000,7 +3007,7 @@ function showQuartierDetail(quartier, context){
     });
   }
 
-  let h=`<div class="modal-title">📌 ${quartier}</div>
+  let h=`<div class="modal-title">📌 ${esc(quartier)}</div>
     <div class="modal-body">${allInvs.length} intervention${allInvs.length>1?'s':''} ${context==='terrain'?t('common.today'):t('common.thisMonth')}</div>
     <div style="max-height:60vh;overflow-y:auto;">`;
 
@@ -3045,16 +3052,42 @@ async function offlineFlushQueue(){
   try{
     const q=JSON.parse(localStorage.getItem('ceraf_status_queue')||'[]');
     if(q.length===0)return;
-    let synced=0;
+    let synced=0, dropped=0, stop=false;
+    const remaining=[];
     for(const item of q){
+      if(stop){remaining.push(item);continue;}
       const res=await apiPost(item);
-      if(res.success) synced++;
-      else break; // toujours hors ligne
+      if(res&&res.success){
+        synced++;
+      } else if(res&&res.authError){
+        // Item mort : le token a expiré entre l'édition et le rejeu. Le
+        // laisser en tête de file empoisonnait tout le reste pour toujours
+        // (le premier échec faisait break). On le jette et on continue —
+        // l'utilisateur se reconnectera (handleAuthError) et les statuts
+        // suivants partiront.
+        dropped++;
+      } else if(res&&res.mustChangePin){
+        // PIN par défaut : rien ne partira tant qu'un PIN n'est pas défini.
+        // On garde l'item et on s'arrête (retenté à la prochaine synchro).
+        remaining.push(item);stop=true;
+      } else if(res&&res.error){
+        if(/introuvable|inconnue|réservé au chef|occupée/.test(String(res.error||''))){
+          // Échec applicatif permanent (intervention supprimée sur un autre
+          // appareil, action inconnue...) : jeter l'item, continuer.
+          dropped++;
+        } else {
+          // Transitoire (réseau, verrou, 5xx) : garder et arrêter pour
+          // retenter à la prochaine synchro.
+          remaining.push(item);stop=true;
+        }
+      } else {
+        remaining.push(item);stop=true;
+      }
     }
-    if(synced>0){
-      const remaining=q.slice(synced);
+    if(synced>0||dropped>0){
       localStorage.setItem('ceraf_status_queue',JSON.stringify(remaining));
-      showToast(t('toast.syncedStatuses',{n:synced}));
+      if(synced>0) showToast(t('toast.syncedStatuses',{n:synced}));
+      if(dropped>0&&synced===0) showToast(t('toast.droppedStatuses',{n:dropped}));
       if(remaining.length===0&&terrainData) loadTerrain();
     }
   }catch(e){}
@@ -3345,8 +3378,8 @@ function renderHistoForMonth(){
 
     // Filtre quartier, regroupé par ville
     const allBtn=`<span class="qpill${activeQ===''?' qpill-active':' qpill-clickable'}" onclick="filterHistoByQuartier('')">${t('common.all')} <b>${total}</b></span>`;
-    const qBtns=renderQuartierGroupsHTML(villeGroups,activeQ,qk=>`filterHistoByQuartier('${qk.replace(/'/g,"\\'")}')`);
-    const sansQPills=renderSansQuartierPills(qCSansQ,activeQ,qk=>`filterHistoByQuartier('${qk.replace(/'/g,"\\'")}')`);
+    const qBtns=renderQuartierGroupsHTML(villeGroups,activeQ,qk=>`filterHistoByQuartier('${escJsAttr(qk)}')`);
+    const sansQPills=renderSansQuartierPills(qCSansQ,activeQ,qk=>`filterHistoByQuartier('${escJsAttr(qk)}')`);
 
     // Filtre statut
     const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
@@ -3363,7 +3396,7 @@ function renderHistoForMonth(){
     const allTBtn2=`<span class="qpill${activeT===''?' qpill-active':' qpill-clickable'}" style="background:${activeT===''?'var(--navy)':'#e2e8f0'};color:${activeT===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="filterHistoByType('')">${t('common.all')} <b>${totalT}</b></span>`;
     const tBtns2=Object.entries(tC).map(([gt,c])=>{
       const active=activeT===gt;
-      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="filterHistoByType('${gt.replace(/'/g,"\\'")}')"> ${TI[gt]||'📋'} ${trType(gt)} <b>${c}</b></span>`;
+      return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="filterHistoByType('${escJsAttr(gt)}')"> ${TI[gt]||'📋'} ${esc(trType(gt))} <b>${c}</b></span>`;
     }).join('');
 
     qw.innerHTML=`<div class="card">
@@ -3387,7 +3420,7 @@ function renderHistoForMonth(){
         const allPBtn=`<span class="qpill${activeP===''?' qpill-active':' qpill-clickable'}" style="background:${activeP===''?'var(--orange)':'var(--orange-lt)'};color:${activeP===''?'#fff':'var(--orange)'};border-color:var(--orange)" onclick="filterHistoByPanne('')">${t('common.all')} <b>${totalP}</b></span>`;
         const pBtns=Object.entries(pC).sort((a,b)=>b[1]-a[1]).map(([pk,c])=>{
           const active=activeP===pk;
-          return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--orange);color:#fff;border-color:var(--orange)':'background:var(--orange-lt);color:var(--orange);border-color:var(--orange)'}" onclick="filterHistoByPanne('${pk.replace(/'/g,"\\'")}')">🔧 ${trPanne(pk)} <b>${c}</b></span>`;
+          return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--orange);color:#fff;border-color:var(--orange)':'background:var(--orange-lt);color:var(--orange);border-color:var(--orange)'}" onclick="filterHistoByPanne('${escJsAttr(pk)}')">🔧 ${esc(trPanne(pk))} <b>${c}</b></span>`;
         }).join('');
         return`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
           <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byPanne')}</div>
@@ -3417,7 +3450,7 @@ function renderHistoForMonth(){
 
   let h='';
   Object.keys(byType).forEach(type=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${trType(type)}</div>`;
+    h+=`<div class="section-block"><div class="section-title">${TI[type]||'📋'} ${esc(trType(type))}</div>`;
     byType[type].forEach(inv=>{
       const sk=SM[inv.statut]||'pending';
       const estResolu=sk==='ok'||sk==='issue';
@@ -3432,7 +3465,7 @@ function renderHistoForMonth(){
           <div style="font-size:.74rem;color:var(--muted);margin-top:4px;">${dateTxt}</div>
           ${inv.reporteDepuis&&inv.reporteDepuis!=='null'&&inv.reporteDepuis!==''
             ?`<div class="inv-report">${t('histo.sinceDate',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
-          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
+          ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${esc(trPanne(inv.panne))}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
           <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>${dureeTxt}
@@ -3485,14 +3518,14 @@ function showDetail(json){
   let h=`<button class="btn btn-ghost btn-sm" onclick="loadHistorique()" style="margin-bottom:14px;">${t('btn.back')}</button>
     <div class="consist-header"><div><div class="ch-title">${t('histo.consistanceHeader',{date:formatDateDisplay(c.date)})}</div></div></div>`;
   Object.keys(g).forEach(gt=>{
-    h+=`<div class="section-block"><div class="section-title">${TI[gt]||'📋'} ${trType(gt)}</div>`;
+    h+=`<div class="section-block"><div class="section-title">${TI[gt]||'📋'} ${esc(trType(gt))}</div>`;
     g[gt].forEach((inv,i)=>{
       const sk=SM[inv.statut]||'pending';
       const dureeTxt=inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:'';
       h+=`<div class="inv-row"><div class="inv-info"><div class="inv-name">${i+1}. ${buildLabel(inv)}</div>${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
-        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${trPanne(inv.panne)}</div>`:''}
-        ${displayRemarque(inv.remarque)?`<div class="inv-remark-disp">💬 ${displayRemarque(inv.remarque)}</div>`:''}
+        ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">🔧 ${esc(trPanne(inv.panne))}</div>`:''}
+        ${esc(displayRemarque(inv.remarque))?`<div class="inv-remark-disp">💬 ${esc(displayRemarque(inv.remarque))}</div>`:''}
         </div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
         ${dureeTxt}
@@ -3524,16 +3557,22 @@ async function apiPost(payload){
     const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...payload, token:TOKEN, actingRole:role})});
     const data=JSON.parse(await res.text());
     if(data.authError){handleAuthError();return data;}
+    if(data.mustChangePin){await proposerChangementPin(true);return data;}
     setSS('ok',t('sync.synced'));return data;
   }
   catch(e){setSS('err',t('sync.offline'));return{success:false,error:e.toString()};}
 }
+// Lecture par POST : le token ne circule plus dans la query string (il
+// atterrirait dans les logs du serveur/proxy). Le backend route les actions
+// de lecture aussi bien dans doPost que dans doGet — le comportement est
+// strictement identique.
 async function apiGet(params){
   setSS('loading',t('sync.loading'));
   try{
-    const res=await fetch(SCRIPT_URL+'?'+new URLSearchParams({...params, token:TOKEN, actingRole:role}).toString());
+    const res=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...params, token:TOKEN, actingRole:role})});
     const data=JSON.parse(await res.text());
     if(data.authError){handleAuthError();return data;}
+    if(data.mustChangePin){await proposerChangementPin(true);return data;}
     setSS('ok',t('sync.synced'));return data;
   }
   catch(e){setSS('err',t('sync.offline'));return{success:false,error:t('err.connectionImpossible')};}
@@ -3542,6 +3581,26 @@ async function apiGet(params){
 // ══════════════════════════════════════════════
 //  UTILS
 // ══════════════════════════════════════════════
+// Échappement HTML unique — À APPLIQUER à TOUTE donnée utilisateur rendue en
+// innerHTML (nom, numéro, remarque, ville, quartier, tel...). Neutralise la
+// XSS stockée (payload <img onerror>, attributs, etc.).
+function esc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+// Pour injecter une donnée dans un littéral JS (string '…') à l'intérieur d'un
+// attribut HTML onclick/onchange. Double échappement : HTML (attribut) + JS.
+function escJsAttr(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/\\/g,'\\\\')
+    .replace(/'/g,"\\'");
+}
 function formatDateDisplay(d){
   // Affiche JJ/MM/AAAA depuis YYYY-MM-DD
   if(!d||d==='null')return'—';
