@@ -310,8 +310,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
     <div class="setup-step"><div class="snum">2</div><div class="stext" data-i18n-html="setup.step2">Copie l'URL <code>https://script.google.com/macros/s/.../exec</code></div></div>
     <div class="setup-step"><div class="snum">3</div><div class="stext" data-i18n-html="setup.step3">Colle-la ci-dessous et clique <strong>Enregistrer</strong></div></div>
     <div style="margin-top:20px;">
-      <label data-i18n="setup.url.label">URL Apps Script</label>
-      <input type="url" id="setup-url" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:12px;">
+      <label data-i18n="setup.url.label">URL du serveur</label>
+      <!-- Pré-remplie avec l'API en service : une installation neuve n'a plus
+           rien à saisir, il suffit d'enregistrer. -->
+      <input type="url" id="setup-url" placeholder="https://ceraf-bafoussam-api.netlify.app/api" style="margin-bottom:12px;">
       <button class="btn btn-primary" style="width:100%" onclick="saveSetup()" data-i18n="setup.save.btn">✅ Enregistrer</button>
     </div>
   </div>
@@ -678,6 +680,72 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       </div>
     </div>
 
+    <!-- ══ ONGLET AUDIT ══════════════════════════════════════════════════
+         Remplace ce que le Google Sheet donnait « gratuitement » : savoir qui
+         est connecté et qui a fait quoi. Le Sheet, lui, ne gardait AUCUNE
+         trace de qui avait corrigé une donnée à la main. Lecture seule, sauf
+         la révocation de session. -->
+    <div class="page" id="page-audit">
+      <div class="page-title" data-i18n-html="audit.title">Audit de <span>l'application</span></div>
+      <div class="page-sub" data-i18n="audit.sub">Sessions ouvertes, journal des modifications, état des comptes</div>
+
+      <div class="card">
+        <div class="card-title" data-i18n="audit.sessions">🔓 Sessions actives</div>
+        <div id="audit-sessions-wrap" style="overflow-x:auto;"><div class="empty"><div class="eicon">⏳</div><p data-i18n="common.loadingP">Chargement...</p></div></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" data-i18n="audit.comptes">👤 État des comptes</div>
+        <div id="audit-comptes-wrap" style="overflow-x:auto;"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" data-i18n="audit.journal">📜 Journal des modifications</div>
+        <div class="form-row">
+          <div><label data-i18n="audit.f.matricule">Matricule</label><input id="aud-f-mat" placeholder="Tous"></div>
+          <div><label data-i18n="audit.f.action">Action</label><input id="aud-f-action" placeholder="Toutes"></div>
+        </div>
+        <div class="form-row">
+          <div><label data-i18n="audit.f.depuis">Depuis</label><input id="aud-f-depuis" type="date"></div>
+          <div><label data-i18n="audit.f.jusqua">Jusqu'à</label><input id="aud-f-jusqua" type="date"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="chargerJournalAudit()" data-i18n="audit.filtrer">🔎 Filtrer</button>
+        <div id="audit-journal-wrap" style="overflow-x:auto;margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <!-- ══ ONGLET ÉDITION MANUELLE ═══════════════════════════════════════
+         Le vrai remplaçant de « j'ouvre le Sheet et je corrige ». Trois
+         garde-fous par rapport au Sheet : tout est journalisé (avant/après),
+         les validations métier s'appliquent, et une suppression est un
+         archivage rattrapable. -->
+    <div class="page" id="page-edition">
+      <div class="page-title" data-i18n-html="edition.title">Édition <span>manuelle</span></div>
+      <div class="page-sub" data-i18n="edition.sub">Corriger une donnée directement. Toute modification est enregistrée dans le journal d'audit.</div>
+
+      <div class="card" style="border-left:3px solid var(--orange);">
+        <div style="font-size:.8rem;color:var(--muted);" data-i18n="edition.avertissement">⚠️ Ces corrections s'appliquent immédiatement à la base. Elles sont tracées (qui, quand, avant/après) et une suppression est un archivage — donc rattrapable.</div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" data-i18n="edition.chercherInv">🔧 Corriger une intervention</div>
+        <div class="form-row">
+          <div><label data-i18n="edition.date">Date de la fiche</label><input id="ed-date" type="date"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="btn btn-primary btn-sm" onclick="chargerEditionJour()" data-i18n="edition.charger">📂 Charger</button></div>
+        </div>
+        <div id="edition-inv-wrap" style="overflow-x:auto;margin-top:12px;"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" data-i18n="edition.chercherClient">👥 Corriger une fiche client</div>
+        <div class="form-row">
+          <div><label data-i18n="clients.th.num">N° Ligne</label><input id="ed-cli-num" placeholder="Ex: 233445566"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="btn btn-primary btn-sm" onclick="chargerEditionClient()" data-i18n="edition.charger">📂 Charger</button></div>
+        </div>
+        <div id="edition-cli-wrap" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
   </div>
   <footer>© Copyright 2026 BENANA Hermann</footer>
 </div>
@@ -722,7 +790,7 @@ fr:{
   'setup.step1':"Dans Apps Script → <strong>Déployer → Gérer les déploiements</strong>",
   'setup.step2':"Copie l'URL <code>https://script.google.com/macros/s/.../exec</code>",
   'setup.step3':"Colle-la ci-dessous et clique <strong>Enregistrer</strong>",
-  'setup.url.label':'URL Apps Script',
+  'setup.url.label':'URL du serveur',
   'setup.save.btn':'✅ Enregistrer',
   'login.tagline':'Consistance des Travaux — Connexion',
   'login.name.ph':'Votre nom',
@@ -745,6 +813,25 @@ fr:{
   'topbar.logout.btn':'⏻ Déconnexion',
   'nav.chef':'👷 Consistance','nav.clients':'👥 Clients','nav.historique':'📁 Historique',
   'nav.admin':'🔑 Utilisateurs','nav.terrain':'📡 Terrain',
+  'nav.audit':'🔍 Audit','nav.edition':'✏️ Édition',
+  'valid.dateRequired':'Date requise','label.statut':'Statut','toast.saved':'✅ Enregistré',
+  'audit.title':'Audit de <span>l\'application</span>','audit.sub':'Sessions ouvertes, journal des modifications, état des comptes',
+  'audit.sessions':'🔓 Sessions actives','audit.comptes':'👤 État des comptes','audit.journal':'📜 Journal des modifications',
+  'audit.f.matricule':'Matricule','audit.f.action':'Action','audit.f.depuis':'Depuis','audit.f.jusqua':"Jusqu'à",
+  'audit.filtrer':'🔎 Filtrer','audit.revoquer':'Déconnecter','audit.aucuneSession':'Aucune session active',
+  'audit.aucunJournal':'Aucune entrée pour ces critères','audit.pinDefaut':'PIN par défaut',
+  'audit.th.qui':'Qui','audit.th.quand':'Quand','audit.th.action':'Action','audit.th.cible':'Cible',
+  'audit.th.avantApres':'Avant → Après','audit.th.appareil':'Appareil','audit.th.depuis':'Depuis',
+  'audit.th.dernierAcces':'Dernier accès','audit.th.sessions':'Sessions','audit.th.derniere':'Dernière connexion',
+  'audit.confirmRevoquer':'Déconnecter cette session ?','audit.revoquee':'✅ Session déconnectée',
+  'audit.indisponible':"L'audit n'est pas disponible sur ce backend. Il nécessite la nouvelle API.",
+  'edition.title':'Édition <span>manuelle</span>',
+  'edition.sub':'Corriger une donnée directement. Toute modification est enregistrée dans le journal d\'audit.',
+  'edition.avertissement':'⚠️ Ces corrections s\'appliquent immédiatement à la base. Elles sont tracées (qui, quand, avant/après) et une suppression est un archivage — donc rattrapable.',
+  'edition.chercherInv':'🔧 Corriger une intervention','edition.chercherClient':'👥 Corriger une fiche client',
+  'edition.date':'Date de la fiche','edition.charger':'📂 Charger','edition.enregistrer':'💾 Enregistrer',
+  'edition.aucuneInv':'Aucune intervention ce jour-là','edition.clientIntrouvable':'Client introuvable',
+  'edition.confirmSuppr':'Archiver définitivement cet élément ?','edition.archive':'✅ Archivé',
   'terrain.publishedBy':'Publié par {nom}','terrain.statusBy':'Statut par {nom}',
   'clients.histBtn':'Historique du client','clientHist.count':'{n} intervention(s) au total','clientHist.empty':'Aucune intervention pour ce client',
   'badge.chef':'👷 Chef centre','badge.admin':'🔑 Administrateur','badge.technicien':'📡 Technicien',
@@ -960,7 +1047,7 @@ en:{
   'setup.step1':"In Apps Script → <strong>Deploy → Manage deployments</strong>",
   'setup.step2':"Copy the URL <code>https://script.google.com/macros/s/.../exec</code>",
   'setup.step3':"Paste it below and click <strong>Save</strong>",
-  'setup.url.label':'Apps Script URL',
+  'setup.url.label':'Server URL',
   'setup.save.btn':'✅ Save',
   'login.tagline':'Task Sheet — Login',
   'login.name.ph':'Your name',
@@ -983,6 +1070,25 @@ en:{
   'topbar.logout.btn':'⏻ Log out',
   'nav.chef':'👷 Task Sheet','nav.clients':'👥 Customers','nav.historique':'📁 History',
   'nav.admin':'🔑 Users','nav.terrain':'📡 Field',
+  'nav.audit':'🔍 Audit','nav.edition':'✏️ Edit',
+  'valid.dateRequired':'Date required','label.statut':'Status','toast.saved':'✅ Saved',
+  'audit.title':'Application <span>audit</span>','audit.sub':'Open sessions, change log, account status',
+  'audit.sessions':'🔓 Active sessions','audit.comptes':'👤 Account status','audit.journal':'📜 Change log',
+  'audit.f.matricule':'Staff ID','audit.f.action':'Action','audit.f.depuis':'From','audit.f.jusqua':'To',
+  'audit.filtrer':'🔎 Filter','audit.revoquer':'Sign out','audit.aucuneSession':'No active session',
+  'audit.aucunJournal':'No entry for these filters','audit.pinDefaut':'Default PIN',
+  'audit.th.qui':'Who','audit.th.quand':'When','audit.th.action':'Action','audit.th.cible':'Target',
+  'audit.th.avantApres':'Before → After','audit.th.appareil':'Device','audit.th.depuis':'Since',
+  'audit.th.dernierAcces':'Last access','audit.th.sessions':'Sessions','audit.th.derniere':'Last login',
+  'audit.confirmRevoquer':'Sign this session out?','audit.revoquee':'✅ Session signed out',
+  'audit.indisponible':'Audit is unavailable on this backend. It requires the new API.',
+  'edition.title':'Manual <span>editing</span>',
+  'edition.sub':'Fix data directly. Every change is recorded in the audit log.',
+  'edition.avertissement':'⚠️ These fixes apply to the database immediately. They are traced (who, when, before/after) and deletion is archiving — so it stays recoverable.',
+  'edition.chercherInv':'🔧 Fix an intervention','edition.chercherClient':'👥 Fix a client record',
+  'edition.date':'Sheet date','edition.charger':'📂 Load','edition.enregistrer':'💾 Save',
+  'edition.aucuneInv':'No intervention that day','edition.clientIntrouvable':'Client not found',
+  'edition.confirmSuppr':'Archive this item for good?','edition.archive':'✅ Archived',
   'terrain.publishedBy':'Published by {nom}','terrain.statusBy':'Status by {nom}',
   'clients.histBtn':'Client history','clientHist.count':'{n} intervention(s) total','clientHist.empty':'No interventions for this client',
   'badge.chef':'👷 Center Supervisor','badge.admin':'🔑 Administrator','badge.technicien':'📡 Technician',
@@ -1412,9 +1518,41 @@ function setTodayDate(){
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  BASCULE Apps Script → Neon (2026-08-06)
+// ══════════════════════════════════════════════
+// Le backend est passé de Google Apps Script à une API Postgres : getByDate
+// est mesuré à 0,81 s au lieu de 9,0 s.
+//
+// L'URL du backend vit dans localStorage, propre à chaque appareil. Sans
+// migration automatique, chaque technicien devrait la ressaisir à la main —
+// avec le risque qu'une partie de l'équipe reste sur l'ancien backend et que
+// les données se scindent en deux. On réécrit donc la valeur au démarrage
+// quand elle pointe encore sur Apps Script.
+//
+// RETOUR ARRIÈRE : republier cette page avec API_URL remise sur l'URL
+// script.google.com. Rien d'autre à faire, aucun redéploiement backend.
+const API_URL='https://ceraf-bafoussam-api.netlify.app/api';
+function migrerUrlBackend(){
+  const actuelle=localStorage.getItem('ceraf_url')||'';
+  if(!actuelle) return '';
+  if(actuelle===API_URL) return actuelle;
+  // On ne touche QUE les anciennes URL Apps Script : une URL saisie
+  // manuellement pour un autre déploiement doit être respectée.
+  if(/script\.google\.com/.test(actuelle)){
+    localStorage.setItem('ceraf_url',API_URL);
+    // Le token vient de l'ancien backend : il n'a aucun sens pour le nouveau.
+    // On le retire pour envoyer proprement l'utilisateur sur l'écran de
+    // connexion, plutôt que de le laisser se prendre un « session invalide ».
+    ['ceraf_token','ceraf_terrain_cache','ceraf_clients_cache'].forEach(k=>localStorage.removeItem(k));
+    return API_URL;
+  }
+  return actuelle;
+}
+
 window.onload=()=>{
   applyStaticI18n();
-  SCRIPT_URL=localStorage.getItem('ceraf_url')||'';
+  SCRIPT_URL=migrerUrlBackend()||localStorage.getItem('ceraf_url')||'';
   TOKEN=localStorage.getItem('ceraf_token')||'';
   role=localStorage.getItem('ceraf_role')||'';
   SESSION_NOM=localStorage.getItem('ceraf_nom')||'';
@@ -1433,7 +1571,11 @@ window.onload=()=>{
   // Apps Script concurrente, à ~3,2 s de plancher chacune, qui se disputait la
   // bande passante et le quota. Il garde tout son sens sur l'écran de connexion
   // (voir show()), où l'utilisateur passe 10-20 s à taper son matricule.
-  if(!SCRIPT_URL) show('setup-screen','flex');
+  if(!SCRIPT_URL){
+    const champ=document.getElementById('setup-url');
+    if(champ&&!champ.value)champ.value=API_URL;   // installation neuve : rien a taper
+    show('setup-screen','flex');
+  }
   else if(!TOKEN)  show('login-screen','flex');
   else if(AVAILABLE_ROLES.length===0) show('login-screen','flex'); // aucune info exploitable
   else if(AVAILABLE_ROLES.length>1 && !AVAILABLE_ROLES.includes(role)) showRoleSwitch();
@@ -1499,7 +1641,12 @@ function chooseActiveRole(r){
 // ══════════════════════════════════════════════
 function saveSetup(){
   const url=document.getElementById('setup-url').value.trim();
-  if(!url||!url.includes('script.google.com')){showToast(t('err.invalidUrl'));return;}
+  // La validation exigeait « script.google.com » : depuis la bascule vers
+  // l'API Neon, ça REFUSAIT la bonne URL et rendait toute installation neuve
+  // impossible à configurer. On accepte désormais les deux backends.
+  const valide=/^https:\/\//.test(url) &&
+    (url.includes('script.google.com') || url.includes('/api'));
+  if(!valide){showToast(t('err.invalidUrl'));return;}
   SCRIPT_URL=url;localStorage.setItem('ceraf_url',url);show('login-screen','flex');
 }
 
@@ -1625,6 +1772,8 @@ function startApp(r){
     }
   } else if(r==='admin'){
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('admin',this)">${t('nav.admin')}</button>
+      <button class="nav-tab" onclick="goPage('audit',this)">${t('nav.audit')}</button>
+      <button class="nav-tab" onclick="goPage('edition',this)">${t('nav.edition')}</button>
       <button class="nav-tab" onclick="goPage('terrain',this)">${t('nav.terrain')}</button>`;
     goPage('admin',nav.querySelector('.nav-tab'),true);
   } else {
@@ -1661,6 +1810,8 @@ function goPage(p,el,load=true){
     if(p==='clients')    {if(allClientsList.length>0||allClientsLsList.length>0)filterClients();else refreshClients();}
     if(p==='clients-ro') {if(allClientsList.length>0||allClientsLsList.length>0)filterClientsRO();else refreshClientsRO();}
     if(p==='admin')      loadAdminUsers();
+    if(p==='audit')      chargerAudit();
+    if(p==='edition')    initEdition();
   }
 }
 
@@ -2378,11 +2529,22 @@ async function publishConsistance(){
   if(pending.length===0){showToast(t('valid.atLeastOneInv'));return;}
   const btn=document.getElementById('btn-pub');
   btn.disabled=true;btn.textContent=t('btn.publish.loading');
-  const res=await apiPost({action:'saveConsistance',date,interventions:pending});
+  // Identifiant d'idempotence : généré UNE fois pour cette publication et
+  // CONSERVÉ tant qu'elle n'a pas abouti. Sans lui, un renvoi après timeout
+  // duplique la fiche du jour — le backend le refuse grâce à cette clé.
+  // On ne le régénère qu'après un succès, donc un nouvel essai réutilise
+  // le même et ne peut pas créer de doublon.
+  if(!publicationEnCours) publicationEnCours=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random());
+  const res=await apiPost({action:'saveConsistance',date,interventions:pending,clientRequestId:publicationEnCours});
   btn.disabled=false;btn.textContent=t('btn.publish');
-  if(res.success){showToast(t('toast.published'));pending=[];renderPreview();preloadClients();}
+  if(res.success){
+    publicationEnCours=null;
+    showToast(t('toast.published'));pending=[];renderPreview();preloadClients();
+  }
   else showToast(t('err.prefix')+(res.error||t('err.checkConnection')));
 }
+// Conservé entre les tentatives d'une même publication (voir publishConsistance).
+let publicationEnCours=null;
 
 // ══════════════════════════════════════════════
 //  CLIENTS
@@ -3599,6 +3761,197 @@ async function deleteInvFromHisto(invId){
   } else {
     showToast(t('err.prefix')+(res.error||t('err.deleteImpossible')));
   }
+}
+
+// ══════════════════════════════════════════════
+//  ONGLET AUDIT (admin)
+// ══════════════════════════════════════════════
+// Ces actions n'existent QUE sur la nouvelle API. Tant qu'un appareil pointe
+// encore sur Apps Script, le backend répond « Action inconnue » — on l'affiche
+// clairement plutôt que de laisser un tableau vide inexplicable.
+function auditIndisponible(res){
+  return res && !res.success && /Action inconnue/i.test(String(res.error||''));
+}
+function encartIndisponible(){
+  return `<div class="empty"><div class="eicon">🔌</div><p>${esc(t('audit.indisponible'))}</p></div>`;
+}
+
+async function chargerAudit(){
+  await Promise.all([chargerSessions(), chargerComptesAudit(), chargerJournalAudit()]);
+}
+
+async function chargerSessions(){
+  const el=document.getElementById('audit-sessions-wrap');
+  const res=await apiGet({action:'adminSessions'});
+  if(auditIndisponible(res)){el.innerHTML=encartIndisponible();return;}
+  if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
+  const s=res.sessions||[];
+  if(!s.length){el.innerHTML=`<div class="empty"><p>${esc(t('audit.aucuneSession'))}</p></div>`;return;}
+  el.innerHTML=`<table class="tbl"><thead><tr>
+      <th>${esc(t('audit.th.qui'))}</th><th>${esc(t('audit.th.appareil'))}</th>
+      <th>${esc(t('audit.th.depuis'))}</th><th>${esc(t('audit.th.dernierAcces'))}</th><th></th>
+    </tr></thead><tbody>${s.map(x=>`<tr>
+      <td><b>${esc(x.nom)}</b><br><small style="color:var(--muted2)">${esc(x.matricule)}</small></td>
+      <td style="font-size:.7rem;color:var(--muted);max-width:220px;">${esc(String(x.appareil||'—').slice(0,80))}</td>
+      <td style="font-size:.72rem;">${esc(dateHeure(x.creeLe))}</td>
+      <td style="font-size:.72rem;">${esc(dateHeure(x.dernierAcces))}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="revoquerSession('${escJsAttr(x.id)}')">${esc(t('audit.revoquer'))}</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function revoquerSession(id){
+  if(!confirm(t('audit.confirmRevoquer')))return;
+  const res=await apiPost({action:'adminRevoquerSession',sessionId:id});
+  if(res.success){showToast(t('audit.revoquee'));chargerSessions();}
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
+}
+
+async function chargerComptesAudit(){
+  const el=document.getElementById('audit-comptes-wrap');
+  const res=await apiGet({action:'adminListUsers'});
+  if(auditIndisponible(res)){el.innerHTML=encartIndisponible();return;}
+  if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
+  el.innerHTML=`<table class="tbl"><thead><tr>
+      <th>${esc(t('audit.th.qui'))}</th><th>${esc(t('admin.th.roles'))}</th>
+      <th>${esc(t('audit.th.derniere'))}</th><th>${esc(t('audit.th.sessions'))}</th><th></th>
+    </tr></thead><tbody>${(res.users||[]).map(u=>`<tr>
+      <td><b>${esc(u.nom)}</b><br><small style="color:var(--muted2)">${esc(u.id)}</small></td>
+      <td style="font-size:.72rem;">${esc((u.roles||[]).join(', '))}</td>
+      <td style="font-size:.72rem;">${esc(u.derniere?dateHeure(u.derniere):'—')}</td>
+      <td>${u.sessions>0?`<span class="badge b-green">${u.sessions}</span>`:'<span style="color:var(--muted2)">0</span>'}</td>
+      <td>${u.actif?'':'<span class="badge b-red">⛔</span>'}
+          ${u.pinParDefaut?`<span class="badge b-orange" title="${esc(t('audit.pinDefaut'))}">🔓 ${esc(t('audit.pinDefaut'))}</span>`:''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function chargerJournalAudit(){
+  const el=document.getElementById('audit-journal-wrap');
+  const res=await apiGet({action:'adminAudit',
+    matricule:(document.getElementById('aud-f-mat')||{}).value||'',
+    actionFiltre:(document.getElementById('aud-f-action')||{}).value||'',
+    depuis:(document.getElementById('aud-f-depuis')||{}).value||'',
+    jusqua:(document.getElementById('aud-f-jusqua')||{}).value||'',
+    limite:200});
+  if(auditIndisponible(res)){el.innerHTML=encartIndisponible();return;}
+  if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
+  const l=res.lignes||[];
+  if(!l.length){el.innerHTML=`<div class="empty"><p>${esc(t('audit.aucunJournal'))}</p></div>`;return;}
+  // Le avant/après est le cœur de l'onglet : c'est précisément ce que le
+  // Google Sheet ne conservait pas.
+  const diff=(a,b)=>{
+    if(!a&&!b)return '';
+    const cles=[...new Set([...Object.keys(a||{}),...Object.keys(b||{})])];
+    return cles.filter(k=>JSON.stringify((a||{})[k])!==JSON.stringify((b||{})[k]))
+      .map(k=>`<div><b>${esc(k)}</b> : <span style="color:var(--red)">${esc(String((a||{})[k]??'—'))}</span> → <span style="color:var(--green)">${esc(String((b||{})[k]??'—'))}</span></div>`)
+      .join('');
+  };
+  el.innerHTML=`<table class="tbl"><thead><tr>
+      <th>${esc(t('audit.th.quand'))}</th><th>${esc(t('audit.th.qui'))}</th>
+      <th>${esc(t('audit.th.action'))}</th><th>${esc(t('audit.th.cible'))}</th>
+      <th>${esc(t('audit.th.avantApres'))}</th>
+    </tr></thead><tbody>${l.map(x=>`<tr${x.succes?'':' style="background:#fef2f2"'}>
+      <td style="font-size:.7rem;white-space:nowrap;">${esc(dateHeure(x.ts))}</td>
+      <td style="font-size:.72rem;">${esc(x.matricule||'—')}<br><small style="color:var(--muted2)">${esc(x.role_actif||'')}</small></td>
+      <td style="font-size:.72rem;">${esc(x.action)}${x.succes?'':' <span class="badge b-red">✗</span>'}</td>
+      <td style="font-size:.7rem;max-width:180px;word-break:break-all;">${esc(x.entite||'')} ${esc(x.entite_id||'')}</td>
+      <td style="font-size:.68rem;">${diff(x.avant,x.apres)}${x.erreur?`<div style="color:var(--red)">${esc(x.erreur)}</div>`:''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function dateHeure(v){
+  if(!v)return '—';
+  const d=new Date(v);
+  if(isNaN(d.getTime()))return String(v);
+  return d.toLocaleString(LANG==='en'?'en-GB':'fr-FR');
+}
+
+// ══════════════════════════════════════════════
+//  ONGLET ÉDITION MANUELLE (admin)
+// ══════════════════════════════════════════════
+function initEdition(){
+  const d=document.getElementById('ed-date');
+  if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);
+}
+
+async function chargerEditionJour(){
+  const el=document.getElementById('edition-inv-wrap');
+  const date=(document.getElementById('ed-date')||{}).value||'';
+  if(!date){showToast(t('valid.dateRequired'));return;}
+  el.innerHTML=`<div class="empty"><div class="eicon">⏳</div><p>${esc(t('common.loadingP'))}</p></div>`;
+  const res=await apiGet({action:'getByDate',date});
+  if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
+  const inv=res.interventions||[];
+  if(!inv.length){el.innerHTML=`<div class="empty"><p>${esc(t('edition.aucuneInv'))}</p></div>`;return;}
+  const STATUTS=['En attente','Injoignable','Problème','Réalisé'];
+  el.innerHTML=`<table class="tbl"><thead><tr>
+      <th>${esc(t('clients.th.num'))}</th><th>${esc(t('common.name.label'))}</th>
+      <th>${esc(t('label.statut'))}</th><th>${esc(t('ph.remarque'))}</th><th></th>
+    </tr></thead><tbody>${inv.map(i=>`<tr id="ed-row-${escJsAttr(i.id)}">
+      <td style="font-size:.72rem;">${esc(i.num||'—')}</td>
+      <td style="font-size:.72rem;">${esc(i.nom||'')}<br><small style="color:var(--muted2)">${esc(i.type||'')}</small></td>
+      <td><select class="ed-statut" style="font-size:.72rem;">${STATUTS.map(s=>`<option value="${esc(s)}"${i.statut===s?' selected':''}>${esc(s)}</option>`).join('')}</select></td>
+      <td><input class="ed-remarque" value="${esc(i.remarque||'')}" style="font-size:.72rem;min-width:160px;"></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-green btn-sm" onclick="enregistrerEditionInv('${escJsAttr(i.id)}')">${esc(t('edition.enregistrer'))}</button>
+        <button class="btn btn-danger btn-sm" onclick="archiverIntervention('${escJsAttr(i.id)}')">🗑️</button>
+      </td></tr>`).join('')}</tbody></table>`;
+}
+
+async function enregistrerEditionInv(id){
+  const row=document.getElementById('ed-row-'+id);
+  if(!row)return;
+  const res=await apiPost({action:'updateStatus',invId:id,
+    statut:row.querySelector('.ed-statut').value,
+    remarque:row.querySelector('.ed-remarque').value});
+  if(res.success)showToast(t('toast.statusUpdated'));
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
+}
+
+async function archiverIntervention(id){
+  if(!confirm(t('edition.confirmSuppr')))return;
+  const res=await apiPost({action:'deleteIntervention',invId:id});
+  if(res.success){showToast(t('edition.archive'));chargerEditionJour();}
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
+}
+
+async function chargerEditionClient(){
+  const el=document.getElementById('edition-cli-wrap');
+  const num=String((document.getElementById('ed-cli-num')||{}).value||'').trim();
+  if(!num){showToast(t('valid.numRequired'));return;}
+  el.innerHTML=`<div class="empty"><div class="eicon">⏳</div><p>${esc(t('common.loadingP'))}</p></div>`;
+  const res=await apiGet({action:'getClients'});
+  if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
+  const c=(res.clientsFtth||[]).concat(res.clientsCuivre||[]).find(x=>String(x.num)===num);
+  if(!c){el.innerHTML=`<div class="empty"><p>${esc(t('edition.clientIntrouvable'))}</p></div>`;return;}
+  const svc=(res.clientsFtth||[]).some(x=>String(x.num)===num)?'FTTH':'CUIVRE';
+  const ch=(id,lbl,val)=>`<div><label>${esc(lbl)}</label><input id="${id}" value="${esc(val||'')}"></div>`;
+  el.innerHTML=`<div class="form-row">
+      ${ch('edc-nom',t('common.name.label'),c.nom)}
+      <div><label>Service</label><select id="edc-service">
+        <option value="FTTH"${svc==='FTTH'?' selected':''}>FTTH</option>
+        <option value="CUIVRE"${svc==='CUIVRE'?' selected':''}>Cuivre</option></select></div>
+    </div>
+    <div class="form-row">${ch('edc-tel','Téléphone',c.tel)}${ch('edc-telsec','Tél. secondaire',c.telSec)}</div>
+    <div class="form-row">${ch('edc-ville','Ville',c.ville)}${ch('edc-quartier','Quartier',c.quartier)}</div>
+    <div class="form-row">${ch('edc-loc','Localité',c.loc)}${ch('edc-gps','GPS',c.gps)}</div>
+    <button class="btn btn-green btn-sm" onclick="enregistrerEditionClient('${escJsAttr(num)}')">${esc(t('edition.enregistrer'))}</button>
+    <button class="btn btn-danger btn-sm" onclick="archiverClient('${escJsAttr(num)}')">🗑️</button>`;
+}
+
+async function enregistrerEditionClient(num){
+  const V=id=>(document.getElementById(id)||{}).value||'';
+  const res=await apiPost({action:'saveClient',num,
+    nom:V('edc-nom'),service:V('edc-service'),tel:V('edc-tel'),telSec:V('edc-telsec'),
+    ville:V('edc-ville'),quartier:V('edc-quartier'),loc:V('edc-loc'),gps:V('edc-gps')});
+  if(res.success)showToast(t('toast.saved'));
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
+}
+
+async function archiverClient(num){
+  if(!confirm(t('edition.confirmSuppr')))return;
+  const res=await apiPost({action:'deleteClient',num});
+  if(res.success){showToast(t('edition.archive'));document.getElementById('edition-cli-wrap').innerHTML='';}
+  else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 
 // ══════════════════════════════════════════════
