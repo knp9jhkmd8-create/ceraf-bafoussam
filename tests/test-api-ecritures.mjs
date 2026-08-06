@@ -2,15 +2,15 @@
 // Cible la VRAIE base. Tout ce qui est créé est supprimé en fin de test.
 import fs from 'node:fs';
 const conn = fs.readFileSync(process.argv[2], 'utf8').trim();
-globalThis.Netlify = { env: { get: (k) => (k === 'DATABASE_URL' ? conn : undefined) } };
-const { default: api } = await import(process.argv[3]);
+const { configurerEnv, traiterRequete } = await import(process.argv[3]);
+configurerEnv({ DATABASE_URL: conn });
 
 let ok = 0, ko = 0;
 const v = (nom, cond, detail) => { if (cond) { ok++; console.log('  OK    ' + nom); }
   else { ko++; console.log('  ECHEC ' + nom + (detail ? '  -> ' + detail : '')); } };
 
 async function appel(corps) {
-  const rep = await api(new Request('https://t/api', { method: 'POST',
+  const rep = await traiterRequete(new Request('https://t/api', { method: 'POST',
     headers: { 'content-type': 'application/json', 'user-agent': 'harnais-2' },
     body: JSON.stringify(corps) }), { ip: '198.51.100.7' });
   return rep.json();

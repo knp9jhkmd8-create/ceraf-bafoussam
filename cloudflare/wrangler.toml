@@ -1,0 +1,30 @@
+# ============================================================================
+#  CERAF Bafoussam — configuration du Worker Cloudflare
+#
+#  Ce Worker n'héberge QUE l'API. Le frontend reste sur GitHub Pages : le
+#  déplacer changerait l'URL de la PWA déjà installée sur les téléphones de
+#  l'équipe et casserait leur installation, pour aucun gain.
+# ============================================================================
+
+name = "ceraf-bafoussam-api"
+main = "src/worker.mjs"
+compatibility_date = "2026-08-06"
+
+# Indispensable : le cœur utilise `crypto.subtle` et les APIs Web standard.
+# Sans ce drapeau, certaines d'entre elles ne sont pas exposées à l'isolat.
+compatibility_flags = ["nodejs_compat"]
+
+# ── Report nocturne ─────────────────────────────────────────────────────────
+# 00:00 UTC = 1h du matin au Cameroun (UTC+1), même horaire que l'ancien
+# déclencheur Apps Script. Les Cron Triggers sont inclus dans l'offre gratuite —
+# c'est ce qui règle le blocage rencontré avec les crédits de build Netlify.
+[triggers]
+crons = ["0 0 * * *"]
+
+# ── Secret ──────────────────────────────────────────────────────────────────
+# DATABASE_URL n'est PAS déclarée ici : ce fichier est versionné dans un dépôt
+# PUBLIC. Elle se pose en secret, hors du dépôt :
+#
+#   wrangler secret put DATABASE_URL
+#
+# (voir cloudflare/README.md)

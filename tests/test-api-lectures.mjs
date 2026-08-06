@@ -1,12 +1,12 @@
-// Teste la fonction serverless SANS Netlify : on stube l'objet global
-// `Netlify` et on appelle l'export par défaut avec de vraies Request.
-// Cible : la VRAIE base Neon, avec les VRAIES données migrées.
+// Teste le COEUR de l'API (api/core.mjs) sans aucun hebergeur : on injecte
+// la configuration puis on lui passe de vraies Request.
+// Cible : la VRAIE base Neon, avec les VRAIES donnees migrees.
 import fs from 'node:fs';
 
 const conn = fs.readFileSync(process.argv[2], 'utf8').trim();
-globalThis.Netlify = { env: { get: (k) => (k === 'DATABASE_URL' ? conn : undefined) } };
+const { configurerEnv, traiterRequete } = await import(process.argv[3]);
+configurerEnv({ DATABASE_URL: conn });
 
-const { default: api } = await import(process.argv[3]);
 
 let ok = 0, ko = 0;
 const verifier = (nom, cond, detail) => {
@@ -20,7 +20,7 @@ async function appel(corps) {
     headers: { 'Content-Type': 'application/json', 'user-agent': 'harnais-test' },
     body: JSON.stringify(corps)
   });
-  const rep = await api(req, { ip: '203.0.113.9' });
+  const rep = await traiterRequete(req, { ip: '203.0.113.9' });
   return { statut: rep.status, corps: await rep.json() };
 }
 
