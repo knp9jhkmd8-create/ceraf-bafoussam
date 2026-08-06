@@ -116,8 +116,9 @@ function hashPin(pin, salt) {
 const PIN_SALT = 'ceraf-bafoussam-2026';
 
 // PIN attribué par défaut à tout nouveau compte. La connexion renvoie
-// mustChangePin tant que le PIN reste celui-ci, et doPost BLOQUE toutes les
-// actions hors changePin/logout tant qu'il n'a pas été personnalisé.
+// mustChangePin tant que le PIN reste celui-ci, et doPost comme doGet
+// BLOQUENT toutes les actions (hors changePin/logout, POST-only) tant qu'il
+// n'a pas été personnalisé.
 const DEFAULT_PIN = '0000';
 
 // Découpe une valeur PIN_Hash stockée au format "<hash>:<sel>". Les comptes
@@ -713,10 +714,22 @@ function doGet(e) {
       result = { success: false, error: 'Session invalide, reconnectez-vous', authError: true };
     } else if (!session.roles.includes(wanted)) {
       result = { success: false, error: 'Rôle non autorisé pour ce compte', authError: true };
+    } else if (session.mustChangePin) {
+      // Même verrou que doPost : un compte encore au PIN par défaut ne peut
+      // RIEN lire tant qu'il n'a pas défini un PIN personnel. Sans ce test,
+      // doGet restait un contournement complet de la mesure — et il est
+      // réellement atteignable tant que des appareils tournent sur un ancien
+      // index.html qui lit encore via GET. (changePin/logout sont POST-only :
+      // rien à exempter ici, contrairement à doPost.)
+      result = { success: false, error: 'Définissez un nouveau PIN avant de continuer', mustChangePin: true };
     } else {
       const role = wanted;
-      // Actions réservées au chef centre / admin
-      if ((action === 'getAll' || action === 'getClients' || action === 'getClientsResilies' || action === 'getClientHistory' || action === 'genererKpi') && role === 'technicien') {
+      // Lectures réservées au chef centre / admin. getClients en est EXCLU,
+      // par alignement sur doPost : le technicien s'en sert pour l'autofill et
+      // pour la fusion GPS de la vue Terrain (voir CHEF_READ dans doPost).
+      // L'incohérence inverse ne protégeait rien — la même donnée restait
+      // accessible au technicien via POST.
+      if ((action === 'getAll' || action === 'getClientsResilies' || action === 'getClientHistory' || action === 'genererKpi') && role === 'technicien') {
         result = { success: false, error: 'Accès réservé au chef centre' };
       }
       else if (action === 'getByDate')  result = getByDate(e.parameter);
@@ -1354,6 +1367,9 @@ function archiverClientResilie_(info) {
 //  (reclassement) avant l'écriture dans la feuille cible.
 // ============================================================
 function saveClient(data) {
+  // Verrou : lecture (trouverClientRow_) puis écriture/déplacement de ligne —
+  // exactement le motif de lost update que withEcritureLock_ doit couvrir.
+  return withEcritureLock_(() => {
   const { num, nom, tel, telSec, loc, ville, quartier, service, gps } = data;
   if (!num) return { success: false, error: 'Numéro manquant' };
   const sheet    = sheetForService_(service);
@@ -1383,6 +1399,7 @@ function saveClient(data) {
   if (existant) existant.sheet.deleteRow(existant.rowIndex); // reclassement
   sheet.appendRow(buildRow());
   return { success: true, action: existant ? 'reclasse' : 'created' };
+  });
 }
 
 // ============================================================
@@ -1390,19 +1407,28 @@ function saveClient(data) {
 //  Réutilise upsertClientLs_ : une fiche existante est complétée,
 //  jamais écrasée par du vide.
 // ============================================================
+//  Le verrou est posé ICI et non dans upsertClientLs_ : ce dernier est aussi
+//  appelé depuis saveConsistance, qui détient déjà le verrou — l'imbriquer
+//  ferait échouer l'acquisition (LockService.getScriptLock() rend un nouvel
+//  objet Lock à chaque appel, il n'est pas ré-entrant).
 function saveClientLs(data) {
+  return withEcritureLock_(() => {
   if (!data.nom || !String(data.nom).trim()) return { success: false, error: 'Nom manquant' };
   const action = upsertClientLs_({
     nom: data.nom, tel: data.tel, telSec: data.telSec, loc: data.loc,
     ville: data.ville, quartier: data.quartier, pop: data.pop, gps: data.gps
   });
   return { success: true, action };
+  });
 }
 
 // ============================================================
 //  CLIENTS — mettre à jour GPS uniquement
 // ============================================================
 function updateClientGPS(data) {
+  // Verrou : balayage de la feuille pour retrouver la ligne, puis écriture à
+  // l'index trouvé — une insertion/suppression concurrente décalerait la cible.
+  return withEcritureLock_(() => {
   const { num, gps } = data;
   // Mode LS : pas de numéro de ligne, la fiche est retrouvée par nom.
   if (!num && data.nomLs) {
@@ -1425,6 +1451,7 @@ function updateClientGPS(data) {
   cible.sheet.getRange(cible.rowIndex, cible.c.gps+1).setValue(protegerChampStrict_(gps || ''));
   cible.sheet.getRange(cible.rowIndex, cible.c.maj+1).setValue(new Date().toLocaleString('fr-FR'));
   return { success: true };
+  });
 }
 
 // ============================================================
