@@ -56,9 +56,17 @@ verifier('durees calculees', (d.interventions || []).some(i => i.duree >= 0));
 
 const g = await appel({ action: 'getClients', token: tok, actingRole: 'technicien' });
 verifier('getClients repond', g.success === true, JSON.stringify(g).slice(0, 120));
-verifier('258 FTTH', (g.clientsFtth || []).length === 258, (g.clientsFtth || []).length + '');
-verifier('23 Cuivre', (g.clientsCuivre || []).length === 23, (g.clientsCuivre || []).length + '');
-verifier('5 LS', (g.clientsLs || []).length === 5, (g.clientsLs || []).length + '');
+// Pas d'effectif EN DUR : la base vit (fiches ajoutées, résiliées, archivées).
+// Un nombre figé finit toujours par échouer à tort et masquer les vrais
+// problèmes — c'est ce qui est arrivé le 07/08 avec « 26 interventions » et
+// « 258 FTTH ». On vérifie la FORME, pas le décompte.
+verifier('trois listes clients presentes',
+  Array.isArray(g.clientsFtth) && Array.isArray(g.clientsCuivre) && Array.isArray(g.clientsLs));
+verifier('base clients non vide', (g.clientsFtth || []).length > 0, (g.clientsFtth || []).length + '');
+verifier('fiches clients bien formees',
+  (g.clientsFtth || []).every(c => c.num && c.nom !== undefined),
+  JSON.stringify((g.clientsFtth || [])[0] || {}));
+verifier('interventions actives fournies', Array.isArray(g.activeInterventions));
 
 // Ces trois actions sont celles que le portage vers Neon avait cassées en
 // renommant leurs clés de réponse : le frontend lisait `history` et

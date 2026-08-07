@@ -148,7 +148,7 @@ const MUTATIONS = new Set(['login', 'logout', 'changePin', 'updateStatus', 'save
   'mergeClientsLs', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser', 'adminResetPin',
   // Techniquement une lecture, mais sortir TOUTE la base est précisément ce
   // qu'on veut pouvoir retracer.
-  'adminExport']);
+  'adminExport', 'adminCorrigerIntervention']);
 
 async function journaliser(ctx, resultat) {
   if (!MUTATIONS.has(ctx.action)) return;
@@ -525,6 +525,78 @@ async function mergeClientsLs(d, ctx) {
   return { success: true, interventionsRenommees: rea.length };
 }
 
+// ── Correction des dates d'une intervention (admin) ────────────────────────
+// Deux dates, deux rôles bien distincts :
+//   • `reporte_depuis` — date d'ÉMISSION, origine de la 1re occurrence. C'est
+//     la SEULE source de vérité pour la durée : la corriger corrige la durée
+//     partout, y compris rétroactivement dans l'historique.
+//   • `date` — jour de RATTACHEMENT, la fiche sur laquelle la ligne apparaît.
+//     La changer déplace l'intervention d'une fiche du jour à une autre.
+//
+// Volontairement séparé d'`updateStatus` : ce dernier est appelé par le
+// terrain, rejoué depuis la file hors ligne, et doit rester le chemin le plus
+// simple possible. Y greffer des dates l'exposerait à des rejeux qui
+// déplaceraient des interventions.
+async function adminCorrigerIntervention(d, ctx, session) {
+  const id = String(d.invId || '').trim();
+  if (!id) return { success: false, error: 'Intervention introuvable' };
+  const avant = await un(
+    `SELECT id, date, reporte_depuis, consistance_id, statut, nom_client
+       FROM interventions WHERE id = $1 AND supprime_le IS NULL`, [id]);
+  if (!avant) return { success: false, error: 'Intervention introuvable' };
+
+  const jour = (v) => {
+    const s = String(v == null ? '' : v).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  };
+  const iso = (v) => (v ? String(new Date(v).toISOString()).slice(0, 10) : null);
+
+  // `undefined` = champ non transmis, on ne touche pas. Chaîne vide sur
+  // l'émission = on l'efface (l'intervention n'a jamais été reportée).
+  const dateVoulue = d.date === undefined ? iso(avant.date) : jour(d.date);
+  if (d.date !== undefined && !dateVoulue) return { success: false, error: 'Date de rattachement invalide' };
+
+  let emission;
+  if (d.reporteDepuis === undefined)            emission = iso(avant.reporte_depuis);
+  else if (String(d.reporteDepuis).trim() === '') emission = null;
+  else {
+    emission = jour(d.reporteDepuis);
+    if (!emission) return { success: false, error: "Date d'émission invalide" };
+  }
+
+  // Une émission postérieure au rattachement produirait une durée négative,
+  // que rien en aval ne rattraperait.
+  if (emission && emission > dateVoulue) {
+    return { success: false, error: "La date d'émission ne peut pas être postérieure à la date de rattachement" };
+  }
+
+  // Changer la date change la fiche du jour de rattachement : la créer si elle
+  // n'existe pas, sinon la clé étrangère `consistance_id` casserait.
+  let cid = avant.consistance_id;
+  if (dateVoulue !== iso(avant.date)) {
+    await sql(
+      `INSERT INTO consistances (id, date) VALUES ($1, $2::date) ON CONFLICT (date) DO NOTHING`,
+      ['C_' + dateVoulue.replace(/-/g, ''), dateVoulue]);
+    const c = await un('SELECT id FROM consistances WHERE date = $1::date', [dateVoulue]);
+    if (!c) return { success: false, error: 'Fiche du jour introuvable pour cette date' };
+    cid = c.id;
+  }
+
+  await sql(
+    `UPDATE interventions
+        SET date = $1::date, reporte_depuis = $2::date, consistance_id = $3,
+            statut_par = $4, mis_a_jour_le = now()
+      WHERE id = $5`,
+    [dateVoulue, emission, cid, session.matricule, id]);
+
+  // Les agrégats des deux fiches concernées sont comptés à la lecture
+  // (v_consistances) : rien à recalculer.
+  ctx.entite = 'intervention'; ctx.entiteId = id;
+  ctx.avant = { date: iso(avant.date), reporteDepuis: iso(avant.reporte_depuis), nom: avant.nom_client };
+  ctx.apres = { date: dateVoulue, reporteDepuis: emission };
+  return { success: true, date: dateVoulue, reporteDepuis: emission };
+}
+
 // ── Export complet de la base ──────────────────────────────────────────────
 // Seule copie des données HORS de Neon. Les autres filets (récupération d'un
 // projet supprimé sous 7 jours, instant restore) sont internes au fournisseur :
@@ -698,10 +770,17 @@ async function saveConsistance(d, ctx, session) {
     const inv = interventions[idx];
     const type = inv.typeLabel || inv.type || '';
     const service = serviceDuType(type);
-    const estResiliation = sansAccents(type).toLowerCase().includes('resiliation');
+    const typeNorm = sansAccents(type).toLowerCase();
+    const estResiliation = typeNorm.includes('resiliation');
+    // Une étude n'est PAS un client : c'est une demande à l'instruction, sans
+    // ligne attribuée. Elle reste dans l'historique mais ne doit rien créer
+    // dans la base clients (décision de l'utilisateur, 2026-08-07).
+    const estEtude = typeNorm.includes('etude');
 
     // Clé de la fiche client : numéro de ligne, sinon Customer ID (études FTTH,
-    // pas encore de ligne attribuée).
+    // pas encore de ligne attribuée). Le Customer ID sert d'identifiant SUR LA
+    // LIGNE d'intervention, jamais de clé de fiche client — c'est ce qui
+    // faisait entrer « AA10473363 », « 81 », « 82 » dans la liste des clients.
     const numKey = String(inv.num || '').trim() || String(inv.customerId || '').trim();
 
     // Remarque composée — format IDENTIQUE à Apps Script, sinon l'affichage
@@ -763,7 +842,10 @@ async function saveConsistance(d, ctx, session) {
     // Upsert de la fiche client. Le « reclassement » entre services, qui
     // imposait de DÉPLACER une ligne entre deux feuilles, n'est plus qu'un
     // UPDATE de la colonne `service`.
-    if (numKey && service !== 'LS') {
+    if (estEtude) {
+      // Rien à faire : ni fiche FTTH/Cuivre, ni fiche LS. L'intervention est
+      // enregistrée normalement et apparaîtra dans l'historique.
+    } else if (numKey && service !== 'LS') {
       await sql(
         `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, derniere_maj)
          VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8, now())
@@ -1055,7 +1137,7 @@ const CHEF_ONLY  = ['deleteClient', 'deleteIntervention', 'saveClient', 'saveCli
 const CHEF_READ  = ['getAll', 'getClientHistory', 'getClientsResilies'];
 const ADMIN_ONLY = ['adminListUsers', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser',
                     'adminResetPin', 'adminAudit', 'adminSessions', 'adminRevoquerSession',
-                    'adminExport', 'adminBackups'];
+                    'adminExport', 'adminBackups', 'adminCorrigerIntervention'];
 
 const ACTIONS = {
   ping:               async () => ({ success: true, pong: true }),
@@ -1071,7 +1153,9 @@ const ACTIONS = {
   // Onglet Audit — sans équivalent dans le backend Sheets
   adminSessions, adminRevoquerSession, adminAudit,
   // Sauvegarde
-  adminExport, adminBackups
+  adminExport, adminBackups,
+  // Correction manuelle (admin)
+  adminCorrigerIntervention
 };
 
 // Point d'entrée unique, appelé par chaque adaptateur d'hébergement.
