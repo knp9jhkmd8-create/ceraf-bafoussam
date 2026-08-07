@@ -1,131 +1,317 @@
 # CERAF Bafoussam — Rapport descriptif de l'application
 
-*Généré le 2026-08-05 à partir d'une lecture intégrale de `index.html` et `Code.gs`. Mis à jour le 2026-08-06 (passe de durcissement sécurité v114 + correction des 3 anomalies relevées par les tests + correctif `changePin` v115 déployé).*
+*Réécrit le 2026-08-07 à partir d'une lecture du code réellement en production :
+`api/core.mjs`, `db/schema.sql`, `db/report-nocturne.sql`, `cloudflare/`, `index.html`, `sw.js`.
+Remplace la version du 2026-08-05, qui décrivait le backend Apps Script aujourd'hui hors circuit.*
 
-> ⚠️ **Ce document décrit encore majoritairement le backend Apps Script**, hors circuit depuis
-> le 2026-08-06. Les sections 1, 2, 5 et 7 (Google Sheet, `LockService`, `clasp`,
-> `withEcritureLock_`, triggers Apps Script) sont **périmées** : l'API tourne désormais sur
-> Cloudflare Workers + Neon (`api/core.mjs`, `cloudflare/src/worker.mjs`), le verrouillage
-> est assuré par les contraintes et transactions Postgres, et le report nocturne est un Cron
-> Trigger Cloudflare appelant `reporter_interventions()`. Une réécriture complète reste à
-> faire. Les sections 3, 4 et 6 (frontend, vues, PWA) restent valables.
+> `Code.gs` est **conservé dans le dépôt mais plus appelé par personne** depuis la bascule du
+> 2026-08-06. Il reste une référence utile (règles métier d'origine, historique des
+> corrections) et un chemin de retour arrière théorique. Ne pas s'y fier pour comprendre le
+> comportement actuel.
+
+---
 
 ## 0. Journal des changements
 
 ### 2026-08-07 — Correctifs API et Terrain (Worker `d7b38709`, SW v19)
 
-Détail et arbitrages complets dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
+Détail et arbitrages dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
 
 - **Historique client réparé** : `getClientHistory` renvoyait `historique` alors que le
   frontend lit `res.history` → `undefined.length` levait avant tout rendu, et le modal
-  tournait indéfiniment. Symptôme visible n°1 pour l'équipe.
-- **Onglet Résiliés réparé** : `getClientsResilies` renvoyait `clients`, le frontend lit
-  `clientsResilies`. (La liste reste vide tant qu'aucun client n'est résilié — c'est normal.)
-- **Historique LS discriminé par (nom, ville, quartier)**, la même clé que
-  `clients_ls.cle_normalisee` : les homonymes LS ne se mélangent plus et les homonymes
-  FTTH/Cuivre n'y remontent plus.
-- **`sql()` : timeout 15 s + une seconde tentative** sur erreur transitoire uniquement
-  (réseau, timeout, 5xx). Protège la saisie sur le réseau mobile du terrain.
-- **`invId` en `crypto.randomUUID()`** : deux publications simultanées sur la même
-  consistance pouvaient produire le même identifiant et lever une violation de clé primaire
-  en 500, non absorbée par `ON CONFLICT` (qui porte sur `client_request_id`).
-- **Erreurs internes non divulguées** : le client reçoit une référence courte, la stack part
-  dans les logs Cloudflare et le message complet dans `audit_log`.
-- **Rate-limit de login par IP** (20 / 15 min) en plus du compteur par matricule, calculé
-  dans la requête existante — sans quoi un balayage de matricules disposait de 5 essais par
-  compte.
-- **Vue Terrain** : l'icône 📞 est retirée des lignes d'intervention (le numéro reste
-  cliquable) ; le tableau Clients la conserve.
-- **`tests/test-api-live.mjs`** : assertions ajoutées sur le **nom des clés** de réponse —
-  `success: true` restait vrai pendant tout le temps où l'app était cassée. Les assertions
-  figeant une date ou un effectif ont été retirées : le report nocturne vide une fiche passée
-  toute seule, ce qui produisait des échecs fantômes masquant les vrais.
+  tournait indéfiniment.
+- **Onglet Résiliés réparé** : clé `clients` → `clientsResilies`.
+- **Historique LS discriminé par (nom, ville, quartier)**, la clé d'identité réelle d'une
+  fiche LS.
+- **`sql()` : timeout 15 s + seconde tentative** sur erreur transitoire uniquement.
+- **`invId` en `crypto.randomUUID()`** : deux publications simultanées pouvaient produire le
+  même identifiant et lever une violation de clé primaire non absorbée par `ON CONFLICT`.
+- **Erreurs internes non divulguées** au client ; détail dans les logs et `audit_log`.
+- **Rate-limit de login par IP** (20 / 15 min) en plus du compteur par matricule.
+- **Vue Terrain** : icône 📞 retirée des lignes d'intervention (numéro toujours cliquable).
 
-## 1. Architecture générale
+### 2026-08-06 — Migration Neon + Cloudflare
 
-PWA de gestion des interventions terrain (FTTH/LS/Cuivre) pour une équipe télécom. Deux moitiés indépendantes, aucun outil de build commun :
+Bascule du backend d'Apps Script/Google Sheets vers PostgreSQL (Neon) et Cloudflare Workers.
+Contrat frontend/backend conservé à l'octet près, ce qui a permis une bascule par simple
+changement d'URL.
 
-- **`index.html`** : SPA JS vanilla (CSS, i18n FR/EN et logique applicative dans un seul fichier), hébergé sur GitHub Pages. `manifest.json` + `sw.js` en font une PWA installable, avec cache offline, file d'attente hors-ligne et pull-to-refresh.
-- **`Code.gs`** : backend Google Apps Script lié au Google Sheet `1OH566jWxL8ph7-UWscrs3ZQt0elNAnPGcNqvjC-RA_w`, exposé via `doGet`/`doPost` retournant du JSON — c'est la seule « API ».
+---
 
-Le frontend parle au backend via une URL de web app Apps Script saisie une fois dans l'écran de configuration (`localStorage['ceraf_url']`), jamais codée en dur.
+## 1. Architecture
+
+PWA de gestion des interventions terrain (FTTH / LS / Cuivre) pour une équipe télécom.
+Trois morceaux, aucun outil de build nulle part :
+
+| Morceau | Fichier | Hébergement |
+|---|---|---|
+| Frontend | `index.html` (SPA vanilla, CSS + i18n FR/EN + logique dans un seul fichier) | GitHub Pages |
+| API | `api/core.mjs` (cœur, ~1000 lignes) + `cloudflare/src/worker.mjs` (adaptateur) | Cloudflare Workers |
+| Base | `db/schema.sql` | Neon PostgreSQL (projet *Camtel CERAF*, Londres) |
+
+**Le cœur est séparé de l'adaptateur** volontairement : `api/core.mjs` n'utilise que des APIs
+Web standard (`fetch`, `crypto.subtle`, `crypto.randomUUID`, `TextEncoder`) et ne connaît ni
+Cloudflare ni Netlify. L'adaptateur ne fait que brancher l'environnement et traduire les
+conventions de la plateforme. `netlify/functions/` existe encore pour la même raison — Netlify
+a été abandonné le 06/08 (crédits de build épuisés), mais l'adaptateur documente la
+portabilité et sert de cible aux harnais de test hors ligne.
+
+**Zéro dépendance** : la base est interrogée via le point d'entrée SQL-sur-HTTP de Neon avec
+le `fetch` natif. Pas de bundler, pas de `node_modules`, démarrage à froid minimal.
+
+L'URL de l'API est **codée en dur** (`index.html:1599`) avec une migration automatique de
+l'ancienne valeur stockée dans `localStorage['ceraf_url']` (`migrerUrlBackend()`) : les
+téléphones déjà configurés sur Apps Script basculent tout seuls.
+
+---
 
 ## 2. Authentification et sécurité
 
-- Connexion par **matricule + PIN**, hashé SHA-256 avec un **sel par utilisateur** stocké au format `<hash>:<sel>` (les comptes historiques en hex simple retombent sur `PIN_SALT` — rétro-compatible). Un token de session (double UUID) est stocké 30 jours, résolu à chaque requête via `resolveSession()`. La connexion est **rate-limitée** pour contrer le bruteforce.
-- **Comptes multi-rôles** : un compte peut cumuler `chef`, `technicien`, `admin` (ex. `"chef,technicien"`). Après connexion, si plusieurs rôles sont disponibles, un écran de choix (`showRoleSwitch`) permet de sélectionner le rôle actif de la session ; le rôle choisi (`actingRole`) est **toujours revérifié côté serveur** contre les rôles réels du compte — impossible de se déclarer admin sans l'être.
-- **Bootstrap** : `bootstrapAdmin` ne fonctionne que si la feuille Utilisateurs est vide (résout l'œuf-et-la-poule pour créer le premier admin). `ensureSeeded()` auto-exécute un seed one-shot au premier appel (verrouillé par `LockService` + un flag dans `PropertiesService`) qui crée/migre 6 comptes techniciens nominatifs + un compte admin `999999`.
-- **PIN par défaut** `0000` : tant qu'un compte l'utilise, `mustChangePin` est renvoyé à la connexion et **`doPost` comme `doGet` bloquent toute action** (hors `changePin`/`logout`, qui sont POST-only). Le blocage est serveur-side : il ne dépend pas du frontend. *(Le contrôle manquait sur `doGet` jusqu'au 2026-08-06 — corrigé, car un ancien `index.html` encore en cache sur un téléphone lit toujours via GET, ce qui rendait le contournement réellement atteignable.)*
-- **Changement de PIN (`changePin`, v115 du 2026-08-06)** : le PIN actuel n'est exigé **que si le compte a déjà un PIN personnel**. Tant qu'il est resté au défaut `0000` — valeur publique —, le redemander ne protège rien et **cassait la personnalisation du PIN** pour tout frontend publié avant l'ajout de cette exigence (voir §Incident ci-dessous). La session en cours **n'est plus révoquée** : la feuille n'ayant qu'une seule colonne `Token`, « révoquer tous les tokens » ne déconnectait que l'appelant lui-même, sans gain de sécurité — la rotation se fait naturellement à la reconnexion. Un nouveau PIN identique à l'ancien est refusé (sinon `mustChangePin` restait vrai et l'utilisateur rebouclait sans comprendre).
+- **Connexion par matricule + PIN.** PIN haché SHA-256 avec sel par utilisateur, stocké
+  `<hash>:<sel>` ; les comptes antérieurs à la migration du sel retombent sur `PIN_SALT`
+  (`api/core.mjs:23`), qui doit rester identique à celui d'Apps Script sous peine d'invalider
+  tous les PIN existants.
+- **Sessions** : token = double UUID, valable 7 jours (`SESSION_DUREE_JOURS`), **stocké haché**
+  (`token_hash`). Une fuite de la base ne donne aucune session utilisable. La table `sessions`
+  distingue les appareils : la révocation est individuelle et l'admin voit les sessions
+  ouvertes.
+- **Rate-limit de login**, lu depuis `audit_log` (aucun cache externe) : 5 échecs par matricule
+  et 20 par IP sur une fenêtre de 15 min, comptés dans **une seule requête** par agrégat
+  conditionnel.
+- **Multi-rôles** : un compte cumule `admin` / `chef` / `technicien`. Le rôle actif
+  (`actingRole`) est **revérifié serveur-side** contre les rôles réels à chaque requête.
+- **Contrôle d'accès au point de dispatch** (`api/core.mjs:864-866`), jamais seulement dans
+  l'UI :
 
-> **Incident du 2026-08-06 — boucle de réinitialisation du PIN.** Le backend `@114` exigeait `currentPin` sur `changePin`, alors que le frontend **publié sur GitHub Pages** ne l'envoyait pas (le correctif frontend existait en local mais n'avait jamais été publié). Conséquence en production : `changePin` répondait « PIN actuel requis », le frontend ignorait l'échec et ouvrait quand même la session, le PIN restait `0000` — et à chaque reconnexion l'utilisateur repassait par l'écran de personnalisation, sans jamais pouvoir en sortir. Ces comptes étaient de plus bloqués en écriture par le verrou `mustChangePin` de `doPost`. **Leçon : un durcissement backend qui ajoute un champ obligatoire à une requête est un changement cassant ; il doit soit être déployé avec le frontend correspondant, soit rester tolérant à l'ancien format.**
-- Chaque action POST/GET est classée `CHEF_ONLY` (`deleteClient`, `deleteIntervention`, `saveClient`, `saveClientLs`, `mergeClientsLs`), `CHEF_READ` (`getAll`, `getClientHistory`, `getClientsResilies`) ou `ADMIN_ONLY` (gestion utilisateurs + réparations), vérifiée serveur-side avant exécution — jamais uniquement côté UI.
-- **`getClients` est ouvert à tous les rôles**, technicien compris : la vue Terrain s'en sert pour l'autofill et la fusion GPS. `doGet` et `doPost` sont alignés sur ce point depuis le 2026-08-06 (auparavant `doGet` le bloquait pour le technicien, sans rien protéger puisque la même donnée restait accessible via POST).
-- **Anti-injection de formule Sheets (CWE-1236)** : `protegerCellule_` (`= + - @`) pour les champs libres, `protegerChampStrict_` (`= @` seulement, pour préserver les téléphones `+237…`) pour les champs clients ; `depolluer_` retire le préfixe à la lecture.
-- **Échappement HTML systématique** côté frontend sur toutes les données utilisateur rendues, pour fermer la XSS stockée.
-- Un ping léger (`warmupBackend`, throttlé à 2 min) réveille le conteneur Apps Script dès l'affichage de l'écran de connexion, pour absorber le cold start (10-30 s) pendant que l'utilisateur tape son matricule plutôt qu'après le clic.
+  | Classe | Actions |
+  |---|---|
+  | `CHEF_ONLY` | `deleteClient`, `deleteIntervention`, `saveClient`, `saveClientLs`, `mergeClientsLs` |
+  | `CHEF_READ` | `getAll`, `getClientHistory`, `getClientsResilies` |
+  | `ADMIN_ONLY` | gestion utilisateurs, sessions, audit |
 
-## 3. Modèle de données (Google Sheet)
+  `getClients` reste ouvert à tous les rôles : la vue Terrain s'en sert pour l'autofill et la
+  fusion GPS.
+- **Verrou `mustChangePin`** : tant qu'un compte est au PIN par défaut (`0000`), **aucune
+  action** n'est possible hors `changePin` et `logout`. Contrôlé serveur-side.
+- **Erreurs internes non divulguées** : le client reçoit `Erreur serveur (réf. xxxxxxxx)` ; la
+  stack part dans les logs Cloudflare et le message complet dans `audit_log`, lisible du seul
+  super admin.
+- **Échappement HTML systématique** côté frontend sur toute donnée utilisateur rendue. Point
+  d'attention permanent : dans `lienTel()` (`index.html:2604`), l'échappement doit rester
+  **avant** la détection des numéros — l'ordre inverse rouvrirait une XSS stockée.
+- L'anti-injection de formule Sheets (`protegerCellule_`) a disparu avec le Sheet : sans objet
+  sur PostgreSQL.
 
-7 feuilles, toutes indexées dynamiquement par nom d'en-tête (jamais par position) :
+> **Incident du 2026-08-06 — boucle de réinitialisation du PIN.** Le backend exigeait
+> `currentPin` sur `changePin` alors que le frontend **publié** ne l'envoyait pas : le PIN
+> restait `0000`, et l'utilisateur repassait indéfiniment par l'écran de personnalisation
+> tout en étant bloqué en écriture. **Leçon : un durcissement backend qui rend un champ
+> obligatoire est un changement cassant** — il doit partir avec son frontend, ou rester
+> tolérant à l'ancien format.
 
-| Feuille | Clé | Contenu notable |
+---
+
+## 3. Modèle de données (PostgreSQL)
+
+Trois types énumérés (`service_t`, `statut_t`, `role_t`) contraignent les valeurs au niveau de
+la base, là où le Sheet acceptait n'importe quelle chaîne.
+
+| Table | Clé | Notes |
 |---|---|---|
-| **Consistances** | `ID_Consistance` (`C_YYYYMMDD`) | Une ligne par jour : `Nb_Interventions`, `Realisees`, `Instances` — ces deux derniers sont une **photo de fin de journée** reconstruite (pas un compteur incrémental) |
-| **Interventions** | `ID_Intervention` | `Type`, `Numero_Ligne`, `Statut`, `Panne` (colonne dédiée depuis migration), `Remarque`, `Reporté_depuis`, `Ville`, `Quartier`, `Duree_Jours` (legacy), `Publié_par`/`Statut_par` (audit) |
-| **Clients FTTH** / **Clients Cuivre** | `Numero` | Mêmes colonnes, service = la feuille elle-même. GPS y vit, pas sur l'intervention |
-| **Clients LS** | `Nom+Ville+Quartier` normalisés (`nomKeyLs_`) | Pas de numéro de ligne ; colonne `POP` propre au LS |
-| **Clients Résiliés** | archive | Superset de colonnes + `Service` d'origine, `Motif`, `Date_Resiliation`, `Resilie_Par` |
-| **Utilisateurs** | `ID` (matricule) | `PIN_Hash`, `Role` (CSV), `Actif`, `Token`, `Token_Expire` |
-| **_Config** (cachée) | — | 4 marqueurs anti-doublon : `B1`=dernière sauvegarde hebdo, `B2`=ID du classeur KPI converti, `B3`=dernier mois KPI généré, `B4`=throttle quotidien du report |
+| `utilisateurs` | `matricule` | `pin_hash`, `roles[]`, `pin_reinitialise_par` |
+| `sessions` | `token_hash` | `expire_le`, `revoquee_le`, `appareil`, `dernier_acces` |
+| `consistances` | `id` (`C_YYYYMMDD`) | La fiche du jour |
+| `interventions` | `id` | `client_request_id` **unique** = clé d'idempotence de publication |
+| `clients` | `numero` | FTTH et Cuivre dans **une seule table**, distingués par `service` |
+| `clients_ls` | `cle_normalisee` | Colonne **générée** : `nom\|ville\|quartier` normalisés, index unique |
+| `clients_resilies` | — | Archive à la résiliation, avec `motif`, `date_resiliation`, `resilie_par` |
+| `audit_log` | `id` | Alimenté au **point de dispatch**, avec `est_test` pour exclure les harnais |
+
+**Deux vues portent la logique de lecture :**
+
+- `v_consistances` : agrégats (`nb_interventions`, `realisees`, `instances`) **calculés à la
+  lecture** par `count(…) FILTER`. Ils ne sont plus stockés — c'est ce qui rend inutile tout
+  le dispositif `recalculerAgregatsMois` d'Apps Script, qui existait uniquement parce que des
+  compteurs stockés divergeaient.
+- `v_interventions` : GPS joint depuis la fiche client (le GPS vit sur le client, pas sur
+  l'intervention) et **durée calculée** par `duree_intervention()`. Ce JOIN remplace les deux
+  lectures de feuilles entières que faisait chaque `getByDate`.
+
+**Suppressions = archivage** (`supprime_le`), jamais de `DELETE` sec. Tous les index sont
+partiels sur `WHERE supprime_le IS NULL`.
+
+**Durée** : `jours_ouvres(origine, fin) - 1`, où `fin` = aujourd'hui si l'intervention est
+encore ouverte, sinon la date de sa propre ligne. Jamais stockée — c'est la leçon du compteur
+`Duree_Jours` qui divergeait silencieusement dès que le déclencheur nocturne sautait.
+
+---
 
 ## 4. Écrans frontend
 
 ### Chef — saisie consistance
-8 types d'intervention avec formulaires indépendants, câblés à la main (`f1*`…`f8*`) : Étude FTTH, Installation FTTH, Dérangement FTTH, Dérangement Cuivre, Étude LS, Dérangement LS, Installation LS, **Résiliation** (un seul formulaire pour les 3 réseaux : le service est **auto-détecté** — `detecterServiceResil()` — depuis le numéro saisi ou depuis nom+ville+quartier pour le LS, badge coloré affiché en temps réel).
+8 types d'intervention, formulaires indépendants câblés à la main (`f1*`…`f8*`) : Étude FTTH,
+Installation FTTH, Dérangement FTTH, Dérangement Cuivre, Étude LS, Dérangement LS,
+Installation LS, **Résiliation** (formulaire unique pour les 3 réseaux, service auto-détecté
+par `detecterServiceResil()` depuis le numéro ou depuis nom+ville+quartier en LS).
 
-- Autofill instantané depuis un cache client en mémoire (`onNumInput` → `lookupClientLocal`), y compris pré-remplissage du numéro secondaire.
-- Détection de quartier tolérante aux fautes de frappe (Levenshtein, 1-2 fautes tolérées selon la longueur) contre une liste de ~40 quartiers de Bafoussam, avec modale de suggestion si rien ne matche.
-- Détection de doublon (même numéro déjà actif) avant ajout à la liste d'attente (`pending[]`), avec confirmation.
-- Détection de changement de fiche client (nom/tel/loc/ville différents de la BD) → modale de confirmation avant écrasement.
-- Prévisualisation groupée par type avant publication (`renderPreview`), édition/suppression d'une ligne en attente, publication en un seul appel `saveConsistance`.
+- Autofill instantané depuis un cache client en mémoire (`onNumInput` → `lookupClientLocal`).
+- Détection de quartier tolérante aux fautes (Levenshtein, 1-2 fautes selon la longueur)
+  contre ~40 quartiers de Bafoussam — l'orthographe terrain est instable, un menu déroulant
+  fixe ne tiendrait pas.
+- Détection de doublon (numéro déjà actif) et de changement de fiche client avant publication.
+- Publication du lot en **un seul appel** `saveConsistance`, avec `clientRequestId` : un
+  double-post réseau ne crée pas de doublons (`ON CONFLICT (client_request_id) DO NOTHING`).
 
 ### Terrain
-Fiche du jour, vue par type ou par quartier, 3 filtres croisés cumulables (quartier/statut/type) avec compteurs recalculés dynamiquement en ignorant leur propre filtre, plus une recherche texte. Champs structurés spécifiques :
-- **Étude FTTH** : FDT/FAT/distance/conclusion FAVORABLE-DÉFAVORABLE, encodés dans la Remarque via un mini-format `clé: valeur • clé: valeur`.
-- **Dérangement FTTH** : liste de 9 natures de panne, colonne dédiée.
-
-Passage à "Réalisé" bloqué tant que ces champs obligatoires ne sont pas remplis. Capture GPS géoloc native, écriture directe sur la fiche Client (ou sur Clients LS par nom si pas de numéro).
+Fiche du jour, vue par type ou par quartier, 3 filtres croisés cumulables (quartier / statut /
+type) dont les compteurs se recalculent en ignorant leur propre filtre, plus recherche texte.
+Champs structurés obligatoires avant passage à « Réalisé » (FDT/FAT/distance/conclusion en
+Étude FTTH, nature de panne en Dérangement). Capture GPS native écrite sur la **fiche client**.
 
 ### Historique
-Consomme `getAll` (dédupliqué), sélecteur de mois, stats (total/réalisées/instances/taux/durée moyenne), mêmes filtres croisés + filtre par nature de panne, cache localStorage par mois (stale-while-revalidate).
+Consomme `getAll` (dédupliqué mensuellement), sélecteur de mois, statistiques, mêmes filtres
+croisés, cache localStorage par mois.
 
 ### Clients
-4 onglets (FTTH / Cuivre / LS / Résiliés — ce dernier chef-only), recherche texte, historique par client en modale, fusion de fiches LS en doublon (détection Levenshtein + inclusion de chaînes, restreinte à même ville+quartier).
+4 onglets (FTTH / Cuivre / LS / Résiliés — ce dernier chef-only), recherche, historique par
+client en modale, fusion de fiches LS en doublon *(cassée — voir §8)*.
 
 ### Admin
-Gestion utilisateurs (création, rôles multiples, reset PIN, activation/désactivation, suppression — sauf soi-même), ajout direct d'un client en base sans créer d'intervention, boutons de réparation en masse (`adminRepairAgregats`, `adminRepairBase`), et une vue Terrain en lecture seule (audit : qui a publié/mis à jour quoi, bouton suppression).
+Gestion des utilisateurs, ajout direct d'un client, **onglet Audit** (sessions ouvertes,
+révocation, journal des mutations) — ce dernier sans équivalent dans le backend Sheets, rendu
+possible par `audit_log`.
 
-## 5. Logique métier backend clé
+---
 
-- **`withEcritureLock_`** : toutes les écritures en lecture-modif-écriture passent par ce verrou `LockService` (échec → `{success:false, retry:true}`, le frontend réessaie). Couvre les 8 points d'entrée : `saveConsistance`, `updateStatus`, `deleteIntervention`, `deleteClient`, `fusionnerClientsLs`, `saveClient`, `saveClientLs`, `updateClientGPS` *(ces 3 derniers ajoutés le 2026-08-06)*. **Le verrou se pose au point d'entrée, jamais dans un helper interne** : `upsertClientLs_` est appelé à la fois par `saveClientLs` et par `saveConsistance` (qui détient déjà le verrou) — l'y placer ferait échouer l'acquisition, `LockService.getScriptLock()` rendant un nouvel objet `Lock` non ré-entrant à chaque appel.
-- **`calculerDuree`** : jours ouvrés entre `Reporté_depuis` et (date de résolution si Réalisé, sinon aujourd'hui) − 1, recalculé à chaque lecture, jamais fait confiance à un compteur stocké.
-- **`reporterInterventionsEnAttente`** (trigger 1h + filet de sécurité à chaque `getByDate`) : déplace physiquement chaque intervention non résolue vers le prochain jour ouvré, throttlé à une fois par jour via le marqueur `_Config!B4` (sinon chaque appel relisait toute la feuille — cause du ralentissement corrigée le 23/07).
-- **`recalculerAgregatsMois`** : reconstruit `Nb_Interventions`/`Realisees`/`Instances` par **présence photo de fin de journée** (une intervention d'origine O réalisée le jour C est comptée en instance de O à C-1, réalisée en C) — jamais depuis les lignes physiques restantes, qui seraient faussées par les déplacements du report automatique.
-- **Dédoublonnage mensuel** (`getAll`) : clé `nom|num|type`, garde le statut le plus avancé (`statutPoids` : Réalisé=4 > Problème=3 > Injoignable=2 > En attente=1), conserve la date d'origine la plus ancienne pour le calcul de durée.
-- **Dédoublonnage tout-historique d'un client** (`getClientHistory`) : clé `type|origine` — deux dérangements séparés dans le temps restent deux entrées, contrairement à `getAll` qui est borné au mois.
-- **Résiliation** : publiée directement `Réalisé`, archive immédiatement la fiche client vers "Clients Résiliés" (`archiverClientResilie_`) sans toucher aux interventions passées (historique préservé).
-- **Sauvegarde hebdomadaire** : chaque dimanche, copie complète du classeur vers Drive (`AUTOSAVE_FOLDER_ID`), marqueur anti-doublon dans `_Config!B1`.
-- **KPI mensuel** : à partir de juillet 2026, génère un onglet dans un classeur Drive dédié (converti .xlsx→Sheets au premier appel) avec répartition FTTH/Cuivre × Études/Installation/Dérangements/Résiliations × Reports/Signalés/Traités/Instances, par ville (Bafoussam/Bandjoun/Baham/Foumbot) + récapitulatif — déclenché automatiquement par le trigger nocturne au changement de mois.
-- **Graveyard de fonctions `reparer*`/`migrer*`** en fin de fichier : migrations one-shot déjà exécutées (séparation Clients FTTH/Cuivre, extraction colonne Panne, suppression colonne Chef, reprise historique LS…), conservées comme preuve forensique, pas comme modèle à suivre.
+## 5. Logique métier
+
+- **Idempotence plutôt que verrous.** Apps Script sérialisait toutes les écritures avec
+  `LockService` (`withEcritureLock_`) parce qu'un Sheet ne sait pas faire mieux. Postgres rend
+  ce dispositif inutile : les contraintes d'unicité et `ON CONFLICT` remplacent le verrou, et
+  chaque publication porte un `client_request_id` qui rend le rejeu inoffensif.
+- **Report nocturne** (`db/report-nocturne.sql`, fonction `reporter_interventions()`) : toute
+  intervention encore ouverte (`En attente` / `Injoignable` / `Problème`) à une date passée
+  passe au jour ouvré suivant. `reporte_depuis` porte la date d'origine et ne bouge jamais.
+  Deux écarts assumés avec Apps Script :
+  1. la ligne est **déplacée en gardant son ID** au lieu d'être recréée — l'ancien
+     comportement cassait la file d'attente hors ligne du frontend, dont les items
+     référencent un `invId` qui n'existait plus le lendemain (saisie du technicien perdue) ;
+  2. aucune fiche n'est jamais créée un samedi ou un dimanche.
+
+  **Idempotente par construction** : seules les interventions ouvertes à une date *passée*
+  sont candidates ; une fois reportées elles ne le sont plus. D'où l'absence du marqueur de
+  throttle que l'ancien code devait maintenir dans `_Config!B4`.
+- **Double déclenchement du report** : Cron Trigger Cloudflare à `0 23 * * *` **UTC** = minuit
+  au Cameroun (UTC+1 — les crons Cloudflare sont toujours en UTC, écrire `0 0` déclencherait
+  à 1 h locale), plus un filet de sécurité appelé par `getByDate` sur la date du jour. Si le
+  déclencheur saute, l'arriéré remonte dès qu'un technicien ouvre sa fiche.
+- **Dédoublonnage mensuel** (`getAll`) : la même intervention logique apparaît une fois par
+  jour de report. Clé `nom|num|type`, survivant choisi par statut le plus avancé
+  (Réalisé > Problème > Injoignable > En attente), départagé par date la plus récente ; le
+  `reporte_depuis` le plus ancien est conservé pour que la durée reste juste.
+- **Identité d'un client LS** = `(nom, ville, quartier)` normalisés. Ce n'est pas une
+  convention applicative mais la définition de `clients_ls.cle_normalisee` et de son index
+  unique : une orthographe différente crée une **autre** fiche. Toute requête sur un client LS
+  doit reprendre cette clé — c'est ce qui a été corrigé le 07/08 sur `getClientHistory`.
+- **Reclassement de service** : un numéro vit dans une seule ligne `clients` ; le re-saisir
+  sous l'autre service met à jour la colonne `service`, il ne crée pas de doublon.
+- **Résiliation** : publiée directement en `Réalisé`, la fiche est archivée vers
+  `clients_resilies` avec son motif, sans toucher aux interventions passées.
+- **Journal d'audit au point de dispatch** : toutes les mutations passent par le même endroit,
+  il est donc impossible d'en oublier une. Un échec d'écriture du journal ne fait jamais
+  échouer l'action métier.
+
+---
 
 ## 6. PWA / offline
 
-- Cache localStorage stale-while-revalidate pour Terrain, Historique (par mois) et Clients — affichage instantané puis rafraîchissement réseau silencieux.
-- File d'attente offline (`ceraf_status_queue`) pour les mises à jour de statut faites sans réseau, rejouée automatiquement au retour en ligne.
-- Pull-to-refresh tactile avec seuil et amortissement, désactivé sur l'écran de saisie chef (pour ne pas perdre les interventions non publiées) et pendant qu'une modale est ouverte.
-- Service worker en network-first, sans rechargement auto sur `controllerchange` (bug de boucle infinie déjà rencontré et évité).
+- Cache localStorage *stale-while-revalidate* pour Terrain, Historique (par mois) et Clients :
+  affichage instantané puis rafraîchissement réseau silencieux. Fraîcheur visée 10 min sur les
+  clients (`CLIENTS_REFRESH_INTERVAL`, `index.html:2120`). **C'est le cache qui compte** — il
+  supprime l'aller-retour réseau, qui est le seul coût réel (~800 ms, contre 0,2 ms de SQL).
+- File d'attente offline (`ceraf_status_queue`) pour les changements de statut faits sans
+  réseau, rejouée au retour en ligne. C'est elle qui impose que le report nocturne **déplace**
+  les lignes sans changer leur ID.
+- Pull-to-refresh tactile, désactivé sur l'écran de saisie chef (ne pas perdre les
+  interventions non publiées) et pendant qu'une modale est ouverte.
+- Service worker **network-first** sur le HTML (`sw.js`, `ceraf-v19`) : la version la plus
+  récente s'affiche dès qu'il y a du réseau, le cache ne sert que de secours hors ligne. Pas
+  de rechargement automatique sur `controllerchange` (boucle infinie déjà rencontrée).
+- `warmupBackend()` subsiste (`index.html:1710`) : hérité du cold start Apps Script (10-30 s),
+  il n'a plus grand intérêt face au démarrage d'un isolat Workers (~4 ms).
+
+---
 
 ## 7. Déploiement
 
-Backend géré via `clasp` : `clasp push --force` → `clasp version` → `clasp deploy -i <deploymentId>` sur le déploiement de production existant (jamais sans `-i`, ce qui créerait une nouvelle URL et casserait l'app pour tous les utilisateurs déjà configurés). Pas d'environnement de staging ni de suite de tests automatisée — vérification par `curl` direct sur l'URL live après chaque changement.
+Deux cibles **indépendantes**. Rien n'est automatisé : pas de CI, pas de préproduction — le
+live **est** la production.
+
+**API** (Cloudflare Workers) :
+```bash
+node --check api/core.mjs
+npx wrangler deploy --config cloudflare/wrangler.toml
+node tests/test-api-live.mjs https://ceraf-bafoussam-api.knp9jhkmd8.workers.dev
+```
+`DATABASE_URL` n'est **pas** dans le dépôt (public) : elle est posée en secret via
+`wrangler secret put DATABASE_URL`. Compter quelques secondes de propagation avant de tester —
+un test lancé dans la foulée peut encore taper l'ancienne version.
+
+**Frontend** (GitHub Pages) :
+```bash
+node tests/check-inline-js.js index.html     # obligatoire : ~3800 lignes de JS inline, aucun build
+# bump CACHE_VERSION dans sw.js, sinon les téléphones gardent l'ancien index.html
+git push origin main
+```
+
+Le frontend **reste sur GitHub Pages** délibérément : le déplacer changerait l'URL de la PWA
+déjà installée sur les téléphones de l'équipe et casserait leur installation.
+
+---
+
+## 8. Écarts connus et dette
+
+**Deux actions appelées par le frontend n'existent pas dans le routeur** (`ACTIONS`,
+`api/core.mjs:811`) — oubliées lors du portage :
+
+| Action | Effet réel | Gravité |
+|---|---|---|
+| `mergeClientsLs` | La fusion de fiches LS en doublon échoue avec « Action inconnue ». Échec visible. | Fonctionnalité perdue |
+| `findClient` | ⚠️ **Panne silencieuse.** L'action sert de garde-fou avant `saveClient` côté Admin (`index.html:2043`). Comme elle échoue, `ex.success` est faux, la condition `ex.success && ex.found && !confirm(…)` tombe à faux, et **une fiche client existante est écrasée sans aucune confirmation**. | Perte de données possible |
+
+**Automatismes Drive non portés.** Le Cron Cloudflare ne fait que le report nocturne. La
+sauvegarde hebdomadaire du classeur et la génération du KPI mensuel étaient des déclencheurs
+Apps Script sur le Sheet — lequel ne reçoit plus rien depuis le 06/08. Ils tournent donc dans
+le vide ou sur des données figées. À débrancher, ou à porter si le KPI est encore utilisé.
+
+**Sauvegarde de la base.** Le point précédent a un corollaire : il n'existe plus de sauvegarde
+applicative. Neon assure un *point-in-time recovery* selon son offre, mais aucun export ne
+sort du service. À décider consciemment plutôt que par omission.
+
+**`Code.gs`** (137 Ko) et son tiers inférieur de fonctions `reparer*`/`corriger*`/`migrer*`
+restent dans le dépôt comme preuve forensique des corruptions passées. Ce n'est pas un modèle
+à étendre.
+
+---
+
+## 9. Tests
+
+Aucune CI. Quatre scripts, `node` seul, aucune dépendance à installer (`tests/README.md`) :
+
+| Script | Cible |
+|---|---|
+| `check-inline-js.js` | Parse le JS inline d'`index.html` — la seule protection contre une erreur de syntaxe qui ne se verrait que sur le téléphone du technicien |
+| `test-api-lectures.mjs` / `test-api-ecritures.mjs` | Le vrai cœur, contre la **vraie base**. ~80 assertions. Nécessitent la chaîne de connexion en argument |
+| `test-api-live.mjs` | L'API **déployée**, en HTTP. Mesure la latence client et la sépare du temps serveur (`_ms`) |
+
+⚠️ **Les harnais d'écriture tournent contre la base de production.** Le 07/08, un test a
+archivé les 26 interventions du jour (restaurées depuis). Règles : compte dédié `_T_HARNAIS`
+et jamais un compte de l'équipe ; `_test: true` sur chaque appel ; **ne jamais tuyauter ces
+scripts vers `head`** — le SIGPIPE interrompt le nettoyage final et laisse des données de test
+en base.
+
+Deux principes appris le 07/08 :
+- **asserter le nom des clés de réponse**, pas seulement `success` — qui restait vrai pendant
+  tout le temps où l'application était cassée ;
+- **ne figer ni date ni effectif** dans un test live : le report nocturne vide une fiche
+  passée toute seule, ce qui produit des échecs fantômes qui finissent par masquer les vrais.
