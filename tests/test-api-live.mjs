@@ -89,6 +89,22 @@ console.log('\n3c. clients resilies');
 const cr = await appel({ action: 'getClientsResilies', token: tok, actingRole: 'chef' });
 verifier('cle `clientsResilies` presente', Array.isArray(cr.clientsResilies), JSON.stringify(Object.keys(cr)));
 
+// La sauvegarde est la seule copie des donnees hors de l'hebergeur. Deux choses
+// comptent : qu'elle soit COMPLETE, et qu'elle ne fasse PAS sortir les
+// empreintes de PIN (4 chiffres se cassent en minutes a partir d'un hash).
+console.log('\n3d. sauvegarde');
+verifier('export refuse au chef',
+  (await appel({ action: 'adminExport', token: tok, actingRole: 'chef' })).success === false);
+const ex = (await appel({ action: 'adminExport', token: tok, actingRole: 'admin' })).export || {};
+const tbl = ex.tables || {};
+verifier('7 tables exportees', Object.keys(tbl).length === 7, Object.keys(tbl).join(','));
+verifier('clients et interventions non vides',
+  (tbl.clients || []).length > 0 && (tbl.interventions || []).length > 0);
+verifier('aucune cle pin_hash', !(tbl.utilisateurs || []).some(u => 'pin_hash' in u));
+verifier('aucune empreinte SHA-256 dans la charge', !/[a-f0-9]{64}/.test(JSON.stringify(tbl)));
+verifier('compte coherent avec les tables',
+  Object.keys(tbl).every(k => (ex.compte || {})[k] === tbl[k].length), JSON.stringify(ex.compte));
+
 console.log('\n5. controle des roles');
 verifier('getAll refuse au technicien',
   (await appel({ action: 'getAll', month: '2026-08', token: tok, actingRole: 'technicien' })).success === false);

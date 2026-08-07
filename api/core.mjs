@@ -145,7 +145,10 @@ async function resoudreSession(token) {
 // quoi à la main.
 const MUTATIONS = new Set(['login', 'logout', 'changePin', 'updateStatus', 'saveConsistance',
   'saveClient', 'saveClientLs', 'updateClientGPS', 'deleteClient', 'deleteIntervention',
-  'mergeClientsLs', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser', 'adminResetPin']);
+  'mergeClientsLs', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser', 'adminResetPin',
+  // Techniquement une lecture, mais sortir TOUTE la base est précisément ce
+  // qu'on veut pouvoir retracer.
+  'adminExport']);
 
 async function journaliser(ctx, resultat) {
   if (!MUTATIONS.has(ctx.action)) return;
@@ -520,6 +523,58 @@ async function mergeClientsLs(d, ctx) {
 
   ctx.apres = { interventionsReaffectees: rea.length };
   return { success: true, interventionsRenommees: rea.length };
+}
+
+// ── Export complet de la base ──────────────────────────────────────────────
+// Seule copie des données HORS de Neon. Les autres filets (récupération d'un
+// projet supprimé sous 7 jours, instant restore) sont internes au fournisseur :
+// ils couvrent la fausse manœuvre, pas la perte d'accès au compte.
+//
+// L'admin déclenche l'export et récupère un JSON qu'il range où il veut. Pas de
+// service tiers, pas de secret, pas de coût — et la même fonction pourra être
+// appelée par le cron le jour où on voudra l'automatiser.
+//
+// ⚠️ `pin_hash` est VOLONTAIREMENT exclu. Un PIN à 4 chiffres se retrouve en
+// quelques minutes à partir de son empreinte : exporter les hachages
+// reviendrait à écrire les codes de l'équipe dans un fichier qui finira sur une
+// clé USB. À la restauration, les comptes repartent au PIN par défaut et chacun
+// repersonnalise le sien — coût négligeable pour 8 comptes.
+const TABLES_EXPORT = [
+  ['utilisateurs',     `SELECT matricule, nom, roles, actif, derniere_connexion,
+                               pin_reinitialise_par, supprime_le FROM utilisateurs`],
+  ['consistances',     `SELECT * FROM consistances`],
+  ['interventions',    `SELECT * FROM interventions`],
+  ['clients',          `SELECT * FROM clients`],
+  ['clients_ls',       `SELECT * FROM clients_ls`],
+  ['clients_resilies', `SELECT * FROM clients_resilies`],
+  ['audit_log',        `SELECT * FROM audit_log`]
+];
+
+async function adminExport(d, ctx) {
+  const tables = {};
+  const compte = {};
+  // En série et non en parallèle : un export est rare et jamais dans le chemin
+  // critique, alors qu'ouvrir sept requêtes d'un coup sur une base à 0,25 CU
+  // pénaliserait l'équipe en train de travailler.
+  for (const [nom, requete] of TABLES_EXPORT) {
+    const lignes = await sql(requete + ' ORDER BY 1');
+    tables[nom] = lignes;
+    compte[nom] = lignes.length;
+  }
+  ctx.entite = 'export'; ctx.apres = compte;
+  return {
+    success: true,
+    export: {
+      genereLe: new Date().toISOString(),
+      genereePar: ctx.matricule || null,
+      schema: 1,
+      // Rappelé DANS le fichier : dans un an, personne ne se souviendra
+      // pourquoi les comptes n'ont pas de PIN en le restaurant.
+      note: 'pin_hash volontairement absent — les comptes repartent au PIN par défaut à la restauration.',
+      compte,
+      tables
+    }
+  };
 }
 
 // ============================================================================
@@ -944,7 +999,8 @@ async function adminAudit(d) {
 const CHEF_ONLY  = ['deleteClient', 'deleteIntervention', 'saveClient', 'saveClientLs', 'mergeClientsLs'];
 const CHEF_READ  = ['getAll', 'getClientHistory', 'getClientsResilies'];
 const ADMIN_ONLY = ['adminListUsers', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser',
-                    'adminResetPin', 'adminAudit', 'adminSessions', 'adminRevoquerSession'];
+                    'adminResetPin', 'adminAudit', 'adminSessions', 'adminRevoquerSession',
+                    'adminExport'];
 
 const ACTIONS = {
   ping:               async () => ({ success: true, pong: true }),
@@ -958,7 +1014,9 @@ const ACTIONS = {
   // Administration
   adminListUsers, adminAddUser, adminUpdateUser, adminDeleteUser, adminResetPin,
   // Onglet Audit — sans équivalent dans le backend Sheets
-  adminSessions, adminRevoquerSession, adminAudit
+  adminSessions, adminRevoquerSession, adminAudit,
+  // Sauvegarde
+  adminExport
 };
 
 // Point d'entrée unique, appelé par chaque adaptateur d'hébergement.

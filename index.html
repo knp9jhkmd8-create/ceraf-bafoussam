@@ -698,6 +698,13 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         </div>
         <button class="btn btn-primary btn-sm" onclick="adminAddClientUI()" data-i18n="admin.client.saveBtn">💾 Enregistrer</button>
       </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" data-i18n="admin.export.title">💾 Sauvegarde de la base</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;" data-i18n="admin.export.sub">Télécharge toute la base dans un fichier. C'est la seule copie conservée en dehors de l'hébergeur — rangez-la sur votre ordinateur ou votre Drive. Les codes PIN n'y figurent pas.</div>
+        <button class="btn btn-primary btn-sm" id="btn-export" onclick="adminExportUI()" data-i18n="admin.export.btn">⬇️ Télécharger la sauvegarde</button>
+        <div id="export-info" style="font-size:.78rem;color:var(--muted);margin-top:10px;"></div>
+      </div>
     </div>
 
     <!-- ══ ONGLET AUDIT ══════════════════════════════════════════════════
@@ -953,6 +960,12 @@ fr:{
   'admin.client.existsConfirm':'Le numéro {num} existe déjà en base. Remplacer la fiche par ces informations ?',
   'admin.client.saved':'✅ Client enregistré en BD',
   'admin.client.saveBtn':'💾 Enregistrer',
+  'admin.export.title':'💾 Sauvegarde de la base',
+  'admin.export.sub':"Télécharge toute la base dans un fichier. C'est la seule copie conservée en dehors de l'hébergeur — rangez-la sur votre ordinateur ou votre Drive. Les codes PIN n'y figurent pas.",
+  'admin.export.btn':'⬇️ Télécharger la sauvegarde',
+  'admin.export.running':'⏳ Préparation de la sauvegarde...',
+  'admin.export.done':'✅ Sauvegarde téléchargée — {n} lignes, {ko} Ko.',
+  'admin.export.toast':'Sauvegarde téléchargée',
   'clients.empty':'Aucun client enregistré.',
   'gps.viewLink':'📌 Voir',
   'terrain.title.html':'Fiche du <span id="terrain-date-title">Jour</span>',
@@ -1219,6 +1232,12 @@ en:{
   'admin.client.existsConfirm':'Number {num} already exists in the database. Replace the record with this information?',
   'admin.client.saved':'✅ Customer saved to DB',
   'admin.client.saveBtn':'💾 Save',
+  'admin.export.title':'💾 Database backup',
+  'admin.export.sub':'Downloads the whole database as a file. This is the only copy kept outside the hosting provider — save it on your computer or your Drive. PIN codes are not included.',
+  'admin.export.btn':'⬇️ Download backup',
+  'admin.export.running':'⏳ Preparing the backup...',
+  'admin.export.done':'✅ Backup downloaded — {n} rows, {ko} KB.',
+  'admin.export.toast':'Backup downloaded',
   'clients.empty':'No customers registered.',
   'gps.viewLink':'📌 View',
   'terrain.title.html':'Sheet for <span id="terrain-date-title">Today</span>',
@@ -2050,6 +2069,35 @@ async function adminAddClientUI(){
     document.getElementById('adm-cli-ville').value='';document.getElementById('adm-cli-pop').value='';
   }
   else showToast(t('err.prefix')+(res.error||t('err.generic')));
+}
+
+// Sauvegarde : on demande le JSON au serveur et on le fait enregistrer par le
+// navigateur. Rien n'est stocké en ligne — la copie va où l'admin la range.
+async function adminExportUI(){
+  const btn=document.getElementById('btn-export'),info=document.getElementById('export-info');
+  btn.disabled=true;
+  info.textContent=t('admin.export.running');
+  try{
+    const res=await apiPost({action:'adminExport'});
+    if(!res.success||!res.export){info.textContent='❌ '+(res.error||t('err.generic'));return;}
+    const jour=new Date().toISOString().slice(0,10);
+    const blob=new Blob([JSON.stringify(res.export,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`ceraf-sauvegarde-${jour}.json`;
+    document.body.appendChild(a);a.click();a.remove();
+    // Sans révocation, le Blob reste en mémoire tant que l'onglet est ouvert —
+    // et un export fait plusieurs Mo.
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const c=res.export.compte||{};
+    const total=Object.values(c).reduce((s,n)=>s+n,0);
+    info.textContent=t('admin.export.done',{n:total,ko:Math.round(blob.size/1024)});
+    showToast(t('admin.export.toast'));
+  }catch(e){
+    info.textContent='❌ '+(e.message||t('err.generic'));
+  }finally{
+    btn.disabled=false;
+  }
 }
 
 async function adminEditRolesUI(id,nom,currentRoles){
