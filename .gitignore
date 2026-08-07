@@ -31,3 +31,6 @@ netlify-public/
 # Secrets de developpement wrangler — JAMAIS versionnes (depot public)
 cloudflare/.dev.vars
 cloudflare/.wrangler/
+# `wrangler deploy --config cloudflare/wrangler.toml` lance depuis la racine
+# depose son cache ICI, et non dans cloudflare/.
+.wrangler/

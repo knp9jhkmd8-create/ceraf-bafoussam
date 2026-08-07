@@ -2601,7 +2601,10 @@ function confirmUpdate(ok){document.getElementById('modal-update').classList.rem
 // terrain. Le texte peut contenir plusieurs numéros séparés par « / » : on ne
 // transforme QUE les séquences de 9 chiffres et on laisse le reste tel quel.
 // L'échappement reste appliqué au texte affiché : ce sont des données client.
-function lienTel(txt){
+// `avecIcone` : le tableau Clients garde le 📞, qui aide à repérer la colonne.
+// Sur une ligne d'intervention, l'information est déjà dense et l'icône n'ajoute
+// rien — le lien reste cliquable dans les deux cas.
+function lienTel(txt,avecIcone=true){
   const s=String(txt==null?'':txt);
   if(!s)return '';
   // On échappe D'ABORD la chaîne entière, puis on transforme les numéros. Faire
@@ -2611,7 +2614,7 @@ function lienTel(txt){
   return esc(s).replace(/\d[\d\s]{7,}\d/g, brut=>{
     const chiffres=brut.replace(/\D/g,'');
     if(chiffres.length!==9)return brut;   // pas un numéro local : on n'y touche pas
-    return `<a href="tel:${chiffres}" class="lien-tel" onclick="event.stopPropagation()">📞 ${brut}</a>`;
+    return `<a href="tel:${chiffres}" class="lien-tel" onclick="event.stopPropagation()">${avecIcone?'📞 ':''}${brut}</a>`;
   });
 }
 
@@ -2627,9 +2630,9 @@ function buildLabel(inv){
     if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') telSec=inv.numSec;
     else if(inv.telSec&&inv.telSec!=='null'&&inv.telSec!=='') telSec=inv.telSec;
     const display=telSec&&!inv.tel.includes('/')?inv.tel+' / '+telSec:inv.tel;
-    p.push(lienTel(display));
+    p.push(lienTel(display,false));
   } else if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!==''){
-    p.push(lienTel(inv.numSec));
+    p.push(lienTel(inv.numSec,false));
   }
   if(inv.pop)p.push(esc(inv.pop));
   if(inv.loc)p.push(`<em style="color:var(--muted)">${esc(inv.loc)}</em>`);

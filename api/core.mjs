@@ -23,6 +23,9 @@ const DEFAULT_PIN = '0000';
 const PIN_SALT = 'ceraf-bafoussam-2026';
 
 const LOGIN_MAX_ECHECS = 5;
+// Plafond par IP, plus haut : sur le terrain plusieurs téléphones sortent
+// derrière la même IP opérateur, un plafond à 5 les bloquerait mutuellement.
+const LOGIN_MAX_ECHECS_IP = 20;
 const LOGIN_FENETRE_MIN = 15;
 
 // ── Configuration, injectée par l'adaptateur d'hébergement ─────────────────
@@ -37,22 +40,50 @@ let ENV = {};
 export function configurerEnv(e) { ENV = e || {}; }
 
 // ── Accès base ─────────────────────────────────────────────────────────────
+// Le réseau mobile du terrain est le maillon faible : sans plafond, un `fetch`
+// qui pend bloque la publication jusqu'à ce que le technicien abandonne, et sa
+// saisie est perdue. D'où un timeout FERME et une seconde tentative.
+const SQL_TIMEOUT_MS = 15000;
+const SQL_TENTATIVES = 2;
+const pause = (ms) => new Promise(r => setTimeout(r, ms));
+
 async function sql(requete, params = []) {
   const conn = ENV.DATABASE_URL;
   if (!conn) throw new Error('DATABASE_URL absent de la configuration');
   const hote = conn.replace(/^.*@([^/]+)\/.*$/, '$1');
-  const rep = await fetch(`https://${hote}/sql`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Neon-Connection-String': conn },
-    body: JSON.stringify({ query: requete, params })
-  });
-  if (!rep.ok) {
+
+  let derniere;
+  for (let essai = 1; essai <= SQL_TENTATIVES; essai++) {
+    let rep;
+    try {
+      rep = await fetch(`https://${hote}/sql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Neon-Connection-String': conn },
+        body: JSON.stringify({ query: requete, params }),
+        signal: AbortSignal.timeout(SQL_TIMEOUT_MS)
+      });
+    } catch (e) {
+      // Réseau coupé ou timeout : transitoire par nature, on retente.
+      derniere = e;
+      if (essai < SQL_TENTATIVES) { await pause(200); continue; }
+      throw new Error('SQL: injoignable (' + (e.name === 'TimeoutError' ? 'délai dépassé' : e.name) + ')');
+    }
+
+    if (rep.ok) return (await rep.json()).rows || [];
+
     const txt = await rep.text();
     let msg = txt;
     try { const j = JSON.parse(txt); msg = j.message || j.error || txt; } catch { /* texte brut */ }
-    throw new Error('SQL: ' + String(msg).slice(0, 300));
+    derniere = new Error('SQL: ' + String(msg).slice(0, 300));
+
+    // Un 4xx est DÉTERMINISTE (erreur de requête, contrainte violée) : le
+    // rejouer donnerait exactement la même réponse. Seuls les 5xx valent un
+    // second essai. Rejouer est sûr : les lectures sont pures et les écritures
+    // sont dédoublonnées par `client_request_id`.
+    if (rep.status < 500 || essai === SQL_TENTATIVES) throw derniere;
+    await pause(200);
   }
-  return (await rep.json()).rows || [];
+  throw derniere;
 }
 const un = async (q, p) => (await sql(q, p))[0] || null;
 
@@ -125,7 +156,8 @@ async function journaliser(ctx, resultat) {
       [ctx.matricule || null, ctx.role || null, ctx.action, ctx.entite || null, ctx.entiteId || null,
        ctx.avant ? JSON.stringify(ctx.avant) : null,
        ctx.apres ? JSON.stringify(ctx.apres) : null,
-       !!resultat.success, resultat.success ? null : String(resultat.error || '').slice(0, 500),
+       !!resultat.success,
+       resultat.success ? null : String(ctx.erreurDetail || resultat.error || '').slice(0, 500),
        ctx.ip || null, !!ctx.estTest]);
   } catch (e) {
     // Un journal en échec ne doit JAMAIS faire échouer l'action métier.
@@ -143,12 +175,23 @@ async function login(d, ctx) {
 
   // Rate-limiting lu depuis audit_log : pas de dépendance à un cache externe,
   // et la trace des tentatives est de toute façon souhaitable.
-  const { echecs } = await un(
-    `SELECT count(*)::int AS echecs FROM audit_log
-      WHERE action = 'login' AND NOT succes AND entite_id = $1
-        AND ts > now() - ($2 || ' minutes')::interval`,
-    [matricule, String(LOGIN_FENETRE_MIN)]);
-  if (echecs >= LOGIN_MAX_ECHECS) {
+  //
+  // Deux compteurs, une seule requête (agrégat conditionnel) :
+  //  - par matricule, contre l'acharnement sur un compte connu ;
+  //  - par IP, contre le balayage. Sans lui, un attaquant dispose de 5 essais
+  //    PAR compte : l'URL du Worker est publique et les matricules sont des
+  //    numéros devinables, donc « chaque matricule × {0000, 1234, …} » passait.
+  // Le plafond IP est plus haut : plusieurs téléphones du terrain peuvent
+  // sortir derrière la même IP opérateur.
+  const compteurs = await un(
+    `SELECT count(*) FILTER (WHERE entite_id = $1)::int AS par_matricule,
+            count(*) FILTER (WHERE ip = $3::inet)::int  AS par_ip
+       FROM audit_log
+      WHERE action = 'login' AND NOT succes
+        AND ts > now() - ($2 || ' minutes')::interval
+        AND (entite_id = $1 OR ip = $3::inet)`,
+    [matricule, String(LOGIN_FENETRE_MIN), ctx.ip || null]);
+  if (compteurs.par_matricule >= LOGIN_MAX_ECHECS || compteurs.par_ip >= LOGIN_MAX_ECHECS_IP) {
     ctx.entiteId = matricule;
     return { success: false, error: 'Trop de tentatives — réessayez dans quelques minutes', retryAfter: true };
   }
@@ -364,21 +407,37 @@ async function getAll(d) {
   };
 }
 
+// La clé de réponse est `history` et NON `historique` : le frontend la lit sous
+// ce nom depuis Apps Script (index.html, showClientHistory). La renommer côté
+// backend laissait `res.history` à undefined — le modal levait sur `.length`
+// avant tout rendu, et son spinner tournait indéfiniment.
 async function getClientHistory(d) {
   const num = String(d.num || '').trim();
   const nomLs = String(d.nomLs || d.nom || '').trim();
   if (!num && !nomLs) return { success: false, error: 'Numéro ou nom requis' };
+  // Un client LS n'a pas de numéro de ligne : sa clé est (nom, ville, quartier),
+  // comme décidé le 12/07. Filtrer sur le seul nom mélangeait les homonymes LS
+  // entre eux et y faisait remonter les homonymes FTTH/Cuivre.
   const inv = num
     ? await sql('SELECT * FROM v_interventions WHERE numero_ligne = $1 ORDER BY date DESC', [num])
-    : await sql('SELECT * FROM v_interventions WHERE lower(trim(nom_client)) = lower(trim($1)) ORDER BY date DESC', [nomLs]);
-  return { success: true, historique: inv.map(ligneInv) };
+    : await sql(
+        `SELECT * FROM v_interventions
+          WHERE service = 'LS'
+            AND lower(trim(nom_client))                = lower(trim($1))
+            AND lower(trim(coalesce(ville, '')))       = lower(trim(coalesce($2, '')))
+            AND lower(trim(coalesce(quartier, '')))    = lower(trim(coalesce($3, '')))
+          ORDER BY date DESC`,
+        [nomLs, String(d.villeLs || ''), String(d.quartierLs || '')]);
+  return { success: true, history: inv.map(ligneInv) };
 }
 
 async function getClientsResilies() {
   const r = await sql(`SELECT service, numero, nom, telephone, ville, quartier, motif,
                               date_resiliation, resilie_par
                          FROM clients_resilies ORDER BY date_resiliation DESC`);
-  return { success: true, clients: r.map(x => ({ service: x.service, num: x.numero || '', nom: x.nom,
+  // `clientsResilies` et non `clients` : le frontend distingue les deux, et
+  // `getClients` occupe déjà ce nom pour un tout autre contenu.
+  return { success: true, clientsResilies: r.map(x => ({ service: x.service, num: x.numero || '', nom: x.nom,
     tel: x.telephone || '', ville: x.ville || '', quartier: x.quartier || '',
     motif: x.motif || '', dateRes: x.date_resiliation, par: x.resilie_par || '' })) };
 }
@@ -472,7 +531,11 @@ async function saveConsistance(d, ctx, session) {
       if (inv.loc)    parts.push('Localité: ' + String(inv.loc).trim());
     }
 
-    const invId = c.id + '_' + (Date.now() + idx) + '_' + idx;
+    // Horodatage + rang : deux publications simultanées sur la même consistance,
+    // dans la même milliseconde, produisaient le même id. `ON CONFLICT` porte
+    // sur `client_request_id`, pas sur `id` : la violation de clé primaire
+    // n'était donc pas absorbée et remontait en 500.
+    const invId = c.id + '_' + crypto.randomUUID();
     // Clé d'idempotence : le front envoie UN identifiant pour toute la
     // publication et le conserve pendant ses retries ; on le suffixe par le
     // rang de l'intervention dans le lot. La colonne est `text` et non `uuid`
@@ -925,8 +988,15 @@ export async function traiterRequete(req, { ip } = {}) {
       }
     }
   } catch (e) {
-    console.error('[api]', action, e);
-    resultat = { success: false, error: 'Erreur serveur : ' + e.message };
+    // `e.message` contient jusqu'à 300 caractères de la réponse Neon : requête
+    // SQL, noms de tables, hôte. Il n'a rien à faire sur le téléphone d'un
+    // technicien. La référence permet de retrouver la stack dans les logs de
+    // l'hébergeur, et le message complet reste dans `audit_log`, lisible du
+    // seul super admin.
+    const ref = crypto.randomUUID().slice(0, 8);
+    console.error('[api]', ref, action, e);
+    ctx.erreurDetail = String(e.message || e).slice(0, 500);
+    resultat = { success: false, error: 'Erreur serveur (réf. ' + ref + ')' };
   }
 
   await journaliser(ctx, resultat);

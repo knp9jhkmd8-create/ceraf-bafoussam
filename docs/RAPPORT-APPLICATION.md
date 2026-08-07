@@ -2,6 +2,45 @@
 
 *Généré le 2026-08-05 à partir d'une lecture intégrale de `index.html` et `Code.gs`. Mis à jour le 2026-08-06 (passe de durcissement sécurité v114 + correction des 3 anomalies relevées par les tests + correctif `changePin` v115 déployé).*
 
+> ⚠️ **Ce document décrit encore majoritairement le backend Apps Script**, hors circuit depuis
+> le 2026-08-06. Les sections 1, 2, 5 et 7 (Google Sheet, `LockService`, `clasp`,
+> `withEcritureLock_`, triggers Apps Script) sont **périmées** : l'API tourne désormais sur
+> Cloudflare Workers + Neon (`api/core.mjs`, `cloudflare/src/worker.mjs`), le verrouillage
+> est assuré par les contraintes et transactions Postgres, et le report nocturne est un Cron
+> Trigger Cloudflare appelant `reporter_interventions()`. Une réécriture complète reste à
+> faire. Les sections 3, 4 et 6 (frontend, vues, PWA) restent valables.
+
+## 0. Journal des changements
+
+### 2026-08-07 — Correctifs API et Terrain (Worker `d7b38709`, SW v19)
+
+Détail et arbitrages complets dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
+
+- **Historique client réparé** : `getClientHistory` renvoyait `historique` alors que le
+  frontend lit `res.history` → `undefined.length` levait avant tout rendu, et le modal
+  tournait indéfiniment. Symptôme visible n°1 pour l'équipe.
+- **Onglet Résiliés réparé** : `getClientsResilies` renvoyait `clients`, le frontend lit
+  `clientsResilies`. (La liste reste vide tant qu'aucun client n'est résilié — c'est normal.)
+- **Historique LS discriminé par (nom, ville, quartier)**, la même clé que
+  `clients_ls.cle_normalisee` : les homonymes LS ne se mélangent plus et les homonymes
+  FTTH/Cuivre n'y remontent plus.
+- **`sql()` : timeout 15 s + une seconde tentative** sur erreur transitoire uniquement
+  (réseau, timeout, 5xx). Protège la saisie sur le réseau mobile du terrain.
+- **`invId` en `crypto.randomUUID()`** : deux publications simultanées sur la même
+  consistance pouvaient produire le même identifiant et lever une violation de clé primaire
+  en 500, non absorbée par `ON CONFLICT` (qui porte sur `client_request_id`).
+- **Erreurs internes non divulguées** : le client reçoit une référence courte, la stack part
+  dans les logs Cloudflare et le message complet dans `audit_log`.
+- **Rate-limit de login par IP** (20 / 15 min) en plus du compteur par matricule, calculé
+  dans la requête existante — sans quoi un balayage de matricules disposait de 5 essais par
+  compte.
+- **Vue Terrain** : l'icône 📞 est retirée des lignes d'intervention (le numéro reste
+  cliquable) ; le tableau Clients la conserve.
+- **`tests/test-api-live.mjs`** : assertions ajoutées sur le **nom des clés** de réponse —
+  `success: true` restait vrai pendant tout le temps où l'app était cassée. Les assertions
+  figeant une date ou un effectif ont été retirées : le report nocturne vide une fiche passée
+  toute seule, ce qui produisait des échecs fantômes masquant les vrais.
+
 ## 1. Architecture générale
 
 PWA de gestion des interventions terrain (FTTH/LS/Cuivre) pour une équipe télécom. Deux moitiés indépendantes, aucun outil de build commun :

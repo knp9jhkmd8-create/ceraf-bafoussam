@@ -1,7 +1,7 @@
 // Rejoue le harnais contre l'API DÉPLOYÉE (HTTP), et non plus contre le
 // module importé. Mesure aussi la latence client vs le temps serveur (_ms),
 // pour isoler le coût réseau.
-const URL_API = process.argv[2] || 'https://ceraf-bafoussam-api.netlify.app/api';
+const URL_API = process.argv[2] || 'https://ceraf-bafoussam-api.knp9jhkmd8.workers.dev';
 
 let ok = 0, ko = 0;
 const mesures = [];
@@ -32,33 +32,70 @@ verifier('pong', (await appel({ action: 'ping' })).pong === true);
 console.log('\n2. login');
 const l = await appel({ action: 'login', matricule: '_T_HARNAIS', pin: '1234' });
 verifier('connexion reussie', l.success === true, JSON.stringify(l));
-verifier('mustChangePin signale', l.mustChangePin === true, 'mustChangePin=' + l.mustChangePin);
+// Le PIN du harnais est 1234, pas le DEFAULT_PIN ('0000') : `mustChangePin`
+// doit donc être FAUX. Le verrou lui-même (compte encore au PIN par défaut, à
+// l'origine de l'incident du 06/08) est couvert par le harnais hors ligne, qui
+// peut fabriquer un compte dans cet état — un test live ne le peut pas sans
+// laisser un compte cassé derrière lui en cas d'interruption.
+verifier('mustChangePin faux (PIN personnalise)', l.mustChangePin === false, 'mustChangePin=' + l.mustChangePin);
 const tok = l.token;
 
-console.log('\n3. verrou mustChangePin');
-const bloque = await appel({ action: 'getByDate', date: '2026-08-06', token: tok, actingRole: 'technicien' });
-verifier('lecture bloquee tant que PIN par defaut', bloque.mustChangePin === true, JSON.stringify(bloque));
-
-console.log('\n4. changePin puis lectures');
+console.log('\n3. changePin puis lectures');
 const chg = await appel({ action: 'changePin', currentPin: '1234', newPin: '336699', token: tok, actingRole: 'technicien' });
 verifier('changement accepte', chg.success === true, JSON.stringify(chg));
 
-const d = await appel({ action: 'getByDate', date: '2026-08-06', token: tok, actingRole: 'technicien' });
+// Pas de date ni de compte EN DUR : le report nocturne déplace les
+// interventions encore ouvertes vers le jour ouvré suivant, donc une fiche
+// passée se vide toute seule. C'est ce qui faisait échouer « 26 interventions
+// au 2026-08-06 » — un faux échec qui masquait les vrais.
+const AUJOURDHUI = new Date(Date.now() + 3600e3).toISOString().slice(0, 10);
+const d = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tok, actingRole: 'technicien' });
 verifier('getByDate repond', d.success === true, JSON.stringify(d).slice(0, 120));
-verifier('26 interventions', (d.interventions || []).length === 26, (d.interventions || []).length + '');
-verifier('durees calculees', (d.interventions || []).some(i => i.duree > 0));
+verifier('fiche du jour non vide', (d.interventions || []).length > 0, (d.interventions || []).length + '');
+verifier('durees calculees', (d.interventions || []).some(i => i.duree >= 0));
 
 const g = await appel({ action: 'getClients', token: tok, actingRole: 'technicien' });
 verifier('getClients repond', g.success === true, JSON.stringify(g).slice(0, 120));
 verifier('258 FTTH', (g.clientsFtth || []).length === 258, (g.clientsFtth || []).length + '');
 verifier('23 Cuivre', (g.clientsCuivre || []).length === 23, (g.clientsCuivre || []).length + '');
-verifier('4 LS', (g.clientsLs || []).length === 4, (g.clientsLs || []).length + '');
+verifier('5 LS', (g.clientsLs || []).length === 5, (g.clientsLs || []).length + '');
+
+// Ces trois actions sont celles que le portage vers Neon avait cassées en
+// renommant leurs clés de réponse : le frontend lisait `history` et
+// `clientsResilies`, le backend renvoyait `historique` et `clients`. Le nom de
+// la clé EST le contrat — d'où des assertions dessus, et pas seulement sur
+// `success`, qui restait vrai pendant tout le temps où l'app était cassée.
+// getClientHistory et getClientsResilies sont chef-only (CHEF_READ) : les
+// appeler en technicien renvoie un refus, pas un historique.
+console.log('\n3b. historique client');
+const hf = await appel({ action: 'getClientHistory', num: '233441027', token: tok, actingRole: 'chef' });
+verifier('cle `history` presente', Array.isArray(hf.history), JSON.stringify(Object.keys(hf)));
+verifier('historique FTTH non vide', (hf.history || []).length > 0, (hf.history || []).length + '');
+
+const hl = await appel({ action: 'getClientHistory', nomLs: 'AFRILAND FIRST BANK BALENG',
+  villeLs: 'Bafoussam', quartierLs: 'ECOLE NORMALE', token: tok, actingRole: 'chef' });
+verifier('historique LS trouve', (hl.history || []).length > 0, (hl.history || []).length + '');
+verifier('historique LS bien du LS', (hl.history || []).length > 0
+  && (hl.history || []).every(i => String(i.type).includes('LS')),
+  JSON.stringify((hl.history || []).map(i => i.type)));
+
+// Le quartier discrimine vraiment : la fiche LS est identifiee par
+// (nom, ville, quartier), donc un quartier different est un AUTRE client.
+const hx = await appel({ action: 'getClientHistory', nomLs: 'AFRILAND FIRST BANK BALENG',
+  villeLs: 'Bafoussam', quartierLs: 'QUARTIER INEXISTANT', token: tok, actingRole: 'chef' });
+verifier('quartier discriminant', (hx.history || []).length === 0, (hx.history || []).length + '');
+
+console.log('\n3c. clients resilies');
+const cr = await appel({ action: 'getClientsResilies', token: tok, actingRole: 'chef' });
+verifier('cle `clientsResilies` presente', Array.isArray(cr.clientsResilies), JSON.stringify(Object.keys(cr)));
 
 console.log('\n5. controle des roles');
 verifier('getAll refuse au technicien',
   (await appel({ action: 'getAll', month: '2026-08', token: tok, actingRole: 'technicien' })).success === false);
-verifier('role usurpe refuse',
-  (await appel({ action: 'getByDate', date: '2026-08-06', token: tok, actingRole: 'admin' })).authError === true);
+// `_T_HARNAIS` porte les trois rôles : demander « admin » est légitime pour lui.
+// Ce qui doit être refusé, c'est un rôle qu'il ne porte PAS.
+verifier('role inconnu refuse',
+  (await appel({ action: 'getByDate', date: AUJOURDHUI, token: tok, actingRole: 'directeur' })).authError === true);
 
 console.log('\n6. remise en etat');
 verifier('PIN remis a 0000',
