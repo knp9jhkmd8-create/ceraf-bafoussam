@@ -40,11 +40,13 @@ Détail et arbitrages dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
   ainsi devenus des « clients ». Une étude est une demande à l'instruction, pas un client.
   Elle reste dans l'historique et ne crée plus rien, ni en FTTH/Cuivre ni en LS. 8 fiches
   existantes archivées, **interventions intactes**.
-- **« Durée moy. de résolution » est bornée au mois affiché** : seules les interventions dont
-  l'**origine** tombe dans ce mois sont comptées. Un dossier ouvert en juillet et résolu en
-  août apportait toute son ancienneté à la moyenne d'août (« 14,6 j » le 7 du mois).
-  ⚠️ La durée propre à **chaque** intervention reste la vraie, comptée depuis son origine
-  réelle : seul l'agrégat change.
+- **« Durée moy. sur le mois »** couvre **toutes** les interventions du mois — enregistrées
+  dans le mois comme héritées du mois précédent — et le compteur d'un dossier hérité **repart
+  au 1er du mois** (fonction `duree_dans_mois`, exposée par `getAll` sous `dureeMois`).
+  Résultat comparable d'un mois à l'autre : août 3,0 j / juillet 3,7 j / juin 1,8 j.
+  ⚠️ La durée propre à **chaque** intervention reste la VRAIE, comptée depuis son origine
+  réelle : seul l'agrégat change. Une intervention née le 09/07 affiche toujours ses 21 j sur
+  sa ligne tout en comptant 4 j dans la statistique d'août.
 - **Filtre par panne** retiré de l'Historique ; **icône ☎** retirée partout (le paramètre
   `avecIcone` de `lienTel` est supprimé, plus aucun appelant ne le demandait).
 - **L'admin peut corriger les dates d'une intervention** — voir §5bis.
