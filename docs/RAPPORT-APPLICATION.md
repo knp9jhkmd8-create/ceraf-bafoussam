@@ -33,6 +33,24 @@ Détail et arbitrages dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
 - **Sauvegarde de la base** : téléchargement manuel depuis l'onglet Admin (`adminExport`) et
   copie nocturne automatique vers Workers KV, conservée 30 jours (`adminBackups`) — voir §10.
 
+### 2026-08-07 (nuit) — Métier : études, statistiques, corrections admin
+
+- **Une étude ne crée plus de fiche client.** `saveConsistance` utilisait le **Customer ID**
+  comme clé de fiche quand le numéro de ligne était vide : `AA10473363`, `1`, `81`, `82` sont
+  ainsi devenus des « clients ». Une étude est une demande à l'instruction, pas un client.
+  Elle reste dans l'historique et ne crée plus rien, ni en FTTH/Cuivre ni en LS. 8 fiches
+  existantes archivées, **interventions intactes**.
+- **« Durée moy. de résolution » est bornée au mois affiché** : seules les interventions dont
+  l'**origine** tombe dans ce mois sont comptées. Un dossier ouvert en juillet et résolu en
+  août apportait toute son ancienneté à la moyenne d'août (« 14,6 j » le 7 du mois).
+  ⚠️ La durée propre à **chaque** intervention reste la vraie, comptée depuis son origine
+  réelle : seul l'agrégat change.
+- **Filtre par panne** retiré de l'Historique ; **icône ☎** retirée partout (le paramètre
+  `avecIcone` de `lienTel` est supprimé, plus aucun appelant ne le demandait).
+- **L'admin peut corriger les dates d'une intervention** — voir §5bis.
+- **Les utilisateurs sont archivés, jamais supprimés.** Le backend le faisait déjà ;
+  c'est le libellé qui mentait (« Supprimer » → « Archiver »).
+
 ### 2026-08-07 (soir) — ⚠️ Suppression accidentelle du projet Neon, restauré
 
 Le projet Neon `damp-leaf-40846298` a été **supprimé en entier** (l'intention était de
@@ -240,6 +258,31 @@ possible par `audit_log`.
 - **Journal d'audit au point de dispatch** : toutes les mutations passent par le même endroit,
   il est donc impossible d'en oublier une. Un échec d'écriture du journal ne fait jamais
   échouer l'action métier.
+
+### 5bis. Correction des dates par l'admin (`adminCorrigerIntervention`)
+
+Deux dates, deux rôles à ne pas confondre :
+
+| Champ | Sens | Effet |
+|---|---|---|
+| `reporte_depuis` | **Date d'émission** — origine de la 1re occurrence | Seule source de vérité de la **durée**, rétroactivement |
+| `date` | **Date de la fiche** — jour de rattachement | Déplace la ligne d'une fiche du jour à une autre |
+
+- Action **séparée d'`updateStatus`**, volontairement : ce dernier est appelé par le terrain
+  et **rejoué depuis la file hors ligne**. Y greffer des dates exposerait l'application à des
+  rejeux qui déplaceraient des interventions.
+- Changer la date **crée la fiche du jour cible si elle manque**, sinon la clé étrangère
+  `consistance_id` casse.
+- Une date d'émission postérieure au rattachement est refusée : elle produirait une durée
+  négative que rien en aval ne rattraperait.
+- Les agrégats des deux fiches concernées sont comptés à la lecture (`v_consistances`) :
+  rien à recalculer.
+- Tracé dans `audit_log` avec avant/après.
+
+> ⚠️ **Interaction avec le report nocturne.** Une intervention encore **ouverte** déplacée
+> vers une date passée est ramenée au jour courant par `reporter_interventions()` — qui fait
+> exactement son travail. Pour figer une ligne à une date passée, la passer d'abord en
+> `Réalisé`, que le report exclut. C'est écrit dans l'aide de l'écran.
 
 ---
 
