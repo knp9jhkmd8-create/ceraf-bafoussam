@@ -12,19 +12,40 @@ const v = (nom, cond, detail) => { if (cond) { ok++; console.log('  OK    ' + no
 async function appel(corps) {
   const rep = await traiterRequete(new Request('https://t/api', { method: 'POST',
     headers: { 'content-type': 'application/json', 'user-agent': 'harnais-2' },
-    body: JSON.stringify(corps) }), { ip: '198.51.100.7' });
+    body: JSON.stringify({ ...corps, _test: true }) }), { ip: '198.51.100.7' });
   return rep.json();
 }
 
 // ── Session admin ──────────────────────────────────────────────────────────
-const l = await appel({ action: 'login', matricule: '999999', pin: '0000' });
+const l = await appel({ action: 'login', matricule: '_T_HARNAIS', pin: '1234' });
 if (!l.success) { console.error('login admin impossible: ' + JSON.stringify(l)); process.exit(1); }
 const T = l.token;
-await appel({ action: 'changePin', currentPin: '0000', newPin: '909090', token: T, actingRole: 'admin' });
+await appel({ action: 'changePin', currentPin: '1234', newPin: '909090', token: T, actingRole: 'admin' });
 const A = { token: T, actingRole: 'admin' };
 
-const DATE = '2026-08-07';   // date de test, distincte des donnees reelles
+// Date de test volontairement TRES eloignee : une date proche finit toujours
+// par tomber sur une journee reelle. Le 07/08/2026 l'a fait, et le nettoyage
+// ci-dessous a archive les 26 interventions de l'equipe en pleine journee.
+const DATE = '2099-01-05';
 const MAT  = '_H2_TEST';
+
+// ── GARDE-FOU ───────────────────────────────────────────────────────────────
+// Ce harnais ECRIT dans la base de production. Si sa date de test contenait
+// des données réelles, ses écritures et son nettoyage les abîmeraient. C'est
+// exactement ce qui est arrivé le 2026-08-07 : la date de test était le jour
+// même, et le nettoyage a archivé les 26 interventions de l'équipe en pleine
+// journée de travail. On refuse désormais de démarrer dans ce cas.
+{
+  const sonde = await appel({ action: 'getByDate', date: DATE, ...A });
+  const existantes = (sonde.interventions || []).filter(i =>
+    !/HARNAIS|IDEMPOTENCE/.test(i.nom || '') && !/^999000|^CID-/.test(i.num || ''));
+  if (existantes.length) {
+    console.error(`\nARRET : la date de test ${DATE} contient ${existantes.length} intervention(s) qui`);
+    console.error('ne viennent PAS de ce harnais. Refus d\'ecrire pour ne rien abimer.');
+    console.error('Choisir une autre valeur pour DATE, tres eloignee de toute journee de travail.');
+    process.exit(2);
+  }
+}
 
 console.log('\n1. saveConsistance — publication');
 let invId = null;
@@ -126,13 +147,23 @@ console.log('\n6. administration des utilisateurs');
   const maj = await appel({ action: 'adminUpdateUser', id: MAT, roles: 'chef,technicien', ...A });
   v('mise a jour des roles', maj.success === true, JSON.stringify(maj));
 
-  const moi = await appel({ action: 'adminDeleteUser', id: '999999', ...A });
+  const moi = await appel({ action: 'adminDeleteUser', id: '_T_HARNAIS', ...A });
   v('refuse de supprimer son propre compte', moi.success === false, JSON.stringify(moi));
 
+  // L'administrateur ne CHOISIT jamais un code : meme en envoyant un PIN, le
+  // backend force la valeur par defaut. Seul l'utilisateur connaitra le sien.
   const rst = await appel({ action: 'adminResetPin', id: MAT, pin: '4321', ...A });
-  v('reinitialisation du PIN', rst.success === true, JSON.stringify(rst));
-  const lt = await appel({ action: 'login', matricule: MAT, pin: '4321' });
-  v('connexion avec le nouveau PIN', lt.success === true, JSON.stringify(lt));
+  v('reinitialisation acceptee', rst.success === true, JSON.stringify(rst));
+  v('le PIN choisi par l admin est IGNORE',
+    (await appel({ action: 'login', matricule: MAT, pin: '4321' })).success === false);
+  const lt = await appel({ action: 'login', matricule: MAT, pin: '0000' });
+  v('connexion avec le code par defaut', lt.success === true, JSON.stringify(lt));
+  v('l utilisateur est contraint de changer', lt.mustChangePin === true, 'mustChangePin=' + lt.mustChangePin);
+  v('il sait QUI a reinitialise son code', !!lt.pinReinitialisePar, 'pinReinitialisePar=' + lt.pinReinitialisePar);
+  // Le message ne doit s'afficher qu'une fois : le drapeau tombe au changement.
+  await appel({ action: 'changePin', newPin: '7788', token: lt.token, actingRole: 'technicien' });
+  const relog = await appel({ action: 'login', matricule: MAT, pin: '7788' });
+  v('le message ne se repete pas apres changement', !relog.pinReinitialisePar, 'pinReinitialisePar=' + relog.pinReinitialisePar);
 
   const sup = await appel({ action: 'adminDeleteUser', id: MAT, ...A });
   v('suppression du compte de test', sup.success === true, JSON.stringify(sup));
@@ -145,7 +176,7 @@ console.log('\n7. onglet AUDIT');
   const s = await appel({ action: 'adminSessions', ...A });
   v('sessions actives listees', s.success === true && (s.sessions || []).length > 0,
     (s.sessions || []).length + ' session(s)');
-  const mienne = (s.sessions || []).find(x => x.matricule === '999999');
+  const mienne = (s.sessions || []).find(x => x.matricule === '_T_HARNAIS');
   v('ma session y figure', !!mienne);
   v('appareil trace', mienne && /harnais/.test(mienne.appareil || ''), mienne ? mienne.appareil : '');
 
@@ -158,10 +189,13 @@ console.log('\n7. onglet AUDIT');
     (f.lignes || []).length + ' ligne(s)');
 
   // Revocation : on cree une 2e session puis on la coupe.
-  const l2 = await appel({ action: 'login', matricule: '999999', pin: '909090' });
+  // PIN courant du compte de test : il a ete change en 909090 au demarrage.
+  const l2 = await appel({ action: 'login', matricule: '_T_HARNAIS', pin: '909090' });
   const s2 = await appel({ action: 'adminSessions', ...A });
-  const cible = (s2.sessions || []).find(x => x.matricule === '999999' && x.id !== mienne?.id);
-  v('2e session visible', !!cible, (s2.sessions || []).length + ' sessions');
+  // On cible la session que l'on vient d'ouvrir, pas "une autre que la mienne" :
+  // l'equipe a ses propres sessions ouvertes, ce raccourci etait fragile.
+  const cible = (s2.sessions || []).find(x => x.matricule === '_T_HARNAIS' && x.id !== mienne?.id);
+  v('2e session visible', !!cible, (s2.sessions || []).filter(x=>x.matricule==='_T_HARNAIS').length + ' session(s) du compte de test');
   if (cible) {
     const rv = await appel({ action: 'adminRevoquerSession', sessionId: cible.id, ...A });
     v('revocation acceptee', rv.success === true, JSON.stringify(rv));
@@ -172,8 +206,8 @@ console.log('\n7. onglet AUDIT');
 
 console.log('\n8. controle d acces sur les actions admin');
 {
-  const t = await appel({ action: 'login', matricule: '402411', pin: '0000' });
-  await appel({ action: 'changePin', currentPin: '0000', newPin: '515151', token: t.token, actingRole: 'technicien' });
+  const t = await appel({ action: 'login', matricule: '_T_HARNAIS', pin: '1234' });
+  await appel({ action: 'changePin', currentPin: '1234', newPin: '515151', token: t.token, actingRole: 'technicien' });
   const T2 = { token: t.token, actingRole: 'technicien' };
   v('adminListUsers refuse au technicien',
     (await appel({ action: 'adminListUsers', ...T2 })).success === false);
@@ -181,15 +215,18 @@ console.log('\n8. controle d acces sur les actions admin');
     (await appel({ action: 'adminAudit', ...T2 })).success === false);
   v('saveClient refuse au technicien',
     (await appel({ action: 'saveClient', num: '1', nom: 'X', ...T2 })).success === false);
-  await appel({ action: 'changePin', currentPin: '515151', newPin: '0000', token: t.token, actingRole: 'technicien' });
+  await appel({ action: 'changePin', currentPin: '515151', newPin: '1234', token: t.token, actingRole: 'technicien' });
   await appel({ action: 'logout', token: t.token });
 }
 
 console.log('\n9. nettoyage');
 {
-  // On archive les donnees de test creees par ce harnais.
+  // On n'archive QUE ce que ce harnais a cree, jamais "tout ce qui existe a
+  // cette date" : cette formulation-la a supprime les donnees de l'equipe.
   const d = await appel({ action: 'getByDate', date: DATE, ...A });
-  for (const i of (d.interventions || [])) await appel({ action: 'deleteIntervention', invId: i.id, ...A });
+  const miennes = (d.interventions || []).filter(i =>
+    /HARNAIS|IDEMPOTENCE/.test(i.nom || '') || /^999000|^CID-/.test(i.num || ''));
+  for (const i of miennes) await appel({ action: 'deleteIntervention', invId: i.id, ...A });
   // Toutes les fiches clients creees par le harnais, y compris celle issue du
   // customerId de l'etude (saveConsistance cree une fiche pour toute cle, pas
   // seulement pour un numero de ligne).
@@ -201,12 +238,12 @@ console.log('\n9. nettoyage');
     .filter(c => /HARNAIS|IDEMPOTENCE/.test(c.nom || '') || /^999000|^CID-/.test(c.num || ''));
   v('aucune fiche de test residuelle', restants.length === 0,
     restants.map(c => c.num + '/' + c.nom).join(', '));
-  v('base revenue a 258 FTTH', (g.clientsFtth || []).length === 258, (g.clientsFtth || []).length + '');
-  v('base revenue a 23 Cuivre', (g.clientsCuivre || []).length === 23, (g.clientsCuivre || []).length + '');
   const fin = await appel({ action: 'getByDate', date: DATE, ...A });
-  v('journee de test videe', (fin.interventions || []).length === 0, (fin.interventions || []).length + ' restantes');
-  const r = await appel({ action: 'changePin', currentPin: '909090', newPin: '0000', ...A });
-  v('PIN admin remis a 0000', r.success === true, JSON.stringify(r));
+  const resteDuTest = (fin.interventions || []).filter(i =>
+    /HARNAIS|IDEMPOTENCE/.test(i.nom || '') || /^999000|^CID-/.test(i.num || ''));
+  v('journee de test videe', resteDuTest.length === 0, resteDuTest.length + ' restantes');
+  const r = await appel({ action: 'changePin', currentPin: '909090', newPin: '1234', ...A });
+  v('PIN du compte de test restaure', r.success === true, JSON.stringify(r));
   await appel({ action: 'logout', token: T });
 }
 

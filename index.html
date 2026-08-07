@@ -83,7 +83,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
    contenu ne chevauche jamais cette zone, et min-height (au lieu de height fixe)
    laisse la barre grandir si le badge de rôle passe sur plusieurs lignes. */
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;padding-top:env(safe-area-inset-top,0px);min-height:calc(52px + env(safe-area-inset-top,0px));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(30,58,138,.08);}
-.logo-text{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);}
+.logo-text{cursor:pointer;user-select:none;font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--navy);}
 .logo-text span{color:var(--blue-mid);}
 .role-badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700;background:var(--blue-lt);color:var(--blue-mid);border:1px solid var(--blue-glow);}
 .sync-row{display:flex;align-items:center;gap:5px;}
@@ -93,6 +93,26 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
    JSON). C'est un état DIFFÉRENT du rouge « hors ligne » : le réseau marche,
    inutile de faire croire au technicien qu'il a perdu la connexion. */
 .sync-dot.warn{background:var(--orange);}
+/* Numero cliquable : visible comme une action sans alourdir la ligne. */
+.lien-tel{color:var(--blue-mid);text-decoration:none;font-weight:600;white-space:nowrap;}
+/* Bloc repliable — reprend le motif de .secnum-row deja utilise pour le
+   numero secondaire, plutot que d'introduire un mecanisme concurrent. */
+.bloc-repliable{display:none;margin-top:10px;}
+/* Menu contextuel — pose dans body pour ne pas etre coupe par overflow:auto
+   du conteneur de tableau. */
+.btn-menu{background:none;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-size:1.15rem;line-height:1;padding:3px 10px;cursor:pointer;}
+.btn-menu:active{background:var(--surface2);}
+.menu-contextuel{position:absolute;z-index:600;background:var(--surface);border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(15,32,87,.18);padding:5px;min-width:170px;}
+.menu-item{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 12px;border-radius:7px;font-size:.8rem;color:var(--text);cursor:pointer;font-family:inherit;}
+.menu-item:hover,.menu-item:active{background:var(--blue-lt);}
+.menu-item.danger{color:var(--red);}
+.menu-item.danger:hover{background:#fee2e2;}
+.bloc-repliable.visible{display:block;}
+/* Densifie les tableaux d'audit : beaucoup de lignes courtes a balayer. */
+#page-audit .clients-table{font-size:.76rem;}
+#page-audit .clients-table td{padding:6px 8px;}
+#page-audit .clients-table tbody tr:nth-child(even){background:var(--surface2);}
+.lien-tel:active{opacity:.6;}
 /* Bannière ambre pour le même cas. */
 .offline-banner.serveur{background:#b45309;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -348,7 +368,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:8px;">
-      <div class="logo-text">CERAF <span>Bafoussam</span></div>
+      <div class="logo-text" onclick="remonterEnHaut()" role="button" tabindex="0" onkeydown="if(event.key==='Enter')remonterEnHaut()" title="Revenir en haut">CERAF <span>Bafoussam</span></div>
       <div class="role-badge" id="role-badge">—</div>
     </div>
     <div class="sync-row"><div class="sync-dot" id="sync-dot"></div><span class="sync-lbl" id="sync-lbl">—</span></div>
@@ -700,16 +720,31 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       </div>
 
       <div class="card" style="margin-top:14px;">
-        <div class="card-title" data-i18n="audit.journal">📜 Journal des modifications</div>
-        <div class="form-row">
-          <div><label data-i18n="audit.f.matricule">Matricule</label><input id="aud-f-mat" placeholder="Tous"></div>
-          <div><label data-i18n="audit.f.action">Action</label><input id="aud-f-action" placeholder="Toutes"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div class="card-title" style="margin:0;" data-i18n="audit.journal">📜 Journal des modifications</div>
+          <!-- Les filtres sont repliés par défaut : ils occupaient quatre
+               champs empilés avant même d'atteindre le tableau sur mobile. -->
+          <button class="btn btn-ghost btn-sm" id="aud-btn-filtres" onclick="basculerFiltresAudit()"
+                  data-i18n="audit.filtres">⚙️ Filtres</button>
         </div>
-        <div class="form-row">
-          <div><label data-i18n="audit.f.depuis">Depuis</label><input id="aud-f-depuis" type="date"></div>
-          <div><label data-i18n="audit.f.jusqua">Jusqu'à</label><input id="aud-f-jusqua" type="date"></div>
+        <div id="aud-filtres" class="bloc-repliable">
+          <div class="form-row">
+            <div><label data-i18n="audit.f.matricule">Matricule</label>
+              <input id="aud-f-mat" list="aud-liste-mat" placeholder="Tous" autocomplete="off">
+              <datalist id="aud-liste-mat"></datalist></div>
+            <div><label data-i18n="audit.f.action">Action</label>
+              <input id="aud-f-action" list="aud-liste-action" placeholder="Toutes" autocomplete="off">
+              <datalist id="aud-liste-action"></datalist></div>
+          </div>
+          <div class="form-row">
+            <div><label data-i18n="audit.f.depuis">Depuis</label><input id="aud-f-depuis" type="date"></div>
+            <div><label data-i18n="audit.f.jusqua">Jusqu'à</label><input id="aud-f-jusqua" type="date"></div>
+          </div>
+          <div class="flex gap-2" style="flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="chargerJournalAudit()" data-i18n="audit.filtrer">🔎 Rechercher</button>
+            <button class="btn btn-ghost btn-sm" onclick="viderFiltresAudit()" data-i18n="audit.viderFiltres">↺ Tout effacer</button>
+          </div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="chargerJournalAudit()" data-i18n="audit.filtrer">🔎 Filtrer</button>
         <div id="audit-journal-wrap" style="overflow-x:auto;margin-top:12px;"></div>
       </div>
     </div>
@@ -825,6 +860,11 @@ fr:{
   'nav.chef':'👷 Consistance','nav.clients':'👥 Clients','nav.historique':'📁 Historique',
   'nav.admin':'🔑 Utilisateurs','nav.terrain':'📡 Terrain',
   'nav.audit':'🔍 Audit','nav.edition':'✏️ Édition',
+  'terrain.noSearchResult':'Aucun résultat pour « {q} »','terrain.noFilterResult':'Aucune intervention ne correspond aux filtres',
+  'terrain.resetFilters':'↺ Réinitialiser les filtres','menu.actions':'Actions',
+  'admin.confirmResetPin':'Remettre le code de {nom} au code par défaut (0000) ?\n\nIl devra en choisir un nouveau à sa prochaine connexion.',
+  'admin.pinReinitialise':'✅ Code de {nom} remis à 0000',
+  'login.pinReinitialise':'🔑 Votre code a été réinitialisé par {par}. Choisissez-en un nouveau pour continuer.',
   'annonce.titre':'🔧 Mise à jour technique','annonce.ok':"J'ai compris",
   'annonce.l1':"Une grande mise à jour a été faite cette nuit : l'application est nettement plus rapide au chargement.",
   'annonce.l2':"Certains comptes ont été réinitialisés. Connectez-vous avec le code <b>0000</b>, puis choisissez immédiatement votre code personnel — tant qu'il n'est pas changé, aucune autre action n'est possible.",
@@ -832,7 +872,8 @@ fr:{
   'audit.title':'Audit de <span>l\'application</span>','audit.sub':'Sessions ouvertes, journal des modifications, état des comptes',
   'audit.sessions':'🔓 Sessions actives','audit.comptes':'👤 État des comptes','audit.journal':'📜 Journal des modifications',
   'audit.f.matricule':'Matricule','audit.f.action':'Action','audit.f.depuis':'Depuis','audit.f.jusqua':"Jusqu'à",
-  'audit.filtrer':'🔎 Filtrer','audit.revoquer':'Déconnecter','audit.aucuneSession':'Aucune session active',
+  'audit.filtrer':'🔎 Rechercher','audit.filtres':'⚙️ Filtres','audit.viderFiltres':'↺ Tout effacer',
+  'audit.revoquer':'Déconnecter','audit.aucuneSession':'Aucune session active',
   'audit.aucunJournal':'Aucune entrée pour ces critères','audit.pinDefaut':'PIN par défaut',
   'audit.th.qui':'Qui','audit.th.quand':'Quand','audit.th.action':'Action','audit.th.cible':'Cible',
   'audit.th.avantApres':'Avant → Après','audit.th.appareil':'Appareil','audit.th.depuis':'Depuis',
@@ -1085,6 +1126,11 @@ en:{
   'nav.chef':'👷 Task Sheet','nav.clients':'👥 Customers','nav.historique':'📁 History',
   'nav.admin':'🔑 Users','nav.terrain':'📡 Field',
   'nav.audit':'🔍 Audit','nav.edition':'✏️ Edit',
+  'terrain.noSearchResult':'No result for « {q} »','terrain.noFilterResult':'No intervention matches the filters',
+  'terrain.resetFilters':'↺ Reset filters','menu.actions':'Actions',
+  'admin.confirmResetPin':'Reset the code of {nom} to the default (0000)?\n\nThey will have to pick a new one at next sign-in.',
+  'admin.pinReinitialise':'✅ Code of {nom} reset to 0000',
+  'login.pinReinitialise':'🔑 Your code was reset by {par}. Please pick a new one to continue.',
   'annonce.titre':'🔧 Technical update','annonce.ok':'Got it',
   'annonce.l1':'A major update was rolled out last night: the app now loads much faster.',
   'annonce.l2':'Some accounts were reset. Sign in with code <b>0000</b>, then pick your own code right away — until you do, no other action is possible.',
@@ -1092,7 +1138,8 @@ en:{
   'audit.title':'Application <span>audit</span>','audit.sub':'Open sessions, change log, account status',
   'audit.sessions':'🔓 Active sessions','audit.comptes':'👤 Account status','audit.journal':'📜 Change log',
   'audit.f.matricule':'Staff ID','audit.f.action':'Action','audit.f.depuis':'From','audit.f.jusqua':'To',
-  'audit.filtrer':'🔎 Filter','audit.revoquer':'Sign out','audit.aucuneSession':'No active session',
+  'audit.filtrer':'🔎 Search','audit.filtres':'⚙️ Filters','audit.viderFiltres':'↺ Clear all',
+  'audit.revoquer':'Sign out','audit.aucuneSession':'No active session',
   'audit.aucunJournal':'No entry for these filters','audit.pinDefaut':'Default PIN',
   'audit.th.qui':'Who','audit.th.quand':'When','audit.th.action':'Action','audit.th.cible':'Target',
   'audit.th.avantApres':'Before → After','audit.th.appareil':'Device','audit.th.depuis':'Since',
@@ -1734,6 +1781,10 @@ async function doLogin(matriculeParam,pinParam){
       localStorage.setItem('ceraf_roles',JSON.stringify(AVAILABLE_ROLES));
       localStorage.setItem('ceraf_last_matricule',matricule);
       document.getElementById('login-pin').value='';
+      // Expliquer POURQUOI l'ancien code ne marche plus, AVANT de demander le
+      // nouveau : sans ce message, l'utilisateur dont l'admin a réinitialisé
+      // le code croit à un dysfonctionnement.
+      if(data.pinReinitialisePar){ alert(t('login.pinReinitialise',{par:data.pinReinitialisePar})); }
       // PIN encore par défaut (0000) → proposer (sans forcer) de le changer.
       if(data.mustChangePin){ await proposerChangementPin(); }
       if(AVAILABLE_ROLES.length===1){
@@ -1823,10 +1874,12 @@ function startApp(r){
       preloadClients().finally(()=>_setCacheLoading(false));
     }
   } else if(r==='admin'){
+    // Pas d'onglet Terrain ici : cette vue sert à travailler la fiche du jour,
+    // ce qui n'est pas le rôle de l'administrateur. Un compte pouvant cumuler
+    // les rôles, celui qui en a besoin se donne le rôle chef ou technicien.
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('admin',this)">${t('nav.admin')}</button>
       <button class="nav-tab" onclick="goPage('audit',this)">${t('nav.audit')}</button>
-      <button class="nav-tab" onclick="goPage('edition',this)">${t('nav.edition')}</button>
-      <button class="nav-tab" onclick="goPage('terrain',this)">${t('nav.terrain')}</button>`;
+      <button class="nav-tab" onclick="goPage('edition',this)">${t('nav.edition')}</button>`;
     goPage('admin',nav.querySelector('.nav-tab'),true);
   } else {
     nav.innerHTML=`<button class="nav-tab active" onclick="goPage('terrain',this)">${t('nav.terrain')}</button>`;
@@ -1875,6 +1928,64 @@ async function loadAdminUsers(){
   if(res.success) renderAdminUsers(res.users);
   else document.getElementById('admin-users-wrap').innerHTML='<div class="empty"><p>❌ '+esc(res.error||t('err.generic'))+'</p></div>';
 }
+// Retour en haut au clic sur le logo. C'est bien la FENÊTRE qui défile :
+// `.main-content` n'a aucune règle overflow, ce n'est pas un conteneur
+// scrollable indépendant.
+function remonterEnHaut(){
+  // Respecte le réglage système « réduire les animations » : un défilement
+  // animé peut être désagréable, voire déclencher un malaise.
+  const doux=!window.matchMedia||!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({top:0,behavior:doux?'smooth':'auto'});
+}
+
+// ══════════════════════════════════════════════
+//  MENU CONTEXTUEL « ⋯ »
+// ══════════════════════════════════════════════
+// Quatre boutons par ligne forçaient un défilement horizontal sur mobile. Rien
+// de tel n'existait dans le fichier : ce menu est le premier, gardé volontairement
+// minimal — un seul ouvert à la fois, fermé au clic extérieur et à Échap.
+let _menuOuvert=null;
+function fermerMenuContextuel(){
+  if(_menuOuvert){_menuOuvert.remove();_menuOuvert=null;}
+}
+document.addEventListener('click',e=>{ if(_menuOuvert&&!_menuOuvert.contains(e.target))fermerMenuContextuel(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')fermerMenuContextuel(); });
+window.addEventListener('scroll',fermerMenuContextuel,{passive:true});
+
+// `actions` : [{ libelle, onClick, danger? }]
+function ouvrirMenuContextuel(evt,actions){
+  evt.stopPropagation();          // sinon le listener global le referme aussitôt
+  fermerMenuContextuel();
+  const m=document.createElement('div');
+  m.className='menu-contextuel';
+  actions.forEach(a=>{
+    const b=document.createElement('button');
+    b.className='menu-item'+(a.danger?' danger':'');
+    b.textContent=a.libelle;
+    b.onclick=()=>{fermerMenuContextuel();a.onClick();};
+    m.appendChild(b);
+  });
+  document.body.appendChild(m);
+  // Positionné en coordonnées page (le menu est dans body, pas dans la cellule),
+  // et rabattu si l'on déborde à droite ou en bas.
+  const r=evt.currentTarget.getBoundingClientRect();
+  const l=Math.min(r.left+window.scrollX, window.scrollX+document.documentElement.clientWidth-m.offsetWidth-8);
+  let top=r.bottom+window.scrollY+4;
+  if(r.bottom+m.offsetHeight+8>document.documentElement.clientHeight) top=r.top+window.scrollY-m.offsetHeight-4;
+  m.style.left=Math.max(8,l)+'px';
+  m.style.top=Math.max(8,top)+'px';
+  _menuOuvert=m;
+}
+
+function ouvrirMenuUtilisateur(evt,id,nom,actif,roles){
+  ouvrirMenuContextuel(evt,[
+    { libelle:t('btn.editRoles'), onClick:()=>adminEditRolesUI(id,nom,roles) },
+    { libelle:t('btn.resetPin'),  onClick:()=>adminResetPinUI(id,nom) },
+    { libelle:actif?t('btn.deactivate'):t('btn.activate'), onClick:()=>adminToggleActive(id,actif?'false':'true') },
+    { libelle:t('btn.delete'),    onClick:()=>adminDeleteUserUI(id,nom), danger:true }
+  ]);
+}
+
 function renderAdminUsers(users){
   const wrap=document.getElementById('admin-users-wrap');
   if(!users||users.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">👤</div><p>${t('admin.noUsers')}</p></div>`;return;}
@@ -1888,11 +1999,9 @@ function renderAdminUsers(users){
       <td>${esc(rolesTxt)}</td>
       <td>${u.actif?'✅':'⛔'}</td>
       <td>${esc(u.derniereConnexion)||'—'}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" onclick="adminEditRolesUI('${escJsAttr(u.id)}','${escJsAttr(u.nom)}',${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">${t('btn.editRoles')}</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminResetPinUI('${escJsAttr(u.id)}','${escJsAttr(u.nom)}')">${t('btn.resetPin')}</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminToggleActive('${escJsAttr(u.id)}',${u.actif?'false':'true'})">${u.actif?t('btn.deactivate'):t('btn.activate')}</button>
-        <button class="btn btn-danger btn-sm" onclick="adminDeleteUserUI('${escJsAttr(u.id)}','${escJsAttr(u.nom)}')">🗑️</button>
+      <td style="white-space:nowrap;text-align:right;">
+        <button class="btn-menu" title="${esc(t('menu.actions'))}"
+                onclick="ouvrirMenuUtilisateur(event,'${escJsAttr(u.id)}','${escJsAttr(u.nom)}',${u.actif?'true':'false'},${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">⋯</button>
       </td>
     </tr>`;
   });
@@ -1958,12 +2067,19 @@ async function adminToggleActive(id,newVal){
   if(res.success){showToast(actif?t('toast.activated'):t('toast.deactivated'));loadAdminUsers();}
   else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
+// Sert AUSSI de procédure d'oubli de code : c'est le même geste.
+//
+// L'administrateur ne CHOISIT plus le code — la saisie a disparu. Un code
+// choisi par l'admin serait un secret partagé, que l'utilisateur pourrait de
+// surcroît conserver tel quel. Il est remis au défaut, et `mustChangePin`
+// contraint l'intéressé à en définir un que lui seul connaîtra.
 async function adminResetPinUI(id,nom){
-  const pin=prompt(t('prompt.newPin',{nom}));
-  if(!pin)return;
-  if(!/^\d{4,6}$/.test(pin)){showToast(t('valid.pinInvalid'));return;}
-  const res=await apiPost({action:'adminResetPin',id,pin});
-  if(res.success)showToast(t('toast.pinReset'));else showToast(t('err.prefix')+(res.error||t('err.generic')));
+  if(!confirm(t('admin.confirmResetPin',{nom})))return;
+  const res=await apiPost({action:'adminResetPin',id});
+  if(res.success){
+    showToast(t('admin.pinReinitialise',{nom}));
+    loadAdminUsers();
+  } else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 async function adminDeleteUserUI(id,nom){
   if(!confirm(t('confirm.deleteUser',{nom})))return;
@@ -2481,6 +2597,24 @@ function confirmUpdate(ok){document.getElementById('modal-update').classList.rem
 // ══════════════════════════════════════════════
 //  PREVIEW
 // ══════════════════════════════════════════════
+// Rend cliquables les numéros à 9 chiffres pour appeler directement depuis le
+// terrain. Le texte peut contenir plusieurs numéros séparés par « / » : on ne
+// transforme QUE les séquences de 9 chiffres et on laisse le reste tel quel.
+// L'échappement reste appliqué au texte affiché : ce sont des données client.
+function lienTel(txt){
+  const s=String(txt==null?'':txt);
+  if(!s)return '';
+  // On échappe D'ABORD la chaîne entière, puis on transforme les numéros. Faire
+  // l'inverse laisserait les portions non capturées en HTML brut — c'est-à-dire
+  // rouvrir la XSS stockée sur un champ saisi par un utilisateur.
+  // L'échappement ne touche pas les chiffres, la détection reste donc fiable.
+  return esc(s).replace(/\d[\d\s]{7,}\d/g, brut=>{
+    const chiffres=brut.replace(/\D/g,'');
+    if(chiffres.length!==9)return brut;   // pas un numéro local : on n'y touche pas
+    return `<a href="tel:${chiffres}" class="lien-tel" onclick="event.stopPropagation()">📞 ${brut}</a>`;
+  });
+}
+
 function buildLabel(inv){
   const p=[];
   if(inv.customerId&&inv.customerId!=='null'&&inv.customerId!=='')p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${esc(inv.customerId)}</span>`);
@@ -2493,9 +2627,9 @@ function buildLabel(inv){
     if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!=='') telSec=inv.numSec;
     else if(inv.telSec&&inv.telSec!=='null'&&inv.telSec!=='') telSec=inv.telSec;
     const display=telSec&&!inv.tel.includes('/')?inv.tel+' / '+telSec:inv.tel;
-    p.push(esc(display));
+    p.push(lienTel(display));
   } else if(inv.numSec&&inv.numSec!=='null'&&inv.numSec!==''){
-    p.push(esc(inv.numSec));
+    p.push(lienTel(inv.numSec));
   }
   if(inv.pop)p.push(esc(inv.pop));
   if(inv.loc)p.push(`<em style="color:var(--muted)">${esc(inv.loc)}</em>`);
@@ -2666,8 +2800,8 @@ function renderClientsTable(list,wrapId){
       ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">${t('gps.viewLink')}</a>`:'—';
     const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
     h+=`<tr>
-      <td><strong>${esc(c.num)}</strong></td><td>${esc(c.nom)||'—'}</td><td>${esc(c.tel)||'—'}</td>
-      <td>${esc(telSec)}</td>
+      <td><strong>${esc(c.num)}</strong></td><td>${esc(c.nom)||'—'}</td><td>${c.tel?lienTel(c.tel):'—'}</td>
+      <td>${telSec?lienTel(telSec):'—'}</td>
       <td>${esc(c.loc)||'—'}</td><td>${esc(c.ville)||'—'}</td>
       <td>${c.quartier?`<span class="tag tag-quartier">${esc(c.quartier)}</span>`:'—'}</td>
       <td>${gpsH}</td>
@@ -2693,8 +2827,8 @@ function renderClientsLsTable(list,wrapId){
       ?`<a class="gps-link" href="https://www.google.com/maps?q=${encodeURIComponent(gpsRaw)}" target="_blank">${t('gps.viewLink')}</a>`:'—';
     const telSec=c.telSec&&c.telSec!=='null'&&c.telSec!==''?c.telSec:'—';
     h+=`<tr>
-      <td><strong>${esc(c.nom)}</strong></td><td>${esc(c.tel)||'—'}</td>
-      <td>${esc(telSec)}</td>
+      <td><strong>${esc(c.nom)}</strong></td><td>${c.tel?lienTel(c.tel):'—'}</td>
+      <td>${telSec?lienTel(telSec):'—'}</td>
       <td>${esc(c.loc)||'—'}</td><td>${esc(c.ville)||'—'}</td>
       <td>${c.quartier?`<span class="tag tag-quartier">${esc(c.quartier)}</span>`:'—'}</td>
       <td>${esc(c.pop)||'—'}</td>
@@ -2966,6 +3100,11 @@ function renderTerrain(data){
     // Statut : basé sur toutes les actives (pour voir combien sont réalisées)
     const base = (ignore==='s') ? actives : nonRealises;
     base.forEach(i=>{
+      // La RECHERCHE TEXTE entre dans tous les compteurs, sans exception : c'est
+      // ce qui fait disparaître au fil de la frappe les quartiers, statuts et
+      // types qui ne contiennent plus rien. Sans ça, on gardait des pastilles
+      // cliquables menant à une liste vide.
+      if(!matchTerrainTexte(i))return;
       if(ignore!=='q'&&terrainQuartierFilter&&quartierKey(i)!==terrainQuartierFilter)return;
       if(ignore!=='s'&&terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return;
       if(ignore!=='t'&&terrainTypeFilter&&i.type!==terrainTypeFilter)return;
@@ -3016,49 +3155,84 @@ function renderTerrain(data){
     // Filtre par type
     const totalT=Object.values(tC).reduce((a,b)=>a+b,0);
     const allTBtn=`<span class="qpill${terrainTypeFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainTypeFilter===''?'var(--navy)':'#e2e8f0'};color:${terrainTypeFilter===''?'#fff':'var(--text)'};border-color:var(--navy)" onclick="setTerrainFilter('t','')">${t('common.all')} <b>${totalT}</b></span>`;
-    const tBtns=Object.entries(tC).map(([gt,c])=>{
+    const tBtns=Object.entries(tC).filter(([,c])=>c>0).map(([gt,c])=>{
       const active=terrainTypeFilter===gt;
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?'background:var(--navy);color:#fff;border-color:var(--navy)':'background:#e2e8f0;color:var(--text);border-color:var(--border2)'}" onclick="setTerrainFilter('t','${escJsAttr(gt)}')"> ${TI[gt]||'📋'} ${esc(trType(gt))} <b>${c}</b></span>`;
     }).join('');
 
+    // Une section de filtre entièrement vide n'a plus lieu d'être affichée :
+    // elle occuperait de la place pour ne proposer que « Tous », qui ne filtre
+    // rien. On la masque quand la recherche a tout écarté.
+    const aDesQuartiers = qBtns.trim() !== '' || sansQPills.trim() !== '';
+    const aDesTypes     = tBtns.trim() !== '';
+    const aDesStatuts   = sBtns.trim() !== '';
+
     summaryEl.innerHTML=`<div class="card">
       <div class="card-title">${t('terrain.repartition.title')}</div>
-      <div style="margin-bottom:6px">${allQBtnSimple}</div>
-      <div style="margin-bottom:8px">${qBtns}</div>
+      ${aDesQuartiers?`<div style="margin-bottom:6px">${allQBtnSimple}</div>
+      <div style="margin-bottom:8px">${qBtns}</div>`:''}
       ${sansQPills?`<div style="border-top:1px dashed var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">📭 ${t('quartier.sansQuartier')}</div>
         ${sansQPills}
       </div>`:''}
-      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+      ${aDesStatuts?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byStatus')}</div>
         ${allSBtn}${sBtns}
-      </div>
-      <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+      </div>`:''}
+      ${aDesTypes?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${t('filter.byType')}</div>
         ${allTBtn}${tBtns}
-      </div>
+      </div>`:''}
     </div>`;
+    // Plus aucun filtre à proposer : la carte entière disparaît plutôt que de
+    // laisser un titre seul au-dessus du vide.
+    summaryEl.classList.toggle('hidden', !aDesQuartiers && !aDesStatuts && !aDesTypes);
   } else {
     summaryEl.classList.add('hidden');
   }
 
   // Appliquer les filtres avant le rendu
   const filtered=applyTerrainFilters(interventions);
+  if(filtered.length===0){
+    // Sans ce garde-fou, renderByType/renderByQuartier renvoient une chaîne
+    // vide et l'écran devient blanc, sans que l'utilisateur comprenne s'il a
+    // trop filtré ou si l'app a échoué.
+    const recherche=terrainTextFilter.trim();
+    el.innerHTML=`<div class="empty"><div class="eicon">🔍</div>
+      <p>${esc(recherche?t('terrain.noSearchResult',{q:recherche}):t('terrain.noFilterResult'))}</p>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="resetTerrainFilters()">${esc(t('terrain.resetFilters'))}</button>
+    </div>`;
+    return;
+  }
   el.innerHTML=(currentTerrainView==='type'?renderByType(filtered):renderByQuartier(filtered));
 }
 
-function applyTerrainFilters(interventions){
+// Remet la vue Terrain à zéro : recherche ET pastilles. Utile quand on s'est
+// enfermé dans une combinaison de filtres qui ne donne rien.
+function resetTerrainFilters(){
+  terrainTextFilter='';terrainQuartierFilter='';terrainStatutFilter='';terrainTypeFilter='';
+  const champ=document.getElementById('terrain-search');
+  if(champ)champ.value='';
+  if(terrainData)renderTerrain(terrainData);
+}
+
+// Correspondance à la recherche texte. Extraite pour être partagée entre le
+// filtrage des lignes ET le calcul des compteurs de pastilles — les deux
+// doivent voir exactement la même chose, sinon on réaffiche des filtres vides.
+function matchTerrainTexte(i){
   const q=terrainTextFilter.trim().toLowerCase();
+  if(!q)return true;
+  return [i.nom,i.num,i.customerId,i.tel,i.telSec,i.quartier,i.loc,i.ville]
+    .map(x=>String(x||'')).join(' ').toLowerCase().includes(q);
+}
+
+function applyTerrainFilters(interventions){
   return interventions.filter(i=>{
     if(i.estTransfere)return false;
     if(terrainQuartierFilter&&quartierKey(i)!==terrainQuartierFilter)return false;
     if(terrainStatutFilter&&(SM[i.statut]||'pending')!==terrainStatutFilter)return false;
     if(terrainTypeFilter&&i.type!==terrainTypeFilter)return false;
-    if(q){
-      const hay=[i.nom,i.num,i.customerId,i.tel,i.telSec,i.quartier,i.loc,i.ville].map(x=>String(x||'')).join(' ').toLowerCase();
-      if(!hay.includes(q))return false;
-    }
-    return true;
+    return matchTerrainTexte(i);
   });
 }
 
@@ -3204,6 +3378,7 @@ function invRowHTML(inv,idx){
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;">
       <span class="badge ${SC[sk]}">${SL[LANG][sk]}</span>
+      ${inv.duree>0?`<span class="duree-badge">⏱️ ${formatDuree(inv.duree)}</span>`:''}
       <select class="status-sel" onchange="updStatut('${inv.id}',this.value)">
         <option value="En attente"  ${inv.statut==='En attente' ?'selected':''}>${SL[LANG].pending}</option>
         <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>${SL[LANG].ok}</option>
@@ -3500,7 +3675,7 @@ async function loadHistorique(){
   // rafraîchit en arrière-plan (stale-while-revalidate)
   let hadCache=false;
   try{
-    const cached=JSON.parse(localStorage.getItem('ceraf_histo_cache_'+targetMonth)||'null');
+    const cached=JSON.parse(localStorage.getItem('ceraf_histo_cache2_'+targetMonth)||'null');
     if(cached){
       histoAllData=cached.data;
       histoSelectedMonth=targetMonth;
@@ -3530,7 +3705,7 @@ async function loadHistorique(){
   histoSelectedMonth=monthsList.includes(targetMonth)?targetMonth:monthsList[0];
 
   try{
-    localStorage.setItem('ceraf_histo_cache_'+histoSelectedMonth, JSON.stringify({data:histoAllData, availableMonths:monthsList}));
+    localStorage.setItem('ceraf_histo_cache2_'+histoSelectedMonth, JSON.stringify({data:histoAllData, availableMonths:monthsList}));
   }catch(e){}
 
   // Peupler le sélecteur (léger : juste des clés de mois, pas les données)
@@ -3548,7 +3723,7 @@ async function onHistoMonthChange(val){
 
   let hadCache=false;
   try{
-    const cached=JSON.parse(localStorage.getItem('ceraf_histo_cache_'+val)||'null');
+    const cached=JSON.parse(localStorage.getItem('ceraf_histo_cache2_'+val)||'null');
     if(cached){
       histoAllData=cached.data;
       renderHistoForMonth();
@@ -3562,7 +3737,7 @@ async function onHistoMonthChange(val){
     histoAllData=data.data;
     try{
       const monthsList=(data.availableMonths&&data.availableMonths.length>0)?data.availableMonths:[val];
-      localStorage.setItem('ceraf_histo_cache_'+val, JSON.stringify({data:histoAllData, availableMonths:monthsList}));
+      localStorage.setItem('ceraf_histo_cache2_'+val, JSON.stringify({data:histoAllData, availableMonths:monthsList}));
     }catch(e){}
     renderHistoForMonth();
   } else if(!hadCache){
@@ -3832,6 +4007,36 @@ async function chargerAudit(){
   await Promise.all([chargerSessions(), chargerComptesAudit(), chargerJournalAudit()]);
 }
 
+// Replie/déplie le bloc de filtres du journal.
+function basculerFiltresAudit(){
+  const b=document.getElementById('aud-filtres');
+  if(!b)return;
+  const ouvert=b.classList.toggle('visible');
+  const btn=document.getElementById('aud-btn-filtres');
+  if(btn)btn.textContent=(ouvert?'✕ ':'⚙️ ')+t('audit.filtres').replace(/^[^ ]+ /,'');
+}
+
+function viderFiltresAudit(){
+  ['aud-f-mat','aud-f-action','aud-f-depuis','aud-f-jusqua'].forEach(id=>{
+    const e=document.getElementById(id); if(e)e.value='';
+  });
+  chargerJournalAudit();
+}
+
+// Alimente les listes déroulantes des filtres. Saisie libre conservée : ce sont
+// des <datalist>, pas des <select> — on peut proposer sans imposer.
+function remplirListesAudit(users, actions){
+  const dM=document.getElementById('aud-liste-mat');
+  if(dM&&Array.isArray(users)){
+    // `label` affiche le nom en second, plus discret que la valeur elle-même.
+    dM.innerHTML=users.map(u=>`<option value="${esc(u.id)}" label="${esc(u.nom||'')}"></option>`).join('');
+  }
+  const dA=document.getElementById('aud-liste-action');
+  if(dA&&Array.isArray(actions)){
+    dA.innerHTML=actions.map(a=>`<option value="${esc(a)}"></option>`).join('');
+  }
+}
+
 async function chargerSessions(){
   const el=document.getElementById('audit-sessions-wrap');
   const res=await apiGet({action:'adminSessions'});
@@ -3839,7 +4044,7 @@ async function chargerSessions(){
   if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
   const s=res.sessions||[];
   if(!s.length){el.innerHTML=`<div class="empty"><p>${esc(t('audit.aucuneSession'))}</p></div>`;return;}
-  el.innerHTML=`<table class="tbl"><thead><tr>
+  el.innerHTML=`<table class="clients-table"><thead><tr>
       <th>${esc(t('audit.th.qui'))}</th><th>${esc(t('audit.th.appareil'))}</th>
       <th>${esc(t('audit.th.depuis'))}</th><th>${esc(t('audit.th.dernierAcces'))}</th><th></th>
     </tr></thead><tbody>${s.map(x=>`<tr>
@@ -3863,7 +4068,10 @@ async function chargerComptesAudit(){
   const res=await apiGet({action:'adminListUsers'});
   if(auditIndisponible(res)){el.innerHTML=encartIndisponible();return;}
   if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
-  el.innerHTML=`<table class="tbl"><thead><tr>
+  // Les comptes servent aussi à peupler le filtre « Matricule » du journal :
+  // on réutilise cet appel plutôt que d'en faire un second.
+  remplirListesAudit(res.users, null);
+  el.innerHTML=`<table class="clients-table"><thead><tr>
       <th>${esc(t('audit.th.qui'))}</th><th>${esc(t('admin.th.roles'))}</th>
       <th>${esc(t('audit.th.derniere'))}</th><th>${esc(t('audit.th.sessions'))}</th><th></th>
     </tr></thead><tbody>${(res.users||[]).map(u=>`<tr>
@@ -3886,6 +4094,7 @@ async function chargerJournalAudit(){
     limite:200});
   if(auditIndisponible(res)){el.innerHTML=encartIndisponible();return;}
   if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
+  remplirListesAudit(null, res.actionsConnues);
   const l=res.lignes||[];
   if(!l.length){el.innerHTML=`<div class="empty"><p>${esc(t('audit.aucunJournal'))}</p></div>`;return;}
   // Le avant/après est le cœur de l'onglet : c'est précisément ce que le
@@ -3897,7 +4106,7 @@ async function chargerJournalAudit(){
       .map(k=>`<div><b>${esc(k)}</b> : <span style="color:var(--red)">${esc(String((a||{})[k]??'—'))}</span> → <span style="color:var(--green)">${esc(String((b||{})[k]??'—'))}</span></div>`)
       .join('');
   };
-  el.innerHTML=`<table class="tbl"><thead><tr>
+  el.innerHTML=`<table class="clients-table"><thead><tr>
       <th>${esc(t('audit.th.quand'))}</th><th>${esc(t('audit.th.qui'))}</th>
       <th>${esc(t('audit.th.action'))}</th><th>${esc(t('audit.th.cible'))}</th>
       <th>${esc(t('audit.th.avantApres'))}</th>
@@ -3935,7 +4144,7 @@ async function chargerEditionJour(){
   const inv=res.interventions||[];
   if(!inv.length){el.innerHTML=`<div class="empty"><p>${esc(t('edition.aucuneInv'))}</p></div>`;return;}
   const STATUTS=['En attente','Injoignable','Problème','Réalisé'];
-  el.innerHTML=`<table class="tbl"><thead><tr>
+  el.innerHTML=`<table class="clients-table"><thead><tr>
       <th>${esc(t('clients.th.num'))}</th><th>${esc(t('common.name.label'))}</th>
       <th>${esc(t('label.statut'))}</th><th>${esc(t('ph.remarque'))}</th><th></th>
     </tr></thead><tbody>${inv.map(i=>`<tr id="ed-row-${escJsAttr(i.id)}">

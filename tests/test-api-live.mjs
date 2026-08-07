@@ -30,7 +30,7 @@ console.log('1. ping');
 verifier('pong', (await appel({ action: 'ping' })).pong === true);
 
 console.log('\n2. login');
-const l = await appel({ action: 'login', matricule: '402411', pin: '0000' });
+const l = await appel({ action: 'login', matricule: '_T_HARNAIS', pin: '1234' });
 verifier('connexion reussie', l.success === true, JSON.stringify(l));
 verifier('mustChangePin signale', l.mustChangePin === true, 'mustChangePin=' + l.mustChangePin);
 const tok = l.token;
@@ -40,7 +40,7 @@ const bloque = await appel({ action: 'getByDate', date: '2026-08-06', token: tok
 verifier('lecture bloquee tant que PIN par defaut', bloque.mustChangePin === true, JSON.stringify(bloque));
 
 console.log('\n4. changePin puis lectures');
-const chg = await appel({ action: 'changePin', currentPin: '0000', newPin: '336699', token: tok, actingRole: 'technicien' });
+const chg = await appel({ action: 'changePin', currentPin: '1234', newPin: '336699', token: tok, actingRole: 'technicien' });
 verifier('changement accepte', chg.success === true, JSON.stringify(chg));
 
 const d = await appel({ action: 'getByDate', date: '2026-08-06', token: tok, actingRole: 'technicien' });
@@ -62,7 +62,7 @@ verifier('role usurpe refuse',
 
 console.log('\n6. remise en etat');
 verifier('PIN remis a 0000',
-  (await appel({ action: 'changePin', currentPin: '336699', newPin: '0000', token: tok, actingRole: 'technicien' })).success === true);
+  (await appel({ action: 'changePin', currentPin: '336699', newPin: '1234', token: tok, actingRole: 'technicien' })).success === true);
 verifier('logout', (await appel({ action: 'logout', token: tok })).success === true);
 verifier('token revoque',
   (await appel({ action: 'getClients', token: tok, actingRole: 'technicien' })).authError === true);

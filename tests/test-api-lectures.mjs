@@ -1,12 +1,26 @@
-// Teste le COEUR de l'API (api/core.mjs) sans aucun hebergeur : on injecte
-// la configuration puis on lui passe de vraies Request.
-// Cible : la VRAIE base Neon, avec les VRAIES donnees migrees.
+// Teste le CŒUR de l'API (api/core.mjs) sans aucun hébergeur : on injecte la
+// configuration puis on lui passe de vraies Request.
+// Cible : la VRAIE base Neon, avec les VRAIES données.
+//
+// DEUX RÈGLES à ne pas enfreindre en modifiant ce fichier :
+//  1. Ne JAMAIS s'appuyer sur un compte de l'équipe. Leurs PIN changent, et un
+//     test ne doit pas perturber quelqu'un qui travaille. Tout passe par le
+//     compte dédié `_T_HARNAIS`.
+//  2. Chaque appel porte `_test: true` : les écritures sont journalisées mais
+//     exclues de l'onglet Audit, qui ne doit montrer que l'activité réelle.
+//
+// Usage : node tests/test-api-lectures.mjs <fichier-conn> file:///<...>/api/core.mjs
 import fs from 'node:fs';
 
 const conn = fs.readFileSync(process.argv[2], 'utf8').trim();
 const { configurerEnv, traiterRequete } = await import(process.argv[3]);
 configurerEnv({ DATABASE_URL: conn });
 
+const COMPTE = '_T_HARNAIS';
+const PIN = '1234';
+// Date du jour côté Cameroun (UTC+1) : c'est à cette date qu'est rattachée la
+// fiche courante. Une date figée ferait échouer le test dès le lendemain.
+const AUJOURDHUI = new Date(Date.now() + 3600e3).toISOString().slice(0, 10);
 
 let ok = 0, ko = 0;
 const verifier = (nom, cond, detail) => {
@@ -18,147 +32,157 @@ async function appel(corps) {
   const req = new Request('https://exemple.test/api', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'user-agent': 'harnais-test' },
-    body: JSON.stringify(corps)
+    body: JSON.stringify({ ...corps, _test: true })
   });
   const rep = await traiterRequete(req, { ip: '203.0.113.9' });
   return { statut: rep.status, corps: await rep.json() };
 }
 
 console.log('\n1. ping');
-{
-  const r = await appel({ action: 'ping' });
-  verifier('repond pong', r.corps.pong === true, JSON.stringify(r.corps));
-}
+verifier('repond pong', (await appel({ action: 'ping' })).corps.pong === true);
 
-console.log('\n2. login — mauvais PIN puis bon PIN');
+console.log('\n2. login — cas d\'erreur');
 {
-  const mauvais = await appel({ action: 'login', matricule: '103300', pin: '0001' });
+  const mauvais = await appel({ action: 'login', matricule: COMPTE, pin: '0001' });
   verifier('mauvais PIN refuse', mauvais.corps.success === false, JSON.stringify(mauvais.corps));
-
-  // 103300 n'a pas ete reinitialise : son PIN reel est inconnu du harnais.
-  // On teste donc le chemin « matricule introuvable » et la session via un
-  // compte dont on connait le PIN (999999 remis a 0000).
   const inconnu = await appel({ action: 'login', matricule: 'PAS_UN_MATRICULE', pin: '0000' });
   verifier('matricule inconnu refuse', inconnu.corps.error === 'Matricule introuvable', JSON.stringify(inconnu.corps));
 }
 
-let token = null, tokenTech = null;
-console.log('\n3. login admin (999999 / 0000, remis au defaut)');
+let token = null;
+console.log('\n3. login du compte de test');
 {
-  const r = await appel({ action: 'login', matricule: '999999', pin: '0000' });
+  const r = await appel({ action: 'login', matricule: COMPTE, pin: PIN });
   verifier('connexion reussie', r.corps.success === true, JSON.stringify(r.corps));
-  verifier('mustChangePin signale', r.corps.mustChangePin === true, 'mustChangePin=' + r.corps.mustChangePin);
+  // Ce compte a un PIN personnalisé : il doit pouvoir travailler tout de suite.
+  // Le verrou est vérifié à l'étape 4 sur un compte créé pour l'occasion.
+  verifier('PIN personnalise, donc pas de verrou', r.corps.mustChangePin === false, 'mustChangePin=' + r.corps.mustChangePin);
   verifier('roles renvoyes', Array.isArray(r.corps.roles) && r.corps.roles.includes('admin'), JSON.stringify(r.corps.roles));
   verifier('token emis', typeof r.corps.token === 'string' && r.corps.token.length > 40);
   token = r.corps.token;
 }
+const A = { token, actingRole: 'admin' };
 
-console.log('\n4. VERROU mustChangePin — doit tout bloquer sauf changePin/logout');
+console.log('\n4. VERROU mustChangePin — sur un compte NEUF, laisse au PIN par defaut');
 {
-  const r = await appel({ action: 'getByDate', date: AUJOURDHUI, token, actingRole: 'admin' });
-  verifier('lecture bloquee', r.corps.success === false && r.corps.mustChangePin === true, JSON.stringify(r.corps));
+  const NEUF = '_T_VERROU';
+  await appel({ action: 'adminAddUser', matricule: NEUF, nom: 'TEST VERROU', roles: 'technicien', ...A });
+  const l = await appel({ action: 'login', matricule: NEUF, pin: '0000' });
+  verifier('compte neuf signale mustChangePin', l.corps.mustChangePin === true, 'mustChangePin=' + l.corps.mustChangePin);
+  const T = { token: l.corps.token, actingRole: 'technicien' };
+
+  const bloque = await appel({ action: 'getByDate', date: AUJOURDHUI, ...T });
+  verifier('lecture bloquee tant que le PIN est au defaut',
+    bloque.corps.success === false && bloque.corps.mustChangePin === true, JSON.stringify(bloque.corps));
+
+  // Au PIN par défaut, `currentPin` n'est pas exigé : c'est le correctif v115
+  // qui a débloqué l'équipe. Sans lui, l'utilisateur boucle indéfiniment.
+  const chg = await appel({ action: 'changePin', newPin: '5678', ...T });
+  verifier('changePin accepte SANS currentPin quand le PIN est au defaut',
+    chg.corps.success === true, JSON.stringify(chg.corps));
+
+  const apres = await appel({ action: 'getByDate', date: AUJOURDHUI, ...T });
+  verifier('lecture debloquee apres personnalisation', apres.corps.success === true,
+    JSON.stringify(apres.corps).slice(0, 100));
+
+  await appel({ action: 'adminDeleteUser', id: NEUF, ...A });
 }
 
-console.log('\n5. changePin puis lecture autorisee');
+console.log('\n5. lectures du jour');
 {
-  const c = await appel({ action: 'changePin', currentPin: '0000', newPin: '778899', token, actingRole: 'admin' });
-  verifier('changement accepte', c.corps.success === true, JSON.stringify(c.corps));
-
-  const r = await appel({ action: 'getByDate', date: AUJOURDHUI, token, actingRole: 'admin' });
-  verifier('la session reste valide apres changePin', r.corps.success === true, JSON.stringify(r.corps).slice(0, 120));
-  verifier('26 interventions pour le 06/08', (r.corps.interventions || []).length === 26,
-    (r.corps.interventions || []).length + ' interventions');
-  const avecDuree = (r.corps.interventions || []).filter(i => i.duree > 0).length;
-  verifier('durees calculees', avecDuree > 0, avecDuree + ' interventions avec duree > 0');
-
-  // On remet le PIN au defaut : l'utilisateur reel doit toujours etre invite
-  // a le personnaliser, le harnais ne doit rien laisser derriere lui.
-  const retour = await appel({ action: 'changePin', currentPin: '778899', newPin: '0000', token, actingRole: 'admin' });
-  verifier('PIN admin remis a 0000 (etat rendu intact)', retour.corps.success === true, JSON.stringify(retour.corps));
+  const r = await appel({ action: 'getByDate', date: AUJOURDHUI, ...A });
+  verifier('getByDate repond', r.corps.success === true, JSON.stringify(r.corps).slice(0, 120));
+  verifier('la fiche du jour est alimentee', (r.corps.interventions || []).length > 0,
+    (r.corps.interventions || []).length + ' intervention(s)');
+  verifier('durees calculees', (r.corps.interventions || []).some(i => i.duree > 0));
+  verifier('le contact client est joint', (r.corps.interventions || []).some(i => 'tel' in i));
 }
 
 console.log('\n6. session invalide');
-{
-  const r = await appel({ action: 'getByDate', date: AUJOURDHUI, token: 'faux-token', actingRole: 'admin' });
-  verifier('rejetee avec authError', r.corps.authError === true, JSON.stringify(r.corps));
-}
+verifier('rejetee avec authError',
+  (await appel({ action: 'getByDate', date: AUJOURDHUI, token: 'faux-token', actingRole: 'admin' })).corps.authError === true);
 
 console.log('\n7. controle des roles');
 {
-  const t = await appel({ action: 'login', matricule: '402411', pin: '0000' });
-  tokenTech = t.corps.token;
-  const chg = await appel({ action: 'changePin', currentPin: '0000', newPin: '445566', token: tokenTech, actingRole: 'technicien' });
-  verifier('technicien personnalise son PIN', chg.corps.success === true, JSON.stringify(chg.corps));
+  const usurpe = await appel({ action: 'getByDate', date: AUJOURDHUI, token, actingRole: 'chef' });
+  verifier('role reellement detenu accepte', usurpe.corps.success === true, JSON.stringify(usurpe.corps).slice(0, 90));
 
-  const usurpe = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'admin' });
-  verifier('role usurpe refuse', usurpe.corps.authError === true, JSON.stringify(usurpe.corps));
+  const T = { token, actingRole: 'technicien' };
+  const interdit = await appel({ action: 'getAll', month: AUJOURDHUI.slice(0, 7), ...T });
+  verifier('getAll refuse au technicien',
+    interdit.corps.success === false && /chef/.test(interdit.corps.error || ''), JSON.stringify(interdit.corps));
 
-  const interdit = await appel({ action: 'getAll', month: '2026-08', token: tokenTech, actingRole: 'technicien' });
-  verifier('getAll refuse au technicien', interdit.corps.success === false && /chef/.test(interdit.corps.error || ''),
-    JSON.stringify(interdit.corps));
-
-  const permis = await appel({ action: 'getClients', token: tokenTech, actingRole: 'technicien' });
+  const permis = await appel({ action: 'getClients', ...T });
   verifier('getClients autorise au technicien', permis.corps.success === true);
-  verifier('258 clients FTTH', (permis.corps.clientsFtth || []).length === 258, (permis.corps.clientsFtth || []).length + '');
-  verifier('23 clients Cuivre', (permis.corps.clientsCuivre || []).length === 23, (permis.corps.clientsCuivre || []).length + '');
-  verifier('4 clients LS', (permis.corps.clientsLs || []).length === 4, (permis.corps.clientsLs || []).length + '');
+  // Pas de compteurs figés : l'équipe crée des fiches tous les jours, un
+  // nombre en dur ferait échouer le test au premier client ajouté. On vérifie
+  // la COHÉRENCE (les trois listes existent, sont peuplées, et les fiches
+  // portent bien leurs champs), pas une photographie.
+  const f = permis.corps.clientsFtth || [], c = permis.corps.clientsCuivre || [], ls = permis.corps.clientsLs || [];
+  verifier('les trois listes clients sont peuplees', f.length > 0 && c.length > 0 && ls.length > 0,
+    `ftth=${f.length} cuivre=${c.length} ls=${ls.length}`);
+  verifier('chaque fiche FTTH porte un numero et un nom', f.every(x => x.num && 'nom' in x));
+  verifier('aucun numero en doublon entre FTTH et Cuivre',
+    new Set([...f, ...c].map(x => x.num)).size === f.length + c.length);
+  verifier('interventions actives renvoyees', Array.isArray(permis.corps.activeInterventions));
 }
 
-console.log('\n8. getAll (chef) — dedoublonnage mensuel');
+console.log('\n8. getAll — FORME de la reponse (regression de l\'Historique)');
 {
-  const a = await appel({ action: 'login', matricule: '999999', pin: '0000' });
-  const tAdmin = a.corps.token;
-  await appel({ action: 'changePin', currentPin: '0000', newPin: '112233', token: tAdmin, actingRole: 'admin' });
-  const r = await appel({ action: 'getAll', month: '2026-08', token: tAdmin, actingRole: 'admin' });
+  const r = await appel({ action: 'getAll', month: AUJOURDHUI.slice(0, 7), ...A });
   verifier('getAll repond', r.corps.success === true, JSON.stringify(r.corps).slice(0, 120));
-  const inv = r.corps.interventions || [];
+  // Le frontend lit `data[]` avec les interventions IMBRIQUEES, plus la liste
+  // des mois. Une premiere version renvoyait deux listes plates et parallèles :
+  // l'onglet Historique restait vide. On verifie la FORME, pas que le contenu.
+  verifier('renvoie data[] (fiches)', Array.isArray(r.corps.data), typeof r.corps.data);
+  verifier('renvoie availableMonths non vide',
+    Array.isArray(r.corps.availableMonths) && r.corps.availableMonths.length > 0,
+    JSON.stringify(r.corps.availableMonths));
+  verifier('chaque fiche porte ses interventions imbriquees',
+    (r.corps.data || []).length > 0 && (r.corps.data || []).every(f => Array.isArray(f.interventions)));
+
+  const inv = (r.corps.data || []).flatMap(f => f.interventions || []);
+  verifier('interventions presentes', inv.length > 0, inv.length + '');
+  verifier('le contact client est fourni (tel)', inv.every(i => 'tel' in i));
+  verifier('les dates sont au format YYYY-MM-DD (triables et affichables)',
+    inv.every(i => /^\d{4}-\d{2}-\d{2}$/.test(String(i.date))),
+    JSON.stringify(inv.slice(0, 2).map(i => i.date)));
+
   const cles = inv.map(i => i.nom + '|' + i.num + '|' + i.type);
   verifier('aucun doublon apres dedoublonnage', new Set(cles).size === cles.length,
     cles.length + ' lignes, ' + new Set(cles).size + ' cles distinctes');
-  verifier('consistances du mois renvoyees', (r.corps.consistances || []).length > 0,
-    (r.corps.consistances || []).length + '');
-  await appel({ action: 'changePin', currentPin: '112233', newPin: '0000', token: tAdmin, actingRole: 'admin' });
 }
 
 console.log('\n9. updateStatus — idempotence');
 {
-  const r0 = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'technicien' });
+  const r0 = await appel({ action: 'getByDate', date: AUJOURDHUI, ...A });
   const cible = (r0.corps.interventions || [])[0];
-  verifier('intervention cible trouvee', !!cible, JSON.stringify(cible || {}).slice(0, 80));
+  verifier('intervention cible trouvee', !!cible);
   if (cible) {
-    const avant = cible.statut;
-    const u1 = await appel({ action: 'updateStatus', invId: cible.id, statut: 'Injoignable',
-      remarque: 'test harnais', token: tokenTech, actingRole: 'technicien' });
+    const avant = cible.statut, remarqueAvant = cible.remarque || '';
+    const u1 = await appel({ action: 'updateStatus', invId: cible.id, statut: 'Injoignable', remarque: 'test harnais', ...A });
     verifier('mise a jour acceptee', u1.corps.success === true, JSON.stringify(u1.corps));
-    const u2 = await appel({ action: 'updateStatus', invId: cible.id, statut: 'Injoignable',
-      remarque: 'test harnais', token: tokenTech, actingRole: 'technicien' });
-    verifier('rejeu identique sans effet de bord', u2.corps.success === true, JSON.stringify(u2.corps));
+    const u2 = await appel({ action: 'updateStatus', invId: cible.id, statut: 'Injoignable', remarque: 'test harnais', ...A });
+    verifier('rejeu identique sans effet de bord', u2.corps.success === true);
 
-    const apres = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'technicien' });
-    const relu = (apres.corps.interventions || []).find(i => i.id === cible.id);
+    const relu = ((await appel({ action: 'getByDate', date: AUJOURDHUI, ...A })).corps.interventions || [])
+      .find(i => i.id === cible.id);
     verifier('statut bien persiste', relu && relu.statut === 'Injoignable', relu ? relu.statut : 'introuvable');
+    verifier('statut inconnu refuse',
+      (await appel({ action: 'updateStatus', invId: cible.id, statut: 'Nimporte quoi', ...A })).corps.success === false);
 
-    const mauvais = await appel({ action: 'updateStatus', invId: cible.id, statut: 'Nimporte quoi',
-      token: tokenTech, actingRole: 'technicien' });
-    verifier('statut inconnu refuse', mauvais.corps.success === false, JSON.stringify(mauvais.corps));
-
-    // Remise dans l'etat initial
-    await appel({ action: 'updateStatus', invId: cible.id, statut: avant, remarque: cible.remarque || '',
-      token: tokenTech, actingRole: 'technicien' });
-    const fin = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'technicien' });
-    const remis = (fin.corps.interventions || []).find(i => i.id === cible.id);
-    verifier('etat initial restaure', remis && remis.statut === avant, remis ? remis.statut : '?');
+    await appel({ action: 'updateStatus', invId: cible.id, statut: avant, remarque: remarqueAvant, ...A });
+    const fin = ((await appel({ action: 'getByDate', date: AUJOURDHUI, ...A })).corps.interventions || [])
+      .find(i => i.id === cible.id);
+    verifier('etat initial restaure', fin && fin.statut === avant, fin ? fin.statut : '?');
   }
 }
 
-console.log('\n10. remise en etat du compte technicien');
+console.log('\n10. deconnexion');
 {
-  const r = await appel({ action: 'changePin', currentPin: '445566', newPin: '0000', token: tokenTech, actingRole: 'technicien' });
-  verifier('PIN technicien remis a 0000', r.corps.success === true, JSON.stringify(r.corps));
-  const out = await appel({ action: 'logout', token: tokenTech });
-  verifier('logout accepte', out.corps.success === true);
-  const apres = await appel({ action: 'getClients', token: tokenTech, actingRole: 'technicien' });
-  verifier('token revoque apres logout', apres.corps.authError === true, JSON.stringify(apres.corps));
+  verifier('logout accepte', (await appel({ action: 'logout', token })).corps.success === true);
+  verifier('token revoque apres logout',
+    (await appel({ action: 'getClients', token, actingRole: 'technicien' })).corps.authError === true);
 }
 
 console.log('\n=== ' + ok + ' succes, ' + ko + ' echec(s) ===');

@@ -120,13 +120,13 @@ async function journaliser(ctx, resultat) {
   if (!MUTATIONS.has(ctx.action)) return;
   try {
     await sql(
-      `INSERT INTO audit_log (matricule, role_actif, action, entite, entite_id, avant, apres, succes, erreur, ip)
-       VALUES ($1, $2::role_t, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10::inet)`,
+      `INSERT INTO audit_log (matricule, role_actif, action, entite, entite_id, avant, apres, succes, erreur, ip, est_test)
+       VALUES ($1, $2::role_t, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10::inet, $11)`,
       [ctx.matricule || null, ctx.role || null, ctx.action, ctx.entite || null, ctx.entiteId || null,
        ctx.avant ? JSON.stringify(ctx.avant) : null,
        ctx.apres ? JSON.stringify(ctx.apres) : null,
        !!resultat.success, resultat.success ? null : String(resultat.error || '').slice(0, 500),
-       ctx.ip || null]);
+       ctx.ip || null, !!ctx.estTest]);
   } catch (e) {
     // Un journal en échec ne doit JAMAIS faire échouer l'action métier.
     console.error('[audit] écriture impossible:', e.message);
@@ -155,8 +155,11 @@ async function login(d, ctx) {
 
   ctx.entite = 'utilisateur'; ctx.entiteId = matricule;
   const u = await un(
-    `SELECT matricule, nom, pin_hash, roles, actif FROM utilisateurs
-      WHERE matricule = $1 AND supprime_le IS NULL`, [matricule]);
+    `SELECT u.matricule, u.nom, u.pin_hash, u.roles, u.actif,
+            u.pin_reinitialise_par, a.nom AS nom_admin
+       FROM utilisateurs u
+       LEFT JOIN utilisateurs a ON a.matricule = u.pin_reinitialise_par
+      WHERE u.matricule = $1 AND u.supprime_le IS NULL`, [matricule]);
   if (!u) return { success: false, error: 'Matricule introuvable' };
   if (!u.actif) return { success: false, error: 'Compte désactivé' };
   if (!await verifierPin(u.pin_hash, pin)) return { success: false, error: 'PIN incorrect' };
@@ -170,7 +173,12 @@ async function login(d, ctx) {
   ctx.matricule = u.matricule;
 
   return { success: true, token, nom: u.nom, roles: u.roles || [],
-           mustChangePin: await estPinDefaut(u.pin_hash) };
+           mustChangePin: await estPinDefaut(u.pin_hash),
+           // Renseigné uniquement quand un administrateur a remis le code au
+           // défaut. Le frontend s'en sert pour expliquer POURQUOI l'ancien
+           // code ne marche plus, au lieu de laisser l'utilisateur croire à un
+           // bug. Effacé dès que l'intéressé choisit son nouveau code.
+           pinReinitialisePar: u.pin_reinitialise_par ? (u.nom_admin || u.pin_reinitialise_par) : null };
 }
 
 async function logout(d, ctx) {
@@ -199,7 +207,9 @@ async function changePin(d, ctx, session) {
     return { success: false, error: 'Le nouveau PIN doit être différent de l\'ancien' };
   }
 
-  await sql('UPDATE utilisateurs SET pin_hash = $1 WHERE matricule = $2',
+  // `pin_reinitialise_par` est effacé ici : le message d'information ne doit
+  // s'afficher qu'une fois, puisque l'utilisateur vient d'agir dessus.
+  await sql('UPDATE utilisateurs SET pin_hash = $1, pin_reinitialise_par = NULL WHERE matricule = $2',
     [await hacherPin(nouveau), session.matricule]);
   // Ici, contrairement à Apps Script, on PEUT révoquer proprement : la table
   // sessions distingue les appareils. On coupe tous les autres et on garde
@@ -221,6 +231,9 @@ const ligneInv = (r) => ({
   panne: r.panne || '', remarque: r.remarque || '',
   reporteDepuis: r.reporte_depuis || '', ville: r.ville || '', quartier: r.quartier || '',
   duree: r.duree, gps: r.gps || '',
+  // Le contact vient de la fiche client, joint par la vue v_interventions.
+  // Son absence rendait les libellés muets côté frontend (buildLabel les lit).
+  tel: r.tel || '', telSec: r.tel_sec || '',
   publiePar: r.publie_par || '', statutPar: r.statut_par || ''
 });
 
@@ -310,11 +323,44 @@ async function getAll(d) {
       actuel.reporte_depuis = r.reporte_depuis;
     }
   });
+  // ── FORME DE LA RÉPONSE ───────────────────────────────────────────────────
+  // Le frontend attend des FICHES avec leurs interventions IMBRIQUÉES, plus la
+  // liste des mois disponibles :
+  //     { data: [ { id, date, interventions:[…] } ], availableMonths: [ 'YYYY-MM' ] }
+  //
+  // La première version de ce portage renvoyait deux listes plates et parallèles
+  // (`consistances` + `interventions`). Le frontend lisant `data.data`, il
+  // obtenait `undefined` et l'onglet Historique affichait « aucune donnée » — en
+  // enregistrant au passage ce vide dans son cache local. Régression introduite
+  // par la migration, corrigée ici. Ne pas « simplifier » cette structure sans
+  // adapter loadHistorique()/renderHistoForMonth() dans index.html.
+  const parFiche = new Map();
+  consists.forEach(c => parFiche.set(c.id, {
+    id: c.id, date: c.date, nb: c.nb_interventions,
+    realisees: c.realisees, instances: c.instances, interventions: []
+  }));
+  [...parCle.values()].forEach(r => {
+    const ligne = ligneInv(r);
+    let fiche = parFiche.get(r.consistance_id);
+    if (!fiche) {
+      // Filet : une intervention dont la fiche manquerait ne doit pas
+      // disparaître silencieusement de l'historique.
+      fiche = { id: r.consistance_id, date: r.date, nb: 0, realisees: 0, instances: 0, interventions: [] };
+      parFiche.set(r.consistance_id, fiche);
+    }
+    fiche.interventions.push(ligne);
+  });
+
+  // Mois réellement présents en base : sans ça le sélecteur de mois du
+  // frontend retombe sur le mois courant et la navigation est morte.
+  const mois_dispo = await sql(
+    `SELECT DISTINCT to_char(date, 'YYYY-MM') AS m FROM interventions
+      WHERE supprime_le IS NULL ORDER BY m DESC`);
+
   return {
     success: true,
-    consistances: consists.map(c => ({ id: c.id, date: c.date, nb: c.nb_interventions,
-      realisees: c.realisees, instances: c.instances })),
-    interventions: [...parCle.values()].map(ligneInv)
+    data: [...parFiche.values()].sort((a, b) => String(b.date).localeCompare(String(a.date))),
+    availableMonths: mois_dispo.map(x => x.m)
   };
 }
 
@@ -686,16 +732,26 @@ async function adminDeleteUser(d, ctx, session) {
   return { success: true };
 }
 
-async function adminResetPin(d, ctx) {
+// Sert AUSSI de procédure d'oubli de code : c'est le seul chemin de
+// récupération, et il couvre les deux cas.
+//
+// L'administrateur ne CHOISIT jamais le code d'un utilisateur — il ne peut que
+// le remettre au défaut. Un PIN choisi par l'admin serait un secret partagé,
+// que l'utilisateur pourrait de surcroît conserver tel quel. Après remise à
+// zéro, `mustChangePin` le contraint à en définir un que lui seul connaît.
+async function adminResetPin(d, ctx, session) {
   const mat = String(d.id || d.matricule || '').trim();
-  const pin = String(d.pin || '').trim() || DEFAULT_PIN;
-  if (!/^\d{4,6}$/.test(pin)) return { success: false, error: 'Le PIN doit contenir 4 à 6 chiffres' };
-  const r = await sql('UPDATE utilisateurs SET pin_hash=$1 WHERE matricule=$2 RETURNING matricule', [await hacherPin(pin), mat]);
+  // `d.pin` est volontairement IGNORÉ, même s'il est fourni par un client
+  // ancien ou bricolé : la valeur est toujours DEFAULT_PIN.
+  const r = await sql(
+    `UPDATE utilisateurs SET pin_hash = $1, pin_reinitialise_par = $2
+      WHERE matricule = $3 AND supprime_le IS NULL RETURNING matricule, nom`,
+    [await hacherPin(DEFAULT_PIN), session.matricule, mat]);
   if (!r.length) return { success: false, error: 'Utilisateur introuvable' };
-  // Un PIN réinitialisé par un tiers doit couper toutes les sessions.
   await sql('UPDATE sessions SET revoquee_le=now() WHERE matricule=$1 AND revoquee_le IS NULL', [mat]);
   ctx.entite = 'utilisateur'; ctx.entiteId = mat;
-  return { success: true };
+  ctx.apres = { pinReinitialise: true, par: session.matricule };
+  return { success: true, nom: r[0].nom, pinParDefaut: DEFAULT_PIN };
 }
 
 // ── Onglet AUDIT ───────────────────────────────────────────────────────────
@@ -723,7 +779,8 @@ async function adminAudit(d) {
   const lignes = await sql(
     `SELECT id, ts, matricule, role_actif, action, entite, entite_id, avant, apres, succes, erreur, ip::text
        FROM audit_log
-      WHERE ($1 = '' OR matricule = $1)
+      WHERE NOT est_test
+        AND ($1 = '' OR matricule = $1)
         AND ($2 = '' OR action = $2)
         AND ($3 = '' OR entite = $3)
         AND ($4 = '' OR ts >= $4::date)
@@ -731,7 +788,11 @@ async function adminAudit(d) {
       ORDER BY ts DESC LIMIT $6`,
     [String(d.matricule || ''), String(d.actionFiltre || ''), String(d.entite || ''),
      String(d.depuis || ''), String(d.jusqua || ''), limite]);
-  return { success: true, lignes };
+  // Actions réellement présentes, pour alimenter la liste déroulante du filtre.
+  // Une liste figée en dur divergerait du code à la première action ajoutée.
+  const actions = await sql(
+    `SELECT DISTINCT action FROM audit_log WHERE NOT est_test ORDER BY action`);
+  return { success: true, lignes, actionsConnues: actions.map(a => a.action) };
 }
 
 // ============================================================================
@@ -818,7 +879,11 @@ export async function traiterRequete(req, { ip } = {}) {
     action,
     role: null, matricule: null,
     ip: ip || null,
-    userAgent: req.headers.get('user-agent') || ''
+    userAgent: req.headers.get('user-agent') || '',
+    // Les harnais de test posent ce marqueur : leurs écritures sont journalisées
+    // comme les autres (pour pouvoir les vérifier) mais exclues de l'onglet
+    // Audit, qui doit ne montrer que l'activité réelle de l'équipe.
+    estTest: d._test === true
   };
 
   const t0 = Date.now();
