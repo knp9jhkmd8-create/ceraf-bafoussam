@@ -442,6 +442,86 @@ async function getClientsResilies() {
     motif: x.motif || '', dateRes: x.date_resiliation, par: x.resilie_par || '' })) };
 }
 
+// Garde-fou de l'ajout de client côté Admin : `saveClient` REMPLACE la fiche
+// entière, donc le frontend demande d'abord si le numéro existe pour pouvoir
+// confirmer l'écrasement (index.html, adminSaveClient).
+//
+// ⚠️ Cette action manquait depuis le portage vers Neon. Le frontend testait
+// `ex.success && ex.found && !confirm(…)` : l'action étant inconnue,
+// `ex.success` était faux, la condition tombait à faux et la fiche existante
+// était écrasée SANS demander confirmation. Une action absente ne provoque pas
+// toujours une erreur visible — elle peut désarmer un garde-fou en silence.
+async function findClient(d) {
+  const num = String(d.num || '').trim().replace(/\s/g, '');
+  if (!num) return { success: false, error: 'Numéro vide' };
+  // Un client LS n'a pas de numéro de ligne : la recherche par numéro ne
+  // concerne que FTTH et Cuivre, qui vivent tous deux dans `clients`.
+  const r = await un(
+    `SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, service, gps
+       FROM clients WHERE numero = $1 AND supprime_le IS NULL`, [num]);
+  if (!r) return { success: true, found: false };
+  return { success: true, found: true, client: {
+    num: r.numero, nom: r.nom, tel: r.telephone || '', telSec: r.tel_secondaire || '',
+    loc: r.localite || '', ville: r.ville || '', quartier: r.quartier || '',
+    service: r.service, gps: r.gps || '' } };
+}
+
+// Fusion de deux fiches LS en doublon (page Clients du chef). La fiche gardée
+// est choisie par l'utilisateur ; l'autre est absorbée puis archivée.
+//
+// Les deux fiches sont retrouvées en laissant la BASE calculer la clé, avec
+// l'expression EXACTE de `clients_ls.cle_normalisee` — recalculer cette clé en
+// JS est précisément ce qui divergeait du côté d'Apps Script (`nomKeyLs_`).
+const CLE_LS = `lower(trim($1)) || '|' || lower(trim(coalesce($2, ''))) || '|' || lower(trim(coalesce($3, '')))`;
+const SQL_FICHE_LS =
+  `SELECT * FROM clients_ls WHERE cle_normalisee = ${CLE_LS} AND supprime_le IS NULL`;
+
+async function mergeClientsLs(d, ctx) {
+  const garde = await un(SQL_FICHE_LS, [d.nomGarde || '', d.villeGarde || '', d.quartierGarde || '']);
+  const fus   = await un(SQL_FICHE_LS, [d.nomFusionne || '', d.villeFus || '', d.quartierFus || '']);
+  if (!garde || !fus) {
+    return { success: false, error: 'Fiche introuvable : ' + (!garde ? (d.nomGarde || '?') : (d.nomFusionne || '?')) };
+  }
+  if (garde.id === fus.id) return { success: false, error: 'Les deux fiches sont identiques' };
+
+  ctx.entite = 'client_ls'; ctx.entiteId = String(garde.id);
+  ctx.avant = { garde: garde.nom, fusionne: fus.nom, villeFus: fus.ville, quartierFus: fus.quartier };
+
+  // On ne complète QUE les champs vides, et JAMAIS ville/quartier : avec le nom
+  // ils composent `cle_normalisee`, donc les toucher changerait l'identité de la
+  // fiche conservée — l'inverse de ce qu'un utilisateur attend d'une fusion.
+  await sql(
+    `UPDATE clients_ls SET
+       telephone      = coalesce(nullif(telephone, ''),      $2),
+       tel_secondaire = coalesce(nullif(tel_secondaire, ''), $3),
+       localite       = coalesce(nullif(localite, ''),       $4),
+       pop            = coalesce(nullif(pop, ''),            $5),
+       gps            = coalesce(nullif(gps, ''),            $6),
+       derniere_maj   = now()
+     WHERE id = $1`,
+    [garde.id, fus.telephone || null, fus.tel_secondaire || null, fus.localite || null,
+     fus.pop || null, fus.gps || null]);
+
+  // Réaffecter les interventions de la fiche absorbée : on aligne la clé
+  // COMPLÈTE sur la fiche conservée, sans quoi l'historique du client et les
+  // prochains upserts continueraient de pointer vers une fiche archivée.
+  const rea = await sql(
+    `UPDATE interventions SET nom_client = $1, ville = $2, quartier = $3
+      WHERE service = 'LS' AND supprime_le IS NULL
+        AND lower(trim(nom_client))             = lower(trim($4))
+        AND lower(trim(coalesce(ville, '')))    = lower(trim(coalesce($5, '')))
+        AND lower(trim(coalesce(quartier, ''))) = lower(trim(coalesce($6, '')))
+      RETURNING id`,
+    [garde.nom, garde.ville, garde.quartier, fus.nom, fus.ville, fus.quartier]);
+
+  // Archivage, jamais de DELETE sec : l'index unique est partiel sur
+  // `supprime_le IS NULL`, la clé est donc bien libérée.
+  await sql('UPDATE clients_ls SET supprime_le = now() WHERE id = $1', [fus.id]);
+
+  ctx.apres = { interventionsReaffectees: rea.length };
+  return { success: true, interventionsRenommees: rea.length };
+}
+
 // ============================================================================
 //  ACTIONS — ÉCRITURES
 // ============================================================================
@@ -871,10 +951,10 @@ const ACTIONS = {
   // Authentification
   login, logout, changePin,
   // Lectures
-  getByDate, getClients, getAll, getClientHistory, getClientsResilies,
+  getByDate, getClients, getAll, getClientHistory, getClientsResilies, findClient,
   // Écritures
   updateStatus, saveConsistance, saveClient, saveClientLs, updateClientGPS,
-  deleteClient, deleteIntervention,
+  deleteClient, deleteIntervention, mergeClientsLs,
   // Administration
   adminListUsers, adminAddUser, adminUpdateUser, adminDeleteUser, adminResetPin,
   // Onglet Audit — sans équivalent dans le backend Sheets

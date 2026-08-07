@@ -29,6 +29,24 @@ Détail et arbitrages dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
 - **Erreurs internes non divulguées** au client ; détail dans les logs et `audit_log`.
 - **Rate-limit de login par IP** (20 / 15 min) en plus du compteur par matricule.
 - **Vue Terrain** : icône 📞 retirée des lignes d'intervention (numéro toujours cliquable).
+- **`findClient` et `mergeClientsLs` rétablies** dans le routeur `ACTIONS` — voir §9bis.
+
+### 2026-08-07 (soir) — ⚠️ Suppression accidentelle du projet Neon, restauré
+
+Le projet Neon `damp-leaf-40846298` a été **supprimé en entier** (l'intention était de
+supprimer une branche de test). L'application est restée hors service ~35 minutes.
+
+**Restauré intégralement** via la fenêtre de récupération de 7 jours de Neon :
+```bash
+npx neon projects list --recoverable-only --org-id <org>
+npx neon projects recover damp-leaf-40846298 --org-id <org>
+```
+Aucune perte : 281 clients, 5 fiches LS, 135 interventions, 8 comptes, 286 entrées d'audit —
+dernière activité enregistrée à 19:28 UTC pour une suppression à 19:38. **Les chaînes de
+connexion font partie de ce qui est restauré**, donc le secret `DATABASE_URL` du Worker a
+refonctionné tel quel, sans redéploiement.
+
+Conséquences retenues en §10.
 
 ### 2026-08-06 — Migration Neon + Cloudflare
 
@@ -271,22 +289,43 @@ déjà installée sur les téléphones de l'équipe et casserait leur installati
 
 ## 8. Écarts connus et dette
 
-**Deux actions appelées par le frontend n'existent pas dans le routeur** (`ACTIONS`,
-`api/core.mjs:811`) — oubliées lors du portage :
-
-| Action | Effet réel | Gravité |
-|---|---|---|
-| `mergeClientsLs` | La fusion de fiches LS en doublon échoue avec « Action inconnue ». Échec visible. | Fonctionnalité perdue |
-| `findClient` | ⚠️ **Panne silencieuse.** L'action sert de garde-fou avant `saveClient` côté Admin (`index.html:2043`). Comme elle échoue, `ex.success` est faux, la condition `ex.success && ex.found && !confirm(…)` tombe à faux, et **une fiche client existante est écrasée sans aucune confirmation**. | Perte de données possible |
-
 **Automatismes Drive non portés.** Le Cron Cloudflare ne fait que le report nocturne. La
 sauvegarde hebdomadaire du classeur et la génération du KPI mensuel étaient des déclencheurs
 Apps Script sur le Sheet — lequel ne reçoit plus rien depuis le 06/08. Ils tournent donc dans
 le vide ou sur des données figées. À débrancher, ou à porter si le KPI est encore utilisé.
 
-**Sauvegarde de la base.** Le point précédent a un corollaire : il n'existe plus de sauvegarde
-applicative. Neon assure un *point-in-time recovery* selon son offre, mais aucun export ne
-sort du service. À décider consciemment plutôt que par omission.
+**Sauvegarde de la base.** Le point précédent a un corollaire : il n'existe aucune copie des
+données **hors de Neon**. Les filets restent internes au service (voir §10), donc une erreur
+de manipulation sur le compte reste le scénario le plus dangereux. Un export périodique vers
+Drive est à mettre en place.
+
+**Résidus de test.** Deux fiches `ZZ TEST FUSION` archivées dans `clients_ls` (07/08, test de
+la fusion). Invisibles pour l'application ; à purger au prochain ménage.
+
+---
+
+## 9bis. Ce qui a été réparé le 07/08 (soir)
+
+**Deux actions appelées par le frontend étaient absentes du routeur `ACTIONS`**, oubliées lors
+du portage. Corrigées et vérifiées en live :
+
+| Action | Symptôme avant correctif |
+|---|---|
+| `mergeClientsLs` | La fusion de fiches LS en doublon échouait avec « Action inconnue » — échec visible. |
+| `findClient` | ⚠️ **Panne silencieuse.** Garde-fou avant `saveClient` côté Admin (`index.html:2043`) : l'action échouant, `ex.success && ex.found && !confirm(…)` tombait à faux et **une fiche existante était écrasée sans confirmation.** |
+
+`mergeClientsLs` retrouve les deux fiches en laissant la **base** calculer la clé, avec
+l'expression exacte de `clients_ls.cle_normalisee` — recalculer cette clé en JS est
+précisément ce qui divergeait du temps d'Apps Script (`nomKeyLs_`). Elle ne complète que les
+champs vides de la fiche gardée et ne touche **jamais** ville/quartier, qui composent son
+identité : les modifier reviendrait à déplacer la fiche conservée.
+
+> **Leçon** : une action absente du routeur ne provoque pas forcément une erreur visible.
+> Elle peut désarmer un garde-fou en silence. Comparer périodiquement les actions appelées par
+> le frontend à celles déclarées dans `ACTIONS` :
+> ```bash
+> grep -o "action:'[a-zA-Z]*'" index.html | sort -u
+> ```
 
 **`Code.gs`** (137 Ko) et son tiers inférieur de fonctions `reparer*`/`corriger*`/`migrer*`
 restent dans le dépôt comme preuve forensique des corruptions passées. Ce n'est pas un modèle
@@ -315,3 +354,32 @@ Deux principes appris le 07/08 :
   tout le temps où l'application était cassée ;
 - **ne figer ni date ni effectif** dans un test live : le report nocturne vide une fiche
   passée toute seule, ce qui produit des échecs fantômes qui finissent par masquer les vrais.
+
+---
+
+## 10. Filets de sécurité de la base
+
+Retenus après l'incident du 07/08 (suppression accidentelle du projet Neon, restauré sans
+perte). Les trois premiers sont **internes à Neon** : ils protègent d'une fausse manœuvre,
+pas d'un problème de compte ou de fournisseur.
+
+| Filet | Portée | Fenêtre |
+|---|---|---|
+| **Récupération de projet supprimé** | Projet entier, avec branches, réglages et **chaînes de connexion** | **7 jours** |
+| **Instant restore / history window** | Données d'une branche, à un instant passé | selon l'offre |
+| **Google Sheet + Apps Script** | État figé au 06/08, en lecture | tant qu'on ne les retire pas |
+| Export vers Drive | *à mettre en place* | — |
+
+**Commandes de récupération d'un projet supprimé** (à connaître AVANT d'en avoir besoin) :
+```bash
+npx neon@latest projects list --recoverable-only --org-id <org-id>
+npx neon@latest projects recover <project-id>       --org-id <org-id>
+```
+`--org-id` évite un choix interactif qui bloque tout script.
+
+**Ce qui n'est PAS restauré** avec un projet : Data API, intégrations GitHub/Vercel et
+monitoring. Sans objet ici, mais à vérifier si l'une d'elles est adoptée un jour.
+
+> **Ne pas retirer le Google Sheet ni le déploiement Apps Script** tant qu'un export
+> indépendant n'existe pas. Ils sont aujourd'hui la seule copie hors de Neon, et ils ont servi
+> de plan de repli le 07/08 le temps d'établir l'ampleur de l'incident.
