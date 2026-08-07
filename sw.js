@@ -1,5 +1,5 @@
 // ============================================================
-//  CERAF Bafoussam — Service Worker v20
+//  CERAF Bafoussam — Service Worker v21
 //  - Met en cache index.html pour accès hors ligne
 //  - Ne touche PAS aux requêtes Apps Script
 //  - Vide automatiquement l'ancien cache à chaque mise à jour
@@ -9,7 +9,7 @@
 //    le cache ne sert plus que de secours hors-ligne.
 // ============================================================
 
-const CACHE_VERSION = 'ceraf-v20';
+const CACHE_VERSION = 'ceraf-v21';
 const CACHE_FILES   = ['./index.html', './manifest.json'];
 
 // ── INSTALLATION ────────────────────────────────────────────

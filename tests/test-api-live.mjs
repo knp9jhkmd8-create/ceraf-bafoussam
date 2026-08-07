@@ -105,6 +105,29 @@ verifier('aucune empreinte SHA-256 dans la charge', !/[a-f0-9]{64}/.test(JSON.st
 verifier('compte coherent avec les tables',
   Object.keys(tbl).every(k => (ex.compte || {})[k] === tbl[k].length), JSON.stringify(ex.compte));
 
+console.log('\n3e. sauvegardes automatiques (cron -> KV)');
+verifier('liste refusee au chef',
+  (await appel({ action: 'adminBackups', token: tok, actingRole: 'chef' })).success === false);
+const li = await appel({ action: 'adminBackups', token: tok, actingRole: 'admin' });
+verifier('liste renvoyee', li.success === true, JSON.stringify(li).slice(0, 120));
+const sv = (li.sauvegardes || [])[0];
+if (!sv) {
+  // Pas un echec : l'espace KV peut etre vide avant la premiere nuit.
+  console.log('  (aucune sauvegarde encore — normal avant le premier passage du cron)');
+} else {
+  verifier('metadonnees presentes', sv.lignes > 0 && sv.octets > 0, JSON.stringify(sv));
+  verifier('expiration posee', sv.expire > Math.floor(Date.now() / 1000), String(sv.expire));
+  const dl = await appel({ action: 'adminBackups', cle: sv.cle, token: tok, actingRole: 'admin' });
+  verifier('telechargement d une sauvegarde', dl.success === true && !!dl.export);
+  verifier('7 tables dans la copie', Object.keys((dl.export || {}).tables || {}).length === 7);
+  verifier('aucune empreinte SHA-256 dans la copie',
+    !/[a-f0-9]{64}/.test(JSON.stringify((dl.export || {}).tables || {})));
+}
+// La cle vient du client : sans validation, toute autre entree du meme espace
+// KV deviendrait lisible.
+verifier('cle forgee refusee',
+  (await appel({ action: 'adminBackups', cle: '../secret', token: tok, actingRole: 'admin' })).success === false);
+
 console.log('\n5. controle des roles');
 verifier('getAll refuse au technicien',
   (await appel({ action: 'getAll', month: '2026-08', token: tok, actingRole: 'technicien' })).success === false);

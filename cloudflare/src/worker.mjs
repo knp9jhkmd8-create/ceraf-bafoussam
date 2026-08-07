@@ -14,7 +14,7 @@
 //  V8 des Workers, qui n'a pas Node.
 // ============================================================================
 
-import { configurerEnv, traiterRequete, reporterNocturne } from '../../api/core.mjs';
+import { configurerEnv, traiterRequete, reporterNocturne, sauvegarderNocturne } from '../../api/core.mjs';
 
 export default {
   async fetch(request, env, ctx) {
@@ -32,6 +32,22 @@ export default {
   // dans les métriques du Worker.
   async scheduled(event, env, ctx) {
     configurerEnv(env);
-    ctx.waitUntil(reporterNocturne());
+    ctx.waitUntil(taches());
   }
 };
+
+// Le report d'abord, la sauvegarde ensuite : la copie reflète ainsi l'état que
+// l'équipe verra le matin, arriéré reporté compris.
+//
+// Une sauvegarde en échec ne doit PAS empêcher le report, qui est la tâche
+// métier : sans lui, la fiche du jour serait amputée de tout l'arriéré et
+// personne ne s'en apercevrait avant que le terrain ne le signale. L'inverse
+// n'est pas vrai — d'où le try/catch d'un seul côté.
+async function taches() {
+  await reporterNocturne();
+  try {
+    await sauvegarderNocturne();
+  } catch (e) {
+    console.error('[sauvegarde] échec —', e.message);
+  }
+}

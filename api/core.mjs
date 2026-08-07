@@ -550,31 +550,86 @@ const TABLES_EXPORT = [
   ['audit_log',        `SELECT * FROM audit_log`]
 ];
 
-async function adminExport(d, ctx) {
+// Partagé par le bouton de l'admin et par la sauvegarde nocturne : une seule
+// définition de « ce que contient une sauvegarde », donc pas de dérive entre
+// la copie qu'on télécharge et celle qui part toute seule.
+async function construireExport(par) {
   const tables = {};
   const compte = {};
-  // En série et non en parallèle : un export est rare et jamais dans le chemin
-  // critique, alors qu'ouvrir sept requêtes d'un coup sur une base à 0,25 CU
-  // pénaliserait l'équipe en train de travailler.
+  // En série et non en parallèle : une sauvegarde est rare et jamais dans le
+  // chemin critique, alors qu'ouvrir sept requêtes d'un coup sur une base à
+  // 0,25 CU pénaliserait l'équipe en train de travailler.
   for (const [nom, requete] of TABLES_EXPORT) {
     const lignes = await sql(requete + ' ORDER BY 1');
     tables[nom] = lignes;
     compte[nom] = lignes.length;
   }
-  ctx.entite = 'export'; ctx.apres = compte;
   return {
-    success: true,
-    export: {
-      genereLe: new Date().toISOString(),
-      genereePar: ctx.matricule || null,
-      schema: 1,
-      // Rappelé DANS le fichier : dans un an, personne ne se souviendra
-      // pourquoi les comptes n'ont pas de PIN en le restaurant.
-      note: 'pin_hash volontairement absent — les comptes repartent au PIN par défaut à la restauration.',
-      compte,
-      tables
-    }
+    genereLe: new Date().toISOString(),
+    genereePar: par || null,
+    schema: 1,
+    // Rappelé DANS le fichier : dans un an, personne ne se souviendra
+    // pourquoi les comptes n'ont pas de PIN en le restaurant.
+    note: 'pin_hash volontairement absent — les comptes repartent au PIN par défaut à la restauration.',
+    compte,
+    tables
   };
+}
+
+async function adminExport(d, ctx) {
+  const dump = await construireExport(ctx.matricule);
+  ctx.entite = 'export'; ctx.apres = dump.compte;
+  return { success: true, export: dump };
+}
+
+// ── Sauvegardes automatiques (Workers KV) ──────────────────────────────────
+// Le stockage est OPTIONNEL et fourni par l'hébergeur : le cœur ne connaît
+// qu'un objet exposant get/put/list. Sans lui, tout continue de fonctionner et
+// seule la sauvegarde nocturne est passée — c'est ce qui garde `core.mjs`
+// portable, comme pour le reste du fichier.
+const SAUVEGARDE_PREFIXE = 'sauvegarde-';
+const SAUVEGARDE_RETENTION_JOURS = 30;
+const cleSauvegardeValide = (c) => new RegExp('^' + SAUVEGARDE_PREFIXE + '\\d{4}-\\d{2}-\\d{2}$').test(c);
+
+async function adminBackups(d) {
+  const kv = ENV.SAUVEGARDES;
+  if (!kv) return { success: false, error: 'Aucun stockage de sauvegarde configuré' };
+  const cle = String(d.cle || '').trim();
+
+  if (!cle) {
+    const l = await kv.list({ prefix: SAUVEGARDE_PREFIXE });
+    return { success: true, sauvegardes: l.keys
+      .map(k => ({ cle: k.name, expire: k.expiration || null, ...(k.metadata || {}) }))
+      .sort((a, b) => b.cle.localeCompare(a.cle)) };
+  }
+
+  // La clé vient du client : la valider AVANT de la passer au stockage, sinon
+  // n'importe quelle autre entrée du même espace KV deviendrait lisible.
+  if (!cleSauvegardeValide(cle)) return { success: false, error: 'Clé de sauvegarde invalide' };
+  const brut = await kv.get(cle);
+  if (!brut) return { success: false, error: 'Sauvegarde introuvable ou expirée' };
+  return { success: true, export: JSON.parse(brut) };
+}
+
+// Appelée par la tâche planifiée, après le report nocturne : la sauvegarde
+// reflète ainsi l'état d'APRÈS report, celui que l'équipe verra le matin.
+export async function sauvegarderNocturne() {
+  const kv = ENV.SAUVEGARDES;
+  if (!kv) { console.log('[sauvegarde] aucun stockage configuré — ignorée'); return { ignoree: true }; }
+  const t0 = Date.now();
+  const dump = await construireExport('cron');
+  const corps = JSON.stringify(dump);
+  const cle = SAUVEGARDE_PREFIXE + dump.genereLe.slice(0, 10);
+  const lignes = Object.values(dump.compte).reduce((s, n) => s + n, 0);
+
+  // `expirationTtl` fait expirer l'entrée toute seule : pas de purge à coder,
+  // donc pas de purge qui peut tomber en panne sans qu'on le voie.
+  await kv.put(cle, corps, {
+    expirationTtl: SAUVEGARDE_RETENTION_JOURS * 24 * 3600,
+    metadata: { lignes, octets: corps.length }
+  });
+  console.log(`[sauvegarde] ${cle} — ${lignes} lignes, ${Math.round(corps.length / 1024)} Ko, ${Date.now() - t0} ms`);
+  return { cle, lignes, octets: corps.length };
 }
 
 // ============================================================================
@@ -1000,7 +1055,7 @@ const CHEF_ONLY  = ['deleteClient', 'deleteIntervention', 'saveClient', 'saveCli
 const CHEF_READ  = ['getAll', 'getClientHistory', 'getClientsResilies'];
 const ADMIN_ONLY = ['adminListUsers', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser',
                     'adminResetPin', 'adminAudit', 'adminSessions', 'adminRevoquerSession',
-                    'adminExport'];
+                    'adminExport', 'adminBackups'];
 
 const ACTIONS = {
   ping:               async () => ({ success: true, pong: true }),
@@ -1016,7 +1071,7 @@ const ACTIONS = {
   // Onglet Audit — sans équivalent dans le backend Sheets
   adminSessions, adminRevoquerSession, adminAudit,
   // Sauvegarde
-  adminExport
+  adminExport, adminBackups
 };
 
 // Point d'entrée unique, appelé par chaque adaptateur d'hébergement.

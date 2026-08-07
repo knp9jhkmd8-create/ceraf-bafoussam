@@ -34,3 +34,14 @@ crons = ["0 23 * * *"]
 #   wrangler secret put DATABASE_URL
 #
 # (voir cloudflare/README.md)
+
+# ── Stockage des sauvegardes automatiques ───────────────────────────────────
+# Workers KV, offre gratuite : 1 Go, 1000 ecritures/jour. On en fait UNE par
+# nuit, d'environ 250 Ko. Les entrees portent une date d'expiration posee a
+# l'ecriture, donc aucune purge a coder ni a surveiller.
+#
+# L'identifiant d'un espace KV n'est PAS un secret : il ne donne acces a rien
+# sans les jetons du compte Cloudflare. Il peut rester dans ce depot public.
+[[kv_namespaces]]
+binding = "SAUVEGARDES"
+id = "5c8fa18eaa054f409311cf0482e2d833"

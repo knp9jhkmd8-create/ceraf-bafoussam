@@ -704,6 +704,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;" data-i18n="admin.export.sub">Télécharge toute la base dans un fichier. C'est la seule copie conservée en dehors de l'hébergeur — rangez-la sur votre ordinateur ou votre Drive. Les codes PIN n'y figurent pas.</div>
         <button class="btn btn-primary btn-sm" id="btn-export" onclick="adminExportUI()" data-i18n="admin.export.btn">⬇️ Télécharger la sauvegarde</button>
         <div id="export-info" style="font-size:.78rem;color:var(--muted);margin-top:10px;"></div>
+
+        <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
+          <div style="font-weight:700;font-size:.85rem;margin-bottom:4px;" data-i18n="admin.backups.title">🌙 Sauvegardes automatiques</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px;" data-i18n="admin.backups.sub">Une sauvegarde est prise chaque nuit et conservée 30 jours. Elles restent chez l'hébergeur : téléchargez-en une de temps en temps pour en garder une copie ailleurs.</div>
+          <div id="backups-list"><div style="font-size:.78rem;color:var(--muted);" data-i18n="common.loadingP">Chargement...</div></div>
+        </div>
       </div>
     </div>
 
@@ -966,6 +972,10 @@ fr:{
   'admin.export.running':'⏳ Préparation de la sauvegarde...',
   'admin.export.done':'✅ Sauvegarde téléchargée — {n} lignes, {ko} Ko.',
   'admin.export.toast':'Sauvegarde téléchargée',
+  'admin.backups.title':'🌙 Sauvegardes automatiques',
+  'admin.backups.sub':"Une sauvegarde est prise chaque nuit et conservée 30 jours. Elles restent chez l'hébergeur : téléchargez-en une de temps en temps pour en garder une copie ailleurs.",
+  'admin.backups.none':'Aucune sauvegarde automatique pour le moment — la première sera prise cette nuit.',
+  'admin.backups.rows':'{n} lignes',
   'clients.empty':'Aucun client enregistré.',
   'gps.viewLink':'📌 Voir',
   'terrain.title.html':'Fiche du <span id="terrain-date-title">Jour</span>',
@@ -1238,6 +1248,10 @@ en:{
   'admin.export.running':'⏳ Preparing the backup...',
   'admin.export.done':'✅ Backup downloaded — {n} rows, {ko} KB.',
   'admin.export.toast':'Backup downloaded',
+  'admin.backups.title':'🌙 Automatic backups',
+  'admin.backups.sub':'A backup is taken every night and kept for 30 days. They stay with the hosting provider — download one now and then to keep a copy elsewhere.',
+  'admin.backups.none':'No automatic backup yet — the first one will be taken tonight.',
+  'admin.backups.rows':'{n} rows',
   'clients.empty':'No customers registered.',
   'gps.viewLink':'📌 View',
   'terrain.title.html':'Sheet for <span id="terrain-date-title">Today</span>',
@@ -1933,7 +1947,7 @@ function goPage(p,el,load=true){
     if(p==='historique') loadHistorique();
     if(p==='clients')    {if(allClientsList.length>0||allClientsLsList.length>0)filterClients();else refreshClients();}
     if(p==='clients-ro') {if(allClientsList.length>0||allClientsLsList.length>0)filterClientsRO();else refreshClientsRO();}
-    if(p==='admin')      loadAdminUsers();
+    if(p==='admin')     {loadAdminUsers();loadBackupsUI();}
     if(p==='audit')      chargerAudit();
     if(p==='edition')    initEdition();
   }
@@ -2081,23 +2095,62 @@ async function adminExportUI(){
     const res=await apiPost({action:'adminExport'});
     if(!res.success||!res.export){info.textContent='❌ '+(res.error||t('err.generic'));return;}
     const jour=new Date().toISOString().slice(0,10);
-    const blob=new Blob([JSON.stringify(res.export,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;a.download=`ceraf-sauvegarde-${jour}.json`;
-    document.body.appendChild(a);a.click();a.remove();
-    // Sans révocation, le Blob reste en mémoire tant que l'onglet est ouvert —
-    // et un export fait plusieurs Mo.
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const octets=telechargerExport_(res.export,jour);
     const c=res.export.compte||{};
     const total=Object.values(c).reduce((s,n)=>s+n,0);
-    info.textContent=t('admin.export.done',{n:total,ko:Math.round(blob.size/1024)});
+    info.textContent=t('admin.export.done',{n:total,ko:Math.round(octets/1024)});
     showToast(t('admin.export.toast'));
   }catch(e){
     info.textContent='❌ '+(e.message||t('err.generic'));
   }finally{
     btn.disabled=false;
   }
+}
+
+// Factorisé avec le bouton manuel : un seul endroit qui sait transformer un
+// export en fichier enregistré par le navigateur.
+function telechargerExport_(dump,suffixe){
+  const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`ceraf-sauvegarde-${suffixe}.json`;
+  document.body.appendChild(a);a.click();a.remove();
+  // Sans révocation, le Blob reste en mémoire tant que l'onglet est ouvert —
+  // et un export fait plusieurs centaines de Ko.
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  return blob.size;
+}
+
+async function loadBackupsUI(){
+  const box=document.getElementById('backups-list');
+  if(!box)return;
+  const res=await apiPost({action:'adminBackups'});
+  if(!res.success){
+    box.innerHTML=`<div style="font-size:.78rem;color:var(--muted);">${esc(res.error||t('err.generic'))}</div>`;
+    return;
+  }
+  const l=res.sauvegardes||[];
+  if(l.length===0){
+    box.innerHTML=`<div style="font-size:.78rem;color:var(--muted);">${t('admin.backups.none')}</div>`;
+    return;
+  }
+  box.innerHTML=l.map(s=>{
+    const jour=s.cle.replace('sauvegarde-','');
+    const ko=s.octets?Math.round(s.octets/1024)+' Ko':'';
+    const n=s.lignes?t('admin.backups.rows',{n:s.lignes}):'';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:.8rem;"><strong>${esc(formatDateDisplay(jour))}</strong>
+        <span style="color:var(--muted);font-size:.74rem;"> ${esc([n,ko].filter(Boolean).join(' · '))}</span></div>
+      <button class="btn btn-ghost btn-sm" onclick="telechargerSauvegarde('${esc(s.cle)}')">⬇️</button>
+    </div>`;
+  }).join('');
+}
+
+async function telechargerSauvegarde(cle){
+  const res=await apiPost({action:'adminBackups',cle});
+  if(!res.success||!res.export){showToast(t('err.prefix')+(res.error||t('err.generic')));return;}
+  telechargerExport_(res.export,cle.replace('sauvegarde-',''));
+  showToast(t('admin.export.toast'));
 }
 
 async function adminEditRolesUI(id,nom,currentRoles){
@@ -4626,7 +4679,7 @@ function refreshCurrentPage(){
   else if(p==='historique')  return loadHistorique();
   else if(p==='clients')     return refreshClients();
   else if(p==='clients-ro')  return refreshClientsRO();
-  else if(p==='admin')       return loadAdminUsers();
+  else if(p==='admin')       return Promise.all([loadAdminUsers(),loadBackupsUI()]);
   else if(p==='chef')        return Promise.resolve(); // jamais de reload : on perdrait les interventions saisies non publiées
   else { location.reload(); return Promise.resolve(); }
 }
