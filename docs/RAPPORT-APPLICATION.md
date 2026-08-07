@@ -30,6 +30,8 @@ Détail et arbitrages dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
 - **Rate-limit de login par IP** (20 / 15 min) en plus du compteur par matricule.
 - **Vue Terrain** : icône 📞 retirée des lignes d'intervention (numéro toujours cliquable).
 - **`findClient` et `mergeClientsLs` rétablies** dans le routeur `ACTIONS` — voir §9bis.
+- **Sauvegarde de la base** : téléchargement manuel depuis l'onglet Admin (`adminExport`) et
+  copie nocturne automatique vers Workers KV, conservée 30 jours (`adminBackups`) — voir §10.
 
 ### 2026-08-07 (soir) — ⚠️ Suppression accidentelle du projet Neon, restauré
 
@@ -294,10 +296,10 @@ sauvegarde hebdomadaire du classeur et la génération du KPI mensuel étaient d
 Apps Script sur le Sheet — lequel ne reçoit plus rien depuis le 06/08. Ils tournent donc dans
 le vide ou sur des données figées. À débrancher, ou à porter si le KPI est encore utilisé.
 
-**Sauvegarde de la base.** Le point précédent a un corollaire : il n'existe aucune copie des
-données **hors de Neon**. Les filets restent internes au service (voir §10), donc une erreur
-de manipulation sur le compte reste le scénario le plus dangereux. Un export périodique vers
-Drive est à mettre en place.
+**Sauvegarde de la base.** ✅ Traité le 07/08 (voir §10) : copie nocturne automatique vers
+Workers KV + téléchargement manuel depuis l'onglet Admin. Reste que les copies automatiques
+vivent chez Cloudflare — un téléchargement occasionnel est ce qui les met hors de portée d'un
+incident de compte.
 
 **Résidus de test.** Deux fiches `ZZ TEST FUSION` archivées dans `clients_ls` (07/08, test de
 la fusion). Invisibles pour l'application ; à purger au prochain ménage.
@@ -368,7 +370,33 @@ pas d'un problème de compte ou de fournisseur.
 | **Récupération de projet supprimé** | Projet entier, avec branches, réglages et **chaînes de connexion** | **7 jours** |
 | **Instant restore / history window** | Données d'une branche, à un instant passé | selon l'offre |
 | **Google Sheet + Apps Script** | État figé au 06/08, en lecture | tant qu'on ne les retire pas |
-| Export vers Drive | *à mettre en place* | — |
+| **Sauvegarde nocturne → Workers KV** | Copie complète, hors base | **30 jours** glissants |
+| **Téléchargement manuel** (onglet Admin) | Copie complète, hors hébergeur | ce que l'admin en fait |
+
+### Sauvegardes
+
+Le Cron Cloudflare (`0 23 * * *`) enchaîne **report nocturne puis sauvegarde** — dans cet
+ordre, pour que la copie reflète l'état que l'équipe verra le matin, arriéré reporté compris.
+Seule la sauvegarde est enveloppée dans un `try/catch` : un échec de copie ne doit pas
+empêcher le report, qui est la tâche métier ; l'inverse n'est pas vrai.
+
+- Stockage : **Workers KV** (binding `SAUVEGARDES`), offre gratuite, une écriture de ~240 Ko
+  par nuit pour un plafond de 1000/jour.
+- Rétention : `expirationTtl` de 30 jours **posé à l'écriture** — aucune purge à coder, donc
+  aucune purge qui tombe en panne sans qu'on le voie.
+- `construireExport()` est partagé entre le bouton de l'admin et le cron : une seule
+  définition de ce que contient une sauvegarde, pas de dérive entre les deux copies.
+- ⚠️ **`pin_hash` est volontairement exclu** — un PIN à 4 chiffres se retrouve en minutes à
+  partir de son empreinte. À la restauration, les comptes repartent au PIN par défaut. La
+  raison est rappelée *dans* le fichier exporté.
+- `adminBackups` liste (sans paramètre) ou renvoie une copie (avec `cle`). **La clé venant du
+  client est validée par motif AVANT d'atteindre le stockage**, sinon toute autre entrée du
+  même espace KV deviendrait lisible.
+- Le cœur ne connaît qu'un objet `get/put/list` fourni par l'hébergeur, et **le stockage est
+  optionnel** : sans lui tout continue de fonctionner, seule la sauvegarde est passée.
+
+> Les copies KV restent chez Cloudflare. **Télécharger une sauvegarde de temps en temps** est
+> ce qui la met vraiment hors de portée d'un incident de compte.
 
 **Commandes de récupération d'un projet supprimé** (à connaître AVANT d'en avoir besoin) :
 ```bash
