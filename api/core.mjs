@@ -760,9 +760,42 @@ const ACTIONS = {
 // Point d'entrée unique, appelé par chaque adaptateur d'hébergement.
 // `ip` est fourni par l'adaptateur : chaque plateforme la transmet sous un
 // en-tête différent, le cœur n'a pas à les connaître.
+// Origines autorisées à lire les réponses. Le frontend est servi par GitHub
+// Pages, l'API par un autre domaine : SANS ces en-têtes le navigateur bloque
+// la lecture de la réponse et l'app affiche « vérifiez votre réseau » alors
+// que le réseau fonctionne parfaitement.
+//
+// Apps Script renvoyait `Access-Control-Allow-Origin: *` d'office, ce qui a
+// masqué le besoin jusqu'à la bascule. Et aucun test côté serveur ne peut le
+// détecter : curl et Node n'appliquent pas la politique d'origine — seul un
+// vrai navigateur la fait respecter.
+const ORIGINES_AUTORISEES = [
+  'https://knp9jhkmd8-create.github.io',   // le frontend en production
+  'http://localhost:8110',                 // serveur de test local
+  'http://localhost:8100'
+];
+function enTetesCors(req) {
+  const origine = req.headers.get('Origin');
+  if (!origine) return {};                        // appel serveur à serveur : rien à autoriser
+  if (!ORIGINES_AUTORISEES.includes(origine)) return {};
+  return {
+    'Access-Control-Allow-Origin': origine,
+    'Vary': 'Origin',                             // la réponse dépend de l'origine : ne pas la mutualiser en cache
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400'
+  };
+}
+
 export async function traiterRequete(req, { ip } = {}) {
+  const cors = enTetesCors(req);
   const json = (o, code = 200) => new Response(JSON.stringify(o),
-    { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+    { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', ...cors } });
+
+  // Requête préalable CORS. Le frontend envoie `Content-Type: text/plain`, qui
+  // en fait une requête « simple » sans préalable — mais si ce détail change un
+  // jour, l'absence de cette branche couperait l'app sans prévenir.
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
   if (req.method !== 'POST' && req.method !== 'GET') {
     return json({ success: false, error: 'Méthode non supportée' }, 405);

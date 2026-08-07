@@ -17,5 +17,6 @@ export default async () => {
   }
 };
 
-// 00:00 UTC = 1h du matin au Cameroun (UTC+1).
-export const config = { schedule: '0 0 * * *' };
+// 23:00 UTC = 00h00 au Cameroun (UTC+1) : le report se fait au changement
+// de jour. Les crons Netlify sont aussi exprimes en UTC.
+export const config = { schedule: '0 23 * * *' };

@@ -55,7 +55,7 @@ console.log('\n3. login admin (999999 / 0000, remis au defaut)');
 
 console.log('\n4. VERROU mustChangePin — doit tout bloquer sauf changePin/logout');
 {
-  const r = await appel({ action: 'getByDate', date: '2026-08-06', token, actingRole: 'admin' });
+  const r = await appel({ action: 'getByDate', date: AUJOURDHUI, token, actingRole: 'admin' });
   verifier('lecture bloquee', r.corps.success === false && r.corps.mustChangePin === true, JSON.stringify(r.corps));
 }
 
@@ -64,7 +64,7 @@ console.log('\n5. changePin puis lecture autorisee');
   const c = await appel({ action: 'changePin', currentPin: '0000', newPin: '778899', token, actingRole: 'admin' });
   verifier('changement accepte', c.corps.success === true, JSON.stringify(c.corps));
 
-  const r = await appel({ action: 'getByDate', date: '2026-08-06', token, actingRole: 'admin' });
+  const r = await appel({ action: 'getByDate', date: AUJOURDHUI, token, actingRole: 'admin' });
   verifier('la session reste valide apres changePin', r.corps.success === true, JSON.stringify(r.corps).slice(0, 120));
   verifier('26 interventions pour le 06/08', (r.corps.interventions || []).length === 26,
     (r.corps.interventions || []).length + ' interventions');
@@ -79,7 +79,7 @@ console.log('\n5. changePin puis lecture autorisee');
 
 console.log('\n6. session invalide');
 {
-  const r = await appel({ action: 'getByDate', date: '2026-08-06', token: 'faux-token', actingRole: 'admin' });
+  const r = await appel({ action: 'getByDate', date: AUJOURDHUI, token: 'faux-token', actingRole: 'admin' });
   verifier('rejetee avec authError', r.corps.authError === true, JSON.stringify(r.corps));
 }
 
@@ -90,7 +90,7 @@ console.log('\n7. controle des roles');
   const chg = await appel({ action: 'changePin', currentPin: '0000', newPin: '445566', token: tokenTech, actingRole: 'technicien' });
   verifier('technicien personnalise son PIN', chg.corps.success === true, JSON.stringify(chg.corps));
 
-  const usurpe = await appel({ action: 'getByDate', date: '2026-08-06', token: tokenTech, actingRole: 'admin' });
+  const usurpe = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'admin' });
   verifier('role usurpe refuse', usurpe.corps.authError === true, JSON.stringify(usurpe.corps));
 
   const interdit = await appel({ action: 'getAll', month: '2026-08', token: tokenTech, actingRole: 'technicien' });
@@ -122,7 +122,7 @@ console.log('\n8. getAll (chef) — dedoublonnage mensuel');
 
 console.log('\n9. updateStatus — idempotence');
 {
-  const r0 = await appel({ action: 'getByDate', date: '2026-08-06', token: tokenTech, actingRole: 'technicien' });
+  const r0 = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'technicien' });
   const cible = (r0.corps.interventions || [])[0];
   verifier('intervention cible trouvee', !!cible, JSON.stringify(cible || {}).slice(0, 80));
   if (cible) {
@@ -134,7 +134,7 @@ console.log('\n9. updateStatus — idempotence');
       remarque: 'test harnais', token: tokenTech, actingRole: 'technicien' });
     verifier('rejeu identique sans effet de bord', u2.corps.success === true, JSON.stringify(u2.corps));
 
-    const apres = await appel({ action: 'getByDate', date: '2026-08-06', token: tokenTech, actingRole: 'technicien' });
+    const apres = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'technicien' });
     const relu = (apres.corps.interventions || []).find(i => i.id === cible.id);
     verifier('statut bien persiste', relu && relu.statut === 'Injoignable', relu ? relu.statut : 'introuvable');
 
@@ -145,7 +145,7 @@ console.log('\n9. updateStatus — idempotence');
     // Remise dans l'etat initial
     await appel({ action: 'updateStatus', invId: cible.id, statut: avant, remarque: cible.remarque || '',
       token: tokenTech, actingRole: 'technicien' });
-    const fin = await appel({ action: 'getByDate', date: '2026-08-06', token: tokenTech, actingRole: 'technicien' });
+    const fin = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tokenTech, actingRole: 'technicien' });
     const remis = (fin.corps.interventions || []).find(i => i.id === cible.id);
     verifier('etat initial restaure', remis && remis.statut === avant, remis ? remis.statut : '?');
   }

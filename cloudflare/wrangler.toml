@@ -14,12 +14,18 @@ compatibility_date = "2026-08-06"
 # Sans ce drapeau, certaines d'entre elles ne sont pas exposées à l'isolat.
 compatibility_flags = ["nodejs_compat"]
 
-# ── Report nocturne ─────────────────────────────────────────────────────────
-# 00:00 UTC = 1h du matin au Cameroun (UTC+1), même horaire que l'ancien
-# déclencheur Apps Script. Les Cron Triggers sont inclus dans l'offre gratuite —
-# c'est ce qui règle le blocage rencontré avec les crédits de build Netlify.
+# ── Report quotidien, au changement de jour ─────────────────────────────────
+# 23:00 UTC = 00h00 au Cameroun (UTC+1). Le report se fait donc juste après le
+# début de chaque nouvelle journée, ce qui est bien sa raison d'être.
+#
+# ⚠️ Les Cron Triggers Cloudflare sont TOUJOURS exprimés en UTC. Écrire
+# « 0 0 » ici déclencherait à 1h du matin locale, pas à minuit.
+#
+# `getByDate` appelle la même fonction en filet de sécurité à la première
+# ouverture de l'app : même si ce déclencheur venait à sauter, l'arriéré
+# remonterait dès qu'un technicien ouvre sa fiche.
 [triggers]
-crons = ["0 0 * * *"]
+crons = ["0 23 * * *"]
 
 # ── Secret ──────────────────────────────────────────────────────────────────
 # DATABASE_URL n'est PAS déclarée ici : ce fichier est versionné dans un dépôt
