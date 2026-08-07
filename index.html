@@ -769,6 +769,17 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   </div>
 </div>
 
+<!-- Annonce ponctuelle, affichée UNE seule fois par appareil.
+     Voir ANNONCE_ID dans le script : changer l'identifiant suffit à rediffuser
+     une nouvelle annonce, sans toucher au mécanisme. -->
+<div class="modal-overlay" id="modal-annonce">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title" data-i18n="annonce.titre">🔧 Mise à jour technique</div>
+    <div class="modal-body" id="annonce-corps"></div>
+    <button class="btn btn-primary btn-sm" onclick="fermerAnnonce()" data-i18n="annonce.ok">J'ai compris</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -814,6 +825,9 @@ fr:{
   'nav.chef':'👷 Consistance','nav.clients':'👥 Clients','nav.historique':'📁 Historique',
   'nav.admin':'🔑 Utilisateurs','nav.terrain':'📡 Terrain',
   'nav.audit':'🔍 Audit','nav.edition':'✏️ Édition',
+  'annonce.titre':'🔧 Mise à jour technique','annonce.ok':"J'ai compris",
+  'annonce.l1':"Une grande mise à jour a été faite cette nuit : l'application est nettement plus rapide au chargement.",
+  'annonce.l2':"Certains comptes ont été réinitialisés. Connectez-vous avec le code <b>0000</b>, puis choisissez immédiatement votre code personnel — tant qu'il n'est pas changé, aucune autre action n'est possible.",
   'valid.dateRequired':'Date requise','label.statut':'Statut','toast.saved':'✅ Enregistré',
   'audit.title':'Audit de <span>l\'application</span>','audit.sub':'Sessions ouvertes, journal des modifications, état des comptes',
   'audit.sessions':'🔓 Sessions actives','audit.comptes':'👤 État des comptes','audit.journal':'📜 Journal des modifications',
@@ -1071,6 +1085,9 @@ en:{
   'nav.chef':'👷 Task Sheet','nav.clients':'👥 Customers','nav.historique':'📁 History',
   'nav.admin':'🔑 Users','nav.terrain':'📡 Field',
   'nav.audit':'🔍 Audit','nav.edition':'✏️ Edit',
+  'annonce.titre':'🔧 Technical update','annonce.ok':'Got it',
+  'annonce.l1':'A major update was rolled out last night: the app now loads much faster.',
+  'annonce.l2':'Some accounts were reset. Sign in with code <b>0000</b>, then pick your own code right away — until you do, no other action is possible.',
   'valid.dateRequired':'Date required','label.statut':'Status','toast.saved':'✅ Saved',
   'audit.title':'Application <span>audit</span>','audit.sub':'Open sessions, change log, account status',
   'audit.sessions':'🔓 Active sessions','audit.comptes':'👤 Account status','audit.journal':'📜 Change log',
@@ -1555,6 +1572,33 @@ function migrerUrlBackend(){
   return actuelle;
 }
 
+// ══════════════════════════════════════════════
+//  ANNONCE PONCTUELLE
+// ══════════════════════════════════════════════
+// Affichée UNE seule fois par appareil, à la première ouverture, et plus
+// jamais après l'appui sur « J'ai compris ».
+//
+// Le drapeau porte l'IDENTIFIANT de l'annonce et non un simple booléen :
+// changer `ANNONCE_ID` suffit à diffuser une nouvelle annonce plus tard, sans
+// toucher au mécanisme ni risquer qu'un ancien drapeau la masque.
+const ANNONCE_ID='2026-08-07-migration';
+function afficherAnnonceSiBesoin(){
+  try{ if(localStorage.getItem('ceraf_annonce')===ANNONCE_ID) return; }catch(e){ return; }
+  const corps=document.getElementById('annonce-corps');
+  const modale=document.getElementById('modal-annonce');
+  if(!corps||!modale) return;
+  // Les libellés contiennent du balisage volontaire (<b>) : ce sont NOS
+  // chaînes de traduction, pas de la donnée utilisateur — aucun échappement
+  // à faire ici, contrairement à tout ce qui vient du backend.
+  corps.innerHTML=`<p style="margin:0 0 10px;">${t('annonce.l1')}</p><p style="margin:0;">${t('annonce.l2')}</p>`;
+  modale.classList.add('active');
+}
+function fermerAnnonce(){
+  try{ localStorage.setItem('ceraf_annonce',ANNONCE_ID); }catch(e){}
+  const m=document.getElementById('modal-annonce');
+  if(m) m.classList.remove('active');
+}
+
 window.onload=()=>{
   applyStaticI18n();
   SCRIPT_URL=migrerUrlBackend()||localStorage.getItem('ceraf_url')||'';
@@ -1586,6 +1630,9 @@ window.onload=()=>{
   else if(AVAILABLE_ROLES.length>1 && !AVAILABLE_ROLES.includes(role)) showRoleSwitch();
   else if(AVAILABLE_ROLES.length>1) startApp(role);
   else             startApp(AVAILABLE_ROLES[0]);
+  // En dernier : l'annonce doit passer PAR-DESSUS l'écran affiché, quel qu'il
+  // soit (connexion, choix de rôle ou app), et non être remplacée par lui.
+  afficherAnnonceSiBesoin();
 };
 
 function show(id,d='flex'){['setup-screen','login-screen','roleswitch-screen','app'].forEach(s=>{document.getElementById(s).style.display=(s===id)?d:'none';});
