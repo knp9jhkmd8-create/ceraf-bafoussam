@@ -51,8 +51,18 @@ verifier('changement accepte', chg.success === true, JSON.stringify(chg));
 const AUJOURDHUI = new Date(Date.now() + 3600e3).toISOString().slice(0, 10);
 const d = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tok, actingRole: 'technicien' });
 verifier('getByDate repond', d.success === true, JSON.stringify(d).slice(0, 120));
-verifier('fiche du jour non vide', (d.interventions || []).length > 0, (d.interventions || []).length + '');
-verifier('durees calculees', (d.interventions || []).some(i => i.duree >= 0));
+// Le week-end, il n'y a legitimement PAS de fiche : `reporter_interventions()`
+// ne cree jamais de consistance un samedi ou un dimanche, et reporte au lundi.
+// Asserter « fiche non vide » sans regarder le jour echoue a tort deux jours
+// sur sept -- exactement le genre de faux echec qui finit par masquer les vrais.
+const jourSemaine = new Date(AUJOURDHUI + 'T12:00:00Z').getUTCDay();   // 0=dim, 6=sam
+const ouvre = jourSemaine >= 1 && jourSemaine <= 5;
+if (ouvre) {
+  verifier('fiche du jour non vide', (d.interventions || []).length > 0, (d.interventions || []).length + '');
+  verifier('durees calculees', (d.interventions || []).some(i => i.duree >= 0));
+} else {
+  console.log('  (week-end : pas de fiche du jour, comportement attendu)');
+}
 
 const g = await appel({ action: 'getClients', token: tok, actingRole: 'technicien' });
 verifier('getClients repond', g.success === true, JSON.stringify(g).slice(0, 120));
@@ -112,6 +122,27 @@ verifier('aucune cle pin_hash', !(tbl.utilisateurs || []).some(u => 'pin_hash' i
 verifier('aucune empreinte SHA-256 dans la charge', !/[a-f0-9]{64}/.test(JSON.stringify(tbl)));
 verifier('compte coherent avec les tables',
   Object.keys(tbl).every(k => (ex.compte || {})[k] === tbl[k].length), JSON.stringify(ex.compte));
+
+// La tuile « Durée moy. sur le mois » repose sur `dureeMois`, calcule en base :
+// compteur remis a zero au 1er du mois pour tout dossier herite du mois
+// precedent. La duree VRAIE de chaque intervention doit rester intacte a cote.
+console.log('\n3f. duree mensuelle vs duree reelle');
+const ga = await appel({ action: 'getAll', month: AUJOURDHUI.slice(0, 7), token: tok, actingRole: 'chef' });
+const toutes = [].concat(...((ga.data || []).map(c => c.interventions || [])));
+verifier('getAll renvoie des interventions', toutes.length > 0, String(toutes.length));
+verifier('dureeMois fourni sur toutes les lignes',
+  toutes.every(i => i.dureeMois !== undefined && i.dureeMois !== null),
+  toutes.filter(i => i.dureeMois == null).length + ' sans dureeMois');
+verifier('dureeMois jamais superieure a la duree reelle',
+  toutes.every(i => Number(i.dureeMois) <= Number(i.duree)),
+  JSON.stringify(toutes.filter(i => Number(i.dureeMois) > Number(i.duree)).slice(0, 2)));
+const reporte = toutes.find(i => i.reporteDepuis && String(i.reporteDepuis).slice(0, 7) < AUJOURDHUI.slice(0, 7));
+if (reporte) {
+  verifier('un report du mois precedent voit son compteur repartir',
+    Number(reporte.dureeMois) < Number(reporte.duree),
+    `vraie ${reporte.duree} / mois ${reporte.dureeMois}`);
+  verifier('sa duree REELLE reste affichee', Number(reporte.duree) > 0, String(reporte.duree));
+}
 
 console.log('\n3e. sauvegardes automatiques (cron -> KV)');
 verifier('liste refusee au chef',

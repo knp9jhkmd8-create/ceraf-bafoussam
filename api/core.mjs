@@ -277,6 +277,8 @@ const ligneInv = (r) => ({
   panne: r.panne || '', remarque: r.remarque || '',
   reporteDepuis: r.reporte_depuis || '', ville: r.ville || '', quartier: r.quartier || '',
   duree: r.duree, gps: r.gps || '',
+  // Présent uniquement sur getAll, qui seul connaît le mois demandé.
+  ...(r.duree_mois === undefined ? {} : { dureeMois: r.duree_mois }),
   // Le contact vient de la fiche client, joint par la vue v_interventions.
   // Son absence rendait les libellés muets côté frontend (buildLabel les lit).
   tel: r.tel || '', telSec: r.tel_sec || '',
@@ -342,8 +344,13 @@ async function getAll(d) {
   const mois = String(d.month || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(mois)) return { success: false, error: 'Mois invalide' };
   const debut = mois + '-01';
+  // `duree_mois` s'ajoute à `duree` sans la remplacer : la première sert à la
+  // statistique du mois (compteur remis à zéro au 1er pour tout dossier hérité
+  // du mois précédent), la seconde reste la durée VRAIE depuis l'origine, celle
+  // qui s'affiche sur chaque intervention et dans la fiche client.
   const inv = await sql(
-    `SELECT * FROM v_interventions
+    `SELECT *, duree_dans_mois(reporte_depuis, date, statut, $1::date) AS duree_mois
+       FROM v_interventions
       WHERE date >= $1::date AND date < ($1::date + interval '1 month')
       ORDER BY date, id`, [debut]);
   const consists = await sql(
@@ -691,7 +698,11 @@ export async function sauvegarderNocturne() {
   const t0 = Date.now();
   const dump = await construireExport('cron');
   const corps = JSON.stringify(dump);
-  const cle = SAUVEGARDE_PREFIXE + dump.genereLe.slice(0, 10);
+  // Clé datée en heure LOCALE (Cameroun, UTC+1), pas en UTC. Le cron tire à
+  // 23:00 UTC — c'est-à-dire minuit sur place, donc déjà le lendemain : une
+  // clé en UTC daterait la sauvegarde de la veille et écraserait celle de
+  // l'avant-veille. Même raisonnement que `date_locale()` côté base.
+  const cle = SAUVEGARDE_PREFIXE + new Date(Date.now() + 3600e3).toISOString().slice(0, 10);
   const lignes = Object.values(dump.compte).reduce((s, n) => s + n, 0);
 
   // `expirationTtl` fait expirer l'entrée toute seule : pas de purge à coder,

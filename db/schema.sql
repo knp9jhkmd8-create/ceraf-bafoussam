@@ -228,12 +228,44 @@ RETURNS integer LANGUAGE sql IMMUTABLE AS $$
   END;
 $$;
 
+-- Postgres tourne en UTC, l'équipe est en UTC+1 : entre minuit et 1 h locale,
+-- `current_date` renvoie encore la veille et la fiche du jour paraît vide.
+-- D'où une date locale EXPLICITE — ne jamais revenir à `current_date` ici.
+CREATE OR REPLACE FUNCTION date_locale()
+RETURNS date LANGUAGE sql STABLE AS $$
+  SELECT (now() AT TIME ZONE 'Africa/Douala')::date;
+$$;
+
 CREATE OR REPLACE FUNCTION duree_intervention(reporte_depuis date, date_ligne date, statut statut_t)
 RETURNS integer LANGUAGE sql STABLE AS $$
   SELECT greatest(
     jours_ouvres(
       coalesce(reporte_depuis, date_ligne),
-      CASE WHEN statut = 'Réalisé' THEN date_ligne ELSE current_date END
+      CASE WHEN statut = 'Réalisé' THEN date_ligne ELSE date_locale() END
+    ) - 1,
+    0);
+$$;
+
+-- Durée RAMENÉE AU MOIS demandé, pour la statistique de l'onglet Historique :
+-- le compteur d'un dossier hérité du mois précédent repart au 1er du mois, et
+-- s'arrête au dernier jour du mois pour un mois déjà écoulé.
+--   début = max(origine réelle, 1er du mois)
+--   fin   = min(résolution si Réalisé sinon aujourd'hui, fin du mois)
+--
+-- Distincte de duree_intervention(), qui donne la durée VRAIE depuis l'origine
+-- et reste la valeur affichée sur chaque intervention. Les deux coexistent
+-- volontairement : « depuis combien de temps ce dossier traîne » et « combien
+-- de temps il a occupé ce mois-ci » sont deux questions différentes, et seule
+-- la seconde permet de comparer les mois entre eux.
+CREATE OR REPLACE FUNCTION duree_dans_mois(reporte_depuis date, date_ligne date, statut statut_t, mois date)
+RETURNS integer LANGUAGE sql STABLE AS $$
+  SELECT greatest(
+    jours_ouvres(
+      greatest(coalesce(reporte_depuis, date_ligne), mois),
+      least(
+        CASE WHEN statut = 'Réalisé' THEN date_ligne ELSE date_locale() END,
+        (mois + interval '1 month' - interval '1 day')::date
+      )
     ) - 1,
     0);
 $$;

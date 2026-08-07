@@ -1037,7 +1037,7 @@ fr:{
   'histo.title.html':'<span>Historique</span> — <span id="histo-month-label">...</span>',
   'histo.sub.html':'Toutes les fiches classées par mois <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:16px;"></select>',
   'stat.interventions':'Interventions','stat.completed':'Réalisées','stat.outstanding':'Instances',
-  'stat.taux':'Taux de réalisation','stat.dureeMoy':'Durée moy. de résolution',  'terrain.search.ph':'🔎 Rechercher (nom, numéro, tél...)',
+  'stat.taux':'Taux de réalisation','stat.dureeMoy':'Durée moy. sur le mois',  'terrain.search.ph':'🔎 Rechercher (nom, numéro, tél...)',
   'histo.noData':'Aucune donnée.',
   'histo.noDataMonth':'Aucune donnée pour ce mois.',
   'histo.repartition.title':'📍 Répartition par quartier — cliquez pour filtrer',
@@ -1316,7 +1316,7 @@ en:{
   'histo.title.html':'<span>History</span> — <span id="histo-month-label">...</span>',
   'histo.sub.html':'All sheets sorted by month <select id="histo-month-select" onchange="onHistoMonthChange(this.value)" style="display:inline-block;width:auto;margin-left:10px;padding:4px 10px;font-size:16px;"></select>',
   'stat.interventions':'Interventions','stat.completed':'Completed','stat.outstanding':'Outstanding',
-  'stat.taux':'Completion rate','stat.dureeMoy':'Avg. resolution time',  'terrain.search.ph':'🔎 Search (name, number, phone...)',
+  'stat.taux':'Completion rate','stat.dureeMoy':'Avg. duration this month',  'terrain.search.ph':'🔎 Search (name, number, phone...)',
   'histo.noData':'No data.',
   'histo.noDataMonth':'No data for this month.',
   'histo.repartition.title':'📍 Breakdown by neighborhood — click to filter',
@@ -3883,20 +3883,21 @@ function renderHistoForMonth(){
   const instances=total-ok;
   const taux=total>0?Math.round(ok*100/total):0;
   const tauxColor=taux>=80?'var(--green)':taux>=50?'var(--yellow)':'var(--red)';
-  // Durée moyenne BORNÉE AU MOIS AFFICHÉ : on ne retient que les interventions
-  // dont l'ORIGINE tombe dans ce mois. Sans ce filtre, un dossier ouvert en
-  // juillet et résolu en août apportait toute son ancienneté à la moyenne
-  // d'août — d'où « 14,6 j » affiché alors qu'on n'était que le 7 du mois, un
-  // chiffre impossible à interpréter et donc inutilisable pour comparer les
-  // mois entre eux.
+  // Durée moyenne DU MOIS : on prend TOUTES les interventions du mois — celles
+  // enregistrées dans le mois comme celles héritées du mois précédent — et le
+  // compteur d'un dossier hérité repart au 1er du mois. Un dossier ouvert le 3
+  // et toujours en cours compte ses jours normalement ; un dossier venu de
+  // juillet compte à partir du 1er août, pas depuis juillet.
+  //
+  // Calculé en base (`duree_dans_mois`), comme tout ce qui touche aux jours
+  // ouvrés : une seconde implémentation en JS finirait par diverger.
   //
   // ⚠️ Ceci ne concerne QUE cet agrégat. La durée propre à chaque intervention
-  // (`i.duree`) reste la vraie, comptée depuis son origine réelle, et continue
+  // (`i.duree`) reste la VRAIE, comptée depuis son origine réelle, et continue
   // de s'afficher telle quelle sur chaque ligne et dans la fiche client.
-  const duMois=i=>String(i.reporteDepuis||i.date||'').slice(0,7)===histoSelectedMonth;
-  const baseDuree=realiseesList.filter(duMois);
-  const dureeMoy=baseDuree.length>0
-    ? baseDuree.reduce((a,i)=>a+(Number(i.duree)||0),0)/baseDuree.length
+  const avecDuree=allInvs.filter(i=>i.dureeMois!==undefined&&i.dureeMois!==null);
+  const dureeMoy=avecDuree.length>0
+    ? avecDuree.reduce((a,i)=>a+(Number(i.dureeMois)||0),0)/avecDuree.length
     : null;
   const dureeMoyTxt=dureeMoy===null?'—':(Math.round(dureeMoy*10)/10)+'&nbsp;j';
   document.getElementById('stats-row').innerHTML=`
