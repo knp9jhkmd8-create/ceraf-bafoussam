@@ -974,6 +974,8 @@ fr:{
   'admin.export.running':'⏳ Préparation de la sauvegarde...',
   'admin.export.done':'✅ Sauvegarde téléchargée — {n} lignes, {ko} Ko.',
   'admin.export.toast':'Sauvegarde téléchargée',
+  'maj.dispo':'Une nouvelle version de l’application est disponible.',
+  'maj.recharger':'Recharger',
   'admin.backups.title':'🌙 Sauvegardes automatiques',
   'admin.backups.sub':"Une sauvegarde est prise chaque nuit et conservée 30 jours. Elles restent chez l'hébergeur : téléchargez-en une de temps en temps pour en garder une copie ailleurs.",
   'admin.backups.none':'Aucune sauvegarde automatique pour le moment — la première sera prise cette nuit.',
@@ -1253,6 +1255,8 @@ en:{
   'admin.export.running':'⏳ Preparing the backup...',
   'admin.export.done':'✅ Backup downloaded — {n} rows, {ko} KB.',
   'admin.export.toast':'Backup downloaded',
+  'maj.dispo':'A new version of the app is available.',
+  'maj.recharger':'Reload',
   'admin.backups.title':'🌙 Automatic backups',
   'admin.backups.sub':'A backup is taken every night and kept for 30 days. They stay with the hosting provider — download one now and then to keep a copy elsewhere.',
   'admin.backups.none':'No automatic backup yet — the first one will be taken tonight.',
@@ -4491,12 +4495,60 @@ function displayRemarque(r){
 // ══════════════════════════════════════════════
 (function(){
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js')
-      .catch(err => console.warn('[SW] Erreur:', err));
-    // NB : PAS de rechargement automatique sur 'controllerchange' — combiné à
-    // clients.claim(), ça bouclait à l'infini (claim → controllerchange →
-    // reload → claim…). Le network-first du SW suffit à servir la dernière
-    // version dès qu'il y a du réseau.
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      // Le network-first du SW garantit que le FICHIER téléchargé est à jour.
+      // Il ne garantit PAS que le code EXÉCUTÉ l'est : une PWA installée sur
+      // iOS/Android est REPRISE depuis l'arrière-plan, sans nouveau chargement
+      // de page. Le JavaScript déjà en mémoire reste alors l'ancien pendant des
+      // jours, et l'utilisateur voit une version périmée sans aucun signe.
+      // Constaté le 08/08 : téléphone affichant encore l'ancien libellé et
+      // l'ancien calcul, plusieurs déploiements en retard.
+      //
+      // On PROPOSE donc le rechargement, on ne le force jamais : recharger
+      // automatiquement sur 'controllerchange', combiné à clients.claim(),
+      // bouclait à l'infini (claim → controllerchange → reload → claim…).
+      const guetter=sw=>{
+        if(!sw)return;
+        sw.addEventListener('statechange',()=>{
+          // `controller` non nul = ce n'est pas la première installation, donc
+          // il y a bien une version PLUS ANCIENNE en train de tourner.
+          if(sw.state==='installed'&&navigator.serviceWorker.controller)proposerMaj();
+        });
+      };
+      if(reg.waiting&&navigator.serviceWorker.controller)proposerMaj();
+      guetter(reg.installing);
+      reg.addEventListener('updatefound',()=>guetter(reg.installing));
+
+      // Le navigateur ne revérifie pas de lui-même quand l'app est reprise :
+      // on le lui demande, en espaçant pour ne pas solliciter le réseau du
+      // terrain à chaque bascule d'application.
+      let dernier=0;
+      document.addEventListener('visibilitychange',()=>{
+        if(document.hidden||Date.now()-dernier<5*60*1000)return;
+        dernier=Date.now();
+        reg.update().catch(()=>{});
+      });
+    }).catch(err=>console.warn('[SW] Erreur:',err));
+  }
+
+  function proposerMaj(){
+    if(document.getElementById('maj-dispo'))return;
+    const d=document.createElement('div');
+    d.id='maj-dispo';
+    d.style.cssText='position:fixed;left:12px;right:12px;bottom:16px;z-index:9999;'
+      +'background:var(--navy,#1e293b);color:#fff;border-radius:12px;padding:12px 14px;'
+      +'box-shadow:0 8px 24px rgba(0,0,0,.28);display:flex;align-items:center;gap:10px;'
+      +'font-size:.85rem;';
+    const txt=document.createElement('span');
+    txt.style.cssText='flex:1;line-height:1.3;';
+    txt.textContent=t('maj.dispo');
+    const btn=document.createElement('button');
+    btn.textContent=t('maj.recharger');
+    btn.style.cssText='background:#fff;color:var(--navy,#1e293b);border:none;border-radius:8px;'
+      +'padding:8px 14px;font-weight:700;font-size:.85rem;white-space:nowrap;cursor:pointer;';
+    btn.onclick=()=>location.reload();
+    d.appendChild(txt);d.appendChild(btn);
+    document.body.appendChild(d);
   }
 
   // ── BANNIÈRE ──────────────────────────────────────────────
