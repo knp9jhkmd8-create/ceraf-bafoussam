@@ -299,9 +299,15 @@ Deux dates, deux rôles à ne pas confondre :
   les lignes sans changer leur ID.
 - Pull-to-refresh tactile, désactivé sur l'écran de saisie chef (ne pas perdre les
   interventions non publiées) et pendant qu'une modale est ouverte.
-- Service worker **network-first** sur le HTML (`sw.js`, `ceraf-v19`) : la version la plus
-  récente s'affiche dès qu'il y a du réseau, le cache ne sert que de secours hors ligne. Pas
-  de rechargement automatique sur `controllerchange` (boucle infinie déjà rencontrée).
+- Service worker **network-first** sur le HTML (`sw.js`) : la version la plus récente est
+  téléchargée dès qu'il y a du réseau, le cache ne sert que de secours hors ligne.
+- ⚠️ **Le network-first ne suffit pas.** Il garantit que le *fichier téléchargé* est à jour,
+  pas que le *code exécuté* l'est : une PWA installée est **reprise** depuis l'arrière-plan
+  sans nouveau chargement de page, et le JS déjà en mémoire reste l'ancien pendant des jours.
+  D'où une détection de nouvelle version (`updatefound` + `statechange`, et `reg.waiting` au
+  démarrage) qui affiche une **bannière « Recharger »**. On propose, on ne force jamais :
+  recharger sur `controllerchange` avec `clients.claim()` boucle à l'infini.
+  `reg.update()` est aussi relancé au retour au premier plan, espacé de 5 minutes.
 - `warmupBackend()` subsiste (`index.html:1710`) : hérité du cold start Apps Script (10-30 s),
   il n'a plus grand intérêt face au démarrage d'un isolat Workers (~4 ms).
 
