@@ -13,7 +13,7 @@ node tests/check-inline-js.js index.html
 # ARGUMENT, jamais écrite dans le dépôt.
 node tests/test-api-lectures.mjs  <fichier-conn> file:///<chemin>/netlify/functions/api.mjs
 node tests/test-api-ecritures.mjs <fichier-conn> file:///<chemin>/netlify/functions/api.mjs
-node tests/test-api-live.mjs      https://ceraf-bafoussam-api.netlify.app/api
+node tests/test-api-live.mjs      https://ceraf-bafoussam-api.knp9jhkmd8.workers.dev <fichier-admin>
 ```
 
 ⚠️ **Ne jamais tuyauter ces tests vers `head`** : le SIGPIPE interrompt le
@@ -61,3 +61,27 @@ parcours qu'ils n'ont laissé aucune fiche résiduelle.
 
 Même principe mais contre l'API **déployée**, en HTTP. Mesure aussi la latence
 client et la sépare du temps serveur (`_ms` renvoyé par l'API).
+
+
+## Compte de test : TEMPORAIRE, jamais permanent
+
+`test-api-live.mjs` s'appuyait sur un compte **permanent** `_T_HARNAIS` : matricule
+devinable, PIN `1234`, rôle **admin**, sur une API publiquement joignable. Une porte
+d'entrée ouverte en permanence. Supprimé le 2026-08-08.
+
+Le harnais **crée son propre compte** au démarrage (matricule horodaté `_T_<base36>`, PIN
+aléatoire à 6 chiffres) et l'**archive en partant** — y compris si un test échoue, si une
+exception remonte, ou sur Ctrl-C. Aucun compte ne survit à l'exécution.
+
+Il lui faut donc des identifiants d'administration, passés en **argument** et jamais écrits
+dans le dépôt, même convention que la chaîne de connexion :
+
+```bash
+# fichier hors du dépôt, une seule ligne « matricule:pin »
+node tests/test-api-live.mjs https://ceraf-bafoussam-api.knp9jhkmd8.workers.dev ~/ceraf-admin.txt
+```
+
+⚠️ Les comptes préfixés `_T_` sont **masqués de la gestion des utilisateurs**
+(`adminListUsers`) : ce sont des outils, pas des membres de l'équipe. S'il en reste un en
+base après une interruption brutale, il est invisible dans l'écran Admin — le repérer par
+requête : `SELECT matricule FROM utilisateurs WHERE matricule LIKE '_T_%' AND supprime_le IS NULL`.

@@ -1,7 +1,33 @@
 // Rejoue le harnais contre l'API DÉPLOYÉE (HTTP), et non plus contre le
 // module importé. Mesure aussi la latence client vs le temps serveur (_ms),
 // pour isoler le coût réseau.
+//
+// ── COMPTE DE TEST : CRÉÉ PUIS DÉTRUIT À CHAQUE EXÉCUTION ──────────────────
+// Ce harnais s'appuyait sur un compte PERMANENT `_T_HARNAIS`, matricule
+// devinable, PIN `1234`, portant le rôle **admin**, sur une API publiquement
+// joignable. C'était une porte d'entrée ouverte en permanence — le pire des
+// deux mondes : invisible pour l'administrateur, et pleinement privilégiée.
+//
+// Le harnais crée désormais son propre compte au démarrage, avec un matricule
+// horodaté et un PIN aléatoire, et l'ARCHIVE en partant (y compris si un test
+// échoue ou si le script est interrompu). Aucun compte ne survit à l'exécution.
+//
+// Les identifiants d'administration sont passés en ARGUMENT, jamais écrits
+// dans le dépôt — même convention que la chaîne de connexion.
+//
+//   node tests/test-api-live.mjs <url-api> <fichier-identifiants>
+//
+// où <fichier-identifiants> contient une seule ligne « matricule:pin ».
+import fs from 'node:fs';
+
 const URL_API = process.argv[2] || 'https://ceraf-bafoussam-api.knp9jhkmd8.workers.dev';
+const FICHIER_ADMIN = process.argv[3];
+if (!FICHIER_ADMIN) {
+  console.error('Usage: node tests/test-api-live.mjs <url-api> <fichier-identifiants>');
+  console.error('       le fichier contient une ligne « matricule:pin » d\'un compte admin');
+  process.exit(2);
+}
+const [ADM_MAT, ADM_PIN] = fs.readFileSync(FICHIER_ADMIN, 'utf8').trim().split(':');
 
 let ok = 0, ko = 0;
 const mesures = [];
@@ -29,20 +55,50 @@ console.log('Cible : ' + URL_API + '\n');
 console.log('1. ping');
 verifier('pong', (await appel({ action: 'ping' })).pong === true);
 
-console.log('\n2. login');
-const l = await appel({ action: 'login', matricule: '_T_HARNAIS', pin: '1234' });
-verifier('connexion reussie', l.success === true, JSON.stringify(l));
-// Le PIN du harnais est 1234, pas le DEFAULT_PIN ('0000') : `mustChangePin`
-// doit donc être FAUX. Le verrou lui-même (compte encore au PIN par défaut, à
-// l'origine de l'incident du 06/08) est couvert par le harnais hors ligne, qui
-// peut fabriquer un compte dans cet état — un test live ne le peut pas sans
-// laisser un compte cassé derrière lui en cas d'interruption.
+console.log('\n2. compte de test temporaire');
+const adm = await appel({ action: 'login', matricule: ADM_MAT, pin: ADM_PIN });
+if (!adm.success) {
+  console.error('  ECHEC connexion administrateur -> ' + (adm.error || '') + '\n  (verifiez ' + FICHIER_ADMIN + ')');
+  process.exit(2);
+}
+const ADM = { token: adm.token, actingRole: 'admin', _test: true };
+// Matricule horodaté : deux exécutions concurrentes ne se marchent pas dessus,
+// et un reliquat éventuel se date au premier coup d'œil.
+const COMPTE = '_T_' + Date.now().toString(36).toUpperCase();
+const PIN = String(100000 + Math.floor(Math.random() * 900000));
+let PIN_COURANT = PIN;
+
+// Quoi qu'il arrive ensuite — test rouge, exception, Ctrl-C — le compte part.
+// Un compte de test qui survit à son exécution est exactement ce qu'on corrige
+// ici : on ne va pas en recréer un par accident.
+let menageFait = false;
+async function menage() {
+  if (menageFait) return;
+  menageFait = true;
+  const r = await appel({ action: 'adminDeleteUser', id: COMPTE, ...ADM });
+  console.log('\n  compte de test ' + COMPTE + (r.success ? ' archive.' : ' NON archive -> ' + (r.error || '')));
+  await appel({ action: 'logout', token: adm.token });
+}
+process.on('exit', () => { if (!menageFait) console.error('\n  ⚠️ compte ' + COMPTE + ' peut-etre residuel'); });
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await menage(); process.exit(130); });
+
+const cree = await appel({ action: 'adminAddUser', matricule: COMPTE, nom: 'HARNAIS TEMPORAIRE',
+  roles: ['admin', 'chef', 'technicien'], pin: PIN, ...ADM });
+verifier('compte de test cree', cree.success === true, JSON.stringify(cree));
+
+const l = await appel({ action: 'login', matricule: COMPTE, pin: PIN });
+verifier('connexion au compte de test', l.success === true, JSON.stringify(l));
+// PIN aleatoire, donc different du DEFAULT_PIN : `mustChangePin` doit etre
+// FAUX. Le verrou lui-meme (compte reste au PIN par defaut, a l'origine de
+// l'incident du 06/08) est couvert par le harnais hors ligne.
 verifier('mustChangePin faux (PIN personnalise)', l.mustChangePin === false, 'mustChangePin=' + l.mustChangePin);
 const tok = l.token;
 
 console.log('\n3. changePin puis lectures');
-const chg = await appel({ action: 'changePin', currentPin: '1234', newPin: '336699', token: tok, actingRole: 'technicien' });
+const NOUVEAU = String(100000 + Math.floor(Math.random() * 900000));
+const chg = await appel({ action: 'changePin', currentPin: PIN_COURANT, newPin: NOUVEAU, token: tok, actingRole: 'technicien' });
 verifier('changement accepte', chg.success === true, JSON.stringify(chg));
+if (chg.success) PIN_COURANT = NOUVEAU;
 
 // Pas de date ni de compte EN DUR : le report nocturne déplace les
 // interventions encore ouvertes vers le jour ouvré suivant, donc une fiche
@@ -170,14 +226,14 @@ verifier('cle forgee refusee',
 console.log('\n5. controle des roles');
 verifier('getAll refuse au technicien',
   (await appel({ action: 'getAll', month: '2026-08', token: tok, actingRole: 'technicien' })).success === false);
-// `_T_HARNAIS` porte les trois rôles : demander « admin » est légitime pour lui.
+// Le compte de test porte les trois rôles : demander « admin » est légitime.
 // Ce qui doit être refusé, c'est un rôle qu'il ne porte PAS.
 verifier('role inconnu refuse',
   (await appel({ action: 'getByDate', date: AUJOURDHUI, token: tok, actingRole: 'directeur' })).authError === true);
 
 console.log('\n6. remise en etat');
-verifier('PIN remis a 0000',
-  (await appel({ action: 'changePin', currentPin: '336699', newPin: '1234', token: tok, actingRole: 'technicien' })).success === true);
+// Plus de « PIN remis a » : le compte entier disparait juste apres, il n'y a
+// rien a remettre dans l'etat ou on l'a trouve.
 verifier('logout', (await appel({ action: 'logout', token: tok })).success === true);
 verifier('token revoque',
   (await appel({ action: 'getClients', token: tok, actingRole: 'technicien' })).authError === true);
@@ -199,6 +255,8 @@ Object.keys(parAction).sort().forEach(a => {
   const s = parAction[a].slice().sort((x, y) => x - y);
   console.log('    ' + (a + '              ').slice(0, 16) + s[Math.floor(s.length / 2)] + ' ms');
 });
+
+await menage();
 
 console.log('\n=== ' + ok + ' succes, ' + ko + ' echec(s) ===');
 process.exit(ko ? 1 : 0);
