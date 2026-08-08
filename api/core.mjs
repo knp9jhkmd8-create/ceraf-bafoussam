@@ -990,12 +990,21 @@ async function deleteIntervention(d, ctx) {
 }
 
 // ── Administration ─────────────────────────────────────────────────────────
+// Les comptes préfixés « _T_ » sont de l'OUTILLAGE, pas des membres de
+// l'équipe : les harnais de test s'y connectent après chaque déploiement. Les
+// afficher dans la gestion des utilisateurs faisait croire à un compte inconnu
+// créé à l'insu de l'administrateur. Ils restent fonctionnels, simplement hors
+// de cette liste — comme le marqueur est_test exclut déjà leur activité du
+// journal d'audit. Le préfixe est échappé (\_) car « _ » est un joker LIKE.
 async function adminListUsers() {
   const u = await sql(
     `SELECT u.matricule, u.nom, u.roles, u.actif, u.derniere_connexion, u.pin_hash,
             (SELECT count(*) FROM sessions s
               WHERE s.matricule=u.matricule AND s.revoquee_le IS NULL AND s.expire_le > now()) AS sessions_actives
-       FROM utilisateurs u WHERE u.supprime_le IS NULL ORDER BY u.nom`);
+       FROM utilisateurs u
+      WHERE u.supprime_le IS NULL
+        AND u.matricule NOT LIKE '\\_T\\_%'
+      ORDER BY u.nom`);
   // `pinParDefaut` rend VISIBLE ce qui est resté invisible jusqu'à l'incident
   // du 06/08 : un compte encore au PIN par défaut est bloqué et personne ne le
   // savait.

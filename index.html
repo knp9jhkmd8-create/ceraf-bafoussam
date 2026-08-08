@@ -742,12 +742,15 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         </div>
         <div id="aud-filtres" class="bloc-repliable">
           <div class="form-row">
+            <!-- De vraies listes déroulantes, et non des <datalist> : celles-ci
+                 ne proposent rien tant qu'on n'a pas commencé à taper, ce qui
+                 est inutilisable quand on ignore justement les valeurs
+                 possibles. Les deux ensembles sont fermés et fournis par l'API,
+                 donc rien n'est perdu à les imposer. -->
             <div><label data-i18n="audit.f.matricule">Matricule</label>
-              <input id="aud-f-mat" list="aud-liste-mat" placeholder="Tous" autocomplete="off">
-              <datalist id="aud-liste-mat"></datalist></div>
+              <select id="aud-f-mat"><option value="" data-i18n="audit.f.tous">Tous</option></select></div>
             <div><label data-i18n="audit.f.action">Action</label>
-              <input id="aud-f-action" list="aud-liste-action" placeholder="Toutes" autocomplete="off">
-              <datalist id="aud-liste-action"></datalist></div>
+              <select id="aud-f-action"><option value="" data-i18n="audit.f.toutes">Toutes</option></select></div>
           </div>
           <div class="form-row">
             <div><label data-i18n="audit.f.depuis">Depuis</label><input id="aud-f-depuis" type="date"></div>
@@ -974,6 +977,7 @@ fr:{
   'admin.export.running':'⏳ Préparation de la sauvegarde...',
   'admin.export.done':'✅ Sauvegarde téléchargée — {n} lignes, {ko} Ko.',
   'admin.export.toast':'Sauvegarde téléchargée',
+  'audit.f.tous':'Tous','audit.f.toutes':'Toutes',
   'maj.dispo':'Une nouvelle version de l’application est disponible.',
   'maj.recharger':'Recharger',
   'admin.backups.title':'🌙 Sauvegardes automatiques',
@@ -1255,6 +1259,7 @@ en:{
   'admin.export.running':'⏳ Preparing the backup...',
   'admin.export.done':'✅ Backup downloaded — {n} rows, {ko} KB.',
   'admin.export.toast':'Backup downloaded',
+  'audit.f.tous':'All','audit.f.toutes':'All',
   'maj.dispo':'A new version of the app is available.',
   'maj.recharger':'Reload',
   'admin.backups.title':'🌙 Automatic backups',
@@ -2033,7 +2038,10 @@ function renderAdminUsers(users){
   const wrap=document.getElementById('admin-users-wrap');
   if(!users||users.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">👤</div><p>${t('admin.noUsers')}</p></div>`;return;}
   const roleLbl=ROLE_LBL[LANG];
-  let h=`<table class="clients-table"><thead><tr><th>${t('admin.th.matricule')}</th><th>${t('common.name.label')}</th><th>${t('admin.th.roles')}</th><th>${t('admin.th.actif')}</th><th>${t('admin.th.lastLogin')}</th><th></th></tr></thead><tbody>`;
+  // Colonne « Dernière connexion » retirée : elle poussait le tableau hors de
+  // l'écran sur mobile pour une information qui reste consultable dans l'onglet
+  // Audit, là où elle a du sens à côté des sessions ouvertes.
+  let h=`<table class="clients-table"><thead><tr><th>${t('admin.th.matricule')}</th><th>${t('common.name.label')}</th><th>${t('admin.th.roles')}</th><th>${t('admin.th.actif')}</th><th></th></tr></thead><tbody>`;
   users.forEach(u=>{
     const rolesTxt=(u.roles||[]).map(r=>roleLbl[r]||r).join(', ')||'—';
     h+=`<tr>
@@ -2041,7 +2049,6 @@ function renderAdminUsers(users){
       <td>${esc(u.nom)}</td>
       <td>${esc(rolesTxt)}</td>
       <td>${u.actif?'✅':'⛔'}</td>
-      <td>${esc(u.derniereConnexion)||'—'}</td>
       <td style="white-space:nowrap;text-align:right;">
         <button class="btn-menu" title="${esc(t('menu.actions'))}"
                 onclick="ouvrirMenuUtilisateur(event,'${escJsAttr(u.id)}','${escJsAttr(u.nom)}',${u.actif?'true':'false'},${JSON.stringify(u.roles||[]).replace(/"/g,'&quot;')})">⋯</button>
@@ -4128,18 +4135,28 @@ function viderFiltresAudit(){
   chargerJournalAudit();
 }
 
-// Alimente les listes déroulantes des filtres. Saisie libre conservée : ce sont
-// des <datalist>, pas des <select> — on peut proposer sans imposer.
+// Alimente les listes déroulantes des filtres, en préservant la sélection en
+// cours : elles sont remplies par DEUX appels distincts (utilisateurs et
+// journal), et écraser le <select> ferait perdre le filtre que l'utilisateur
+// venait de choisir.
 function remplirListesAudit(users, actions){
-  const dM=document.getElementById('aud-liste-mat');
-  if(dM&&Array.isArray(users)){
-    // `label` affiche le nom en second, plus discret que la valeur elle-même.
-    dM.innerHTML=users.map(u=>`<option value="${esc(u.id)}" label="${esc(u.nom||'')}"></option>`).join('');
-  }
-  const dA=document.getElementById('aud-liste-action');
-  if(dA&&Array.isArray(actions)){
-    dA.innerHTML=actions.map(a=>`<option value="${esc(a)}"></option>`).join('');
-  }
+  const garnir=(id,valeurs,libelle)=>{
+    const s=document.getElementById(id);
+    if(!s||!Array.isArray(valeurs))return;
+    const choisi=s.value;
+    const vide=s.querySelector('option[value=""]');
+    s.innerHTML='';
+    s.appendChild(vide||Object.assign(document.createElement('option'),{value:'',textContent:'—'}));
+    valeurs.forEach(v=>{
+      const o=document.createElement('option');
+      o.value=libelle?v.id:v;
+      o.textContent=libelle?(v.nom?`${v.id} — ${v.nom}`:v.id):v;
+      s.appendChild(o);
+    });
+    if(choisi&&[...s.options].some(o=>o.value===choisi))s.value=choisi;
+  };
+  garnir('aud-f-mat',users,true);
+  garnir('aud-f-action',actions,false);
 }
 
 async function chargerSessions(){
@@ -4250,22 +4267,49 @@ async function chargerEditionJour(){
   if(!inv.length){el.innerHTML=`<div class="empty"><p>${esc(t('edition.aucuneInv'))}</p></div>`;return;}
   const STATUTS=['En attente','Injoignable','Problème','Réalisé'];
   const j=v=>String(v||'').slice(0,10);
-  el.innerHTML=`<table class="clients-table"><thead><tr>
-      <th>${esc(t('clients.th.num'))}</th><th>${esc(t('common.name.label'))}</th>
-      <th>${esc(t('label.statut'))}</th><th>${esc(t('ph.remarque'))}</th>
-      <th>${esc(t('edition.dateEmission'))}</th><th>${esc(t('edition.dateRattachement'))}</th><th></th>
-    </tr></thead><tbody>${inv.map(i=>`<tr id="ed-row-${escJsAttr(i.id)}">
-      <td style="font-size:.72rem;">${esc(i.num||'—')}</td>
-      <td style="font-size:.72rem;">${esc(i.nom||'')}<br><small style="color:var(--muted2)">${esc(i.type||'')}</small></td>
-      <td><select class="ed-statut" style="font-size:.72rem;">${STATUTS.map(s=>`<option value="${esc(s)}"${i.statut===s?' selected':''}>${esc(s)}</option>`).join('')}</select></td>
-      <td><input class="ed-remarque" value="${esc(i.remarque||'')}" style="font-size:.72rem;min-width:160px;"></td>
-      <td><input type="date" class="ed-emission" value="${esc(j(i.reporteDepuis))}" style="font-size:.72rem;"></td>
-      <td><input type="date" class="ed-date" value="${esc(j(i.date)||date)}" style="font-size:.72rem;"></td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-green btn-sm" onclick="enregistrerEditionInv('${escJsAttr(i.id)}')">${esc(t('edition.enregistrer'))}</button>
-        <button class="btn btn-danger btn-sm" onclick="archiverIntervention('${escJsAttr(i.id)}')">🗑️</button>
-      </td></tr>`).join('')}</tbody></table>
-    <div style="font-size:.74rem;color:var(--muted);margin-top:8px;">${esc(t('edition.datesAide'))}</div>`;
+  // Une FICHE par intervention plutôt qu'un tableau : à sept colonnes dont
+  // quatre champs de saisie, le tableau sortait de l'écran sur téléphone et
+  // obligeait à faire défiler horizontalement pour atteindre le bouton
+  // Enregistrer. Les champs s'empilent ici sur une grille qui se replie d'une
+  // seule colonne quand la place manque, sans média-query à maintenir.
+  el.innerHTML=inv.map(i=>`
+    <div id="ed-row-${escJsAttr(i.id)}" class="card" style="margin-bottom:10px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px;">
+        <div style="min-width:0;">
+          <div style="font-weight:700;font-size:.86rem;word-break:break-word;">${esc(i.nom||'—')}</div>
+          <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">
+            ${TI[i.type]||'📋'} ${esc(trType(i.type)||i.type||'')}${i.num?' · <strong>'+esc(i.num)+'</strong>':''}
+          </div>
+        </div>
+        <button class="btn btn-danger btn-sm" style="flex:none;"
+                onclick="archiverIntervention('${escJsAttr(i.id)}')"
+                title="${esc(t('btn.delete'))}">🗑️</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+        <div>
+          <label style="font-size:.72rem;">${esc(t('label.statut'))}</label>
+          <select class="ed-statut">${STATUTS.map(s=>`<option value="${esc(s)}"${i.statut===s?' selected':''}>${esc(s)}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label style="font-size:.72rem;">${esc(t('edition.dateEmission'))}</label>
+          <input type="date" class="ed-emission" value="${esc(j(i.reporteDepuis))}">
+        </div>
+        <div>
+          <label style="font-size:.72rem;">${esc(t('edition.dateRattachement'))}</label>
+          <input type="date" class="ed-date" value="${esc(j(i.date)||date)}">
+        </div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <label style="font-size:.72rem;">${esc(t('ph.remarque'))}</label>
+        <input class="ed-remarque" value="${esc(i.remarque||'')}">
+      </div>
+
+      <button class="btn btn-green btn-sm" style="margin-top:10px;width:100%;"
+              onclick="enregistrerEditionInv('${escJsAttr(i.id)}')">${esc(t('edition.enregistrer'))}</button>
+    </div>`).join('')
+    +`<div style="font-size:.74rem;color:var(--muted);margin-top:4px;">${esc(t('edition.datesAide'))}</div>`;
 }
 
 async function enregistrerEditionInv(id){
