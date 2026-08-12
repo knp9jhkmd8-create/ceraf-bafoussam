@@ -224,6 +224,14 @@ Depuis le 2026-08-12 :
   **GPS**, et écrivait donc les coordonnées à la place de la remarque (constaté en base). La
   lecture se fait maintenant par `#rem-<invId>`.
 
+### Bandeau du haut
+Quatre blocs (logo, badge de rôle, état de synchro, déconnexion) pour une largeur de téléphone :
+l'ordre de priorité est explicite depuis le 2026-08-12, faute de quoi le badge passait sur deux
+lignes et « Synchronisé » finissait *sous* le bouton Déconnexion. Le badge se comprime avec des
+points de suspension (libellé entier dans `title`), le mot « Synchronisé » disparaît sous 620 px
+— la pastille colorée porte déjà l'information — et le bouton Déconnexion se réduit à son icône
+sous 560 px, son libellé restant accessible par `title` (`data-i18n-title`).
+
 ### Édition manuelle (admin)
 Corriger une intervention (statut, dates, remarque) ou une fiche client, tout étant journalisé.
 Depuis le 2026-08-12, les champs passent par `.ed-grid`
@@ -334,12 +342,21 @@ Deux dates, deux rôles à ne pas confondre :
   démarrage) qui affiche une **bannière « Recharger »**. On propose, on ne force jamais :
   recharger sur `controllerchange` avec `clients.claim()` boucle à l'infini.
   `reg.update()` est aussi relancé au retour au premier plan, espacé de 5 minutes.
-- Depuis le 2026-08-12 la bannière **dit ce qui change** : une phrase de résumé visible tout
-  de suite, le détail replié derrière « Voir plus ». Le texte vit dans `NOTES_MAJ`
-  (FR + EN, juste avant la section PWA d'`index.html`) et **doit être réécrit à chaque
-  déploiement**, en langage courant — il est lu par des techniciens, pas par des
-  développeurs : décrire ce qui change *à l'écran*, jamais le code. Rappel : la bannière ne
-  s'affiche que si un **nouveau service worker** s'installe, donc il faut incrémenter
+- **Le « quoi de neuf » s'affiche APRÈS le rechargement, pas dans la bannière.** Raison
+  dirimante : avant le rechargement, le JS en mémoire est celui de l'ANCIENNE version — il ne
+  contient donc pas les notes de celle qui arrive, et la bannière annonçait en fait la version
+  qu'on quitte. La bannière est redevenue un simple « Nouvelle version disponible /
+  Recharger » ; les notes s'ouvrent au lancement suivant dans `#modal-maj`
+  (`afficherQuoiDeNeufSiBesoin`), résumé puis détail derrière « Voir plus ».
+- Affichage **une seule fois par appareil** : `MAJ_ID` est mémorisé dans
+  `localStorage['ceraf_maj_vue']` à la fermeture, donc un utilisateur qui a déjà lu ces
+  nouveautés ne les revoit jamais — seul un `MAJ_ID` inédit rouvre le panneau. Sur un appareil
+  **neuf** (ni `ceraf_url` ni `ceraf_role` en mémoire) le drapeau est posé en silence : on ne
+  déroule pas les correctifs d'une version jamais utilisée.
+- `NOTES_MAJ` (FR + EN) et `MAJ_ID` sont **à réécrire à chaque déploiement**, en langage
+  courant — c'est lu par des techniciens, pas par des développeurs : décrire ce qui change
+  *à l'écran*, jamais le code. Oublier de changer `MAJ_ID` = personne ne voit les notes.
+  Et la bannière ne s'affiche que si un **nouveau service worker** s'installe : incrémenter
   `CACHE_VERSION` dans `sw.js` à chaque livraison, même quand seul `index.html` change.
 - `warmupBackend()` subsiste (`index.html:1710`) : hérité du cold start Apps Script (10-30 s),
   il n'a plus grand intérêt face au démarrage d'un isolat Workers (~4 ms).
