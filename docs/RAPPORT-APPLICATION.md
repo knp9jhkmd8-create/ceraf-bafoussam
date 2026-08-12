@@ -208,6 +208,22 @@ type) dont les compteurs se recalculent en ignorant leur propre filtre, plus rec
 Champs structurés obligatoires avant passage à « Réalisé » (FDT/FAT/distance/conclusion en
 Étude FTTH, nature de panne en Dérangement). Capture GPS native écrite sur la **fiche client**.
 
+Depuis le 2026-08-12 :
+- les libellés `FDT-`, `FAT-`, `Distance =` sont affichés **en dur devant le champ** au lieu
+  d'être des placeholders : ils restent lisibles une fois la valeur saisie, et le technicien
+  ne tape que le numéro (`sansPrefixe()` retire le libellé répété des valeurs héritées) ;
+- le bouton « Ouvrir sur Maps » sous chaque ligne a été retiré : le badge `📌 GPS` en tête de
+  ligne fait déjà le lien, et il reçoit désormais le GPS **résolu** (ligne d'intervention ou,
+  à défaut, fiche client), ce qui n'était pas le cas avant ;
+- le contact d'une intervention **sans fiche client** (les études n'en créent aucune) est
+  porté par la remarque (`Tel: … • Tel2: … • Localité: …`), relu par le backend
+  (`contactDeRemarque()`) et réémis à chaque recomposition côté terrain — sans quoi le
+  téléphone d'une Étude FTTH n'était affiché nulle part, ou effacé à la première saisie
+  FDT/FAT ;
+- correctif : `updStatut` lisait `.remark-inp` en premier dans la ligne, c'est-à-dire le champ
+  **GPS**, et écrivait donc les coordonnées à la place de la remarque (constaté en base). La
+  lecture se fait maintenant par `#rem-<invId>`.
+
 ### Historique
 Consomme `getAll` (dédupliqué mensuellement), sélecteur de mois, statistiques, mêmes filtres
 croisés, cache localStorage par mois.
@@ -308,6 +324,13 @@ Deux dates, deux rôles à ne pas confondre :
   démarrage) qui affiche une **bannière « Recharger »**. On propose, on ne force jamais :
   recharger sur `controllerchange` avec `clients.claim()` boucle à l'infini.
   `reg.update()` est aussi relancé au retour au premier plan, espacé de 5 minutes.
+- Depuis le 2026-08-12 la bannière **dit ce qui change** : une phrase de résumé visible tout
+  de suite, le détail replié derrière « Voir plus ». Le texte vit dans `NOTES_MAJ`
+  (FR + EN, juste avant la section PWA d'`index.html`) et **doit être réécrit à chaque
+  déploiement**, en langage courant — il est lu par des techniciens, pas par des
+  développeurs : décrire ce qui change *à l'écran*, jamais le code. Rappel : la bannière ne
+  s'affiche que si un **nouveau service worker** s'installe, donc il faut incrémenter
+  `CACHE_VERSION` dans `sw.js` à chaque livraison, même quand seul `index.html` change.
 - `warmupBackend()` subsiste (`index.html:1710`) : hérité du cold start Apps Script (10-30 s),
   il n'a plus grand intérêt face au démarrage d'un isolat Workers (~4 ms).
 

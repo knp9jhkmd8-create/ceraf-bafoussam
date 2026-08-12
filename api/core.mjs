@@ -271,7 +271,28 @@ async function changePin(d, ctx, session) {
 // ============================================================================
 //  ACTIONS — LECTURES
 // ============================================================================
-const ligneInv = (r) => ({
+// Contact porté par la remarque (« Tel: … • Tel2: … • Localité: … ») pour les
+// interventions qui n'ont pas de fiche client — les études, qui n'en créent
+// pas. Sans cette relecture, buildLabel n'avait rien à afficher et le numéro
+// saisi à la publication restait invisible sur le terrain.
+const contactDeRemarque = (remarque) => {
+  const c = { tel: '', telSec: '', loc: '' };
+  String(remarque || '').split(' • ').forEach(seg => {
+    const i = seg.indexOf(': ');
+    if (i < 0) return;
+    const k = seg.slice(0, i).trim(), v = seg.slice(i + 2).trim();
+    if (k === 'Tel') c.tel = v;
+    else if (k === 'Tel2') c.telSec = v;
+    else if (k === 'Localité') c.loc = v;
+  });
+  return c;
+};
+
+const ligneInv = (r) => {
+  // La fiche client (jointe par v_interventions) reste prioritaire : elle est
+  // tenue à jour, la remarque n'est qu'un repli.
+  const c = contactDeRemarque(r.remarque);
+  return {
   id: r.id, cid: r.consistance_id, date: r.date, type: r.type,
   num: r.numero_ligne || '', nom: r.nom_client || '', statut: r.statut,
   panne: r.panne || '', remarque: r.remarque || '',
@@ -281,9 +302,10 @@ const ligneInv = (r) => ({
   ...(r.duree_mois === undefined ? {} : { dureeMois: r.duree_mois }),
   // Le contact vient de la fiche client, joint par la vue v_interventions.
   // Son absence rendait les libellés muets côté frontend (buildLabel les lit).
-  tel: r.tel || '', telSec: r.tel_sec || '',
+  tel: r.tel || c.tel, telSec: r.tel_sec || c.telSec, loc: c.loc,
   publiePar: r.publie_par || '', statutPar: r.statut_par || ''
-});
+  };
+};
 
 async function getByDate(d) {
   const date = String(d.date || '').slice(0, 10);
@@ -803,9 +825,11 @@ async function saveConsistance(d, ctx, session) {
     if (inv.chambre) parts.push('Chambre: ' + String(inv.chambre).trim());
     if (inv.motif)   parts.push('Motif: ' + String(inv.motif).trim());
     if (inv.extra)   parts.push('Remarque: ' + String(inv.extra).trim());
-    // Sans clé, aucune fiche client ne peut porter le contact : on le garde
-    // dans la remarque plutôt que de le perdre.
-    if (!numKey) {
+    // Sans fiche client pour le porter, le contact est gardé dans la remarque
+    // plutôt que perdu. Les études sont dans ce cas MÊME avec une clé (leur
+    // Customer ID) : elles ne créent volontairement aucune fiche client, si
+    // bien que le téléphone saisi n'apparaissait nulle part sur le terrain.
+    if (!numKey || estEtude) {
       if (inv.tel)    parts.push('Tel: ' + String(inv.tel).trim());
       if (inv.numSec) parts.push('Tel2: ' + String(inv.numSec).trim());
       if (inv.loc)    parts.push('Localité: ' + String(inv.loc).trim());
