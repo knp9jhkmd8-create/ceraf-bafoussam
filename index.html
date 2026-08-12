@@ -148,6 +148,14 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .form-row.full{grid-template-columns:1fr;}
 .form-row.three{grid-template-columns:1fr 1fr 1fr;}
 @media(max-width:560px){.form-row.three{grid-template-columns:1fr;}}
+/* Grille des fiches d'Édition. `min(100%,190px)` et non `190px` : avec une
+   borne fixe, une colonne reste à 190px même quand la carte n'en fait que 170,
+   et les champs DÉPASSENT (les <input type="date"> ont une largeur intrinsèque
+   qui ne se comprime pas). Avec min(), la colonne ne peut jamais être plus
+   large que la carte : sur téléphone chaque champ passe pleine largeur. */
+.ed-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px;}
+.ed-grid>div{min-width:0;}
+.ed-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
 label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
 /* font-size 16px minimum sur les champs : en dessous, iOS Safari zoome
    automatiquement sur le champ au focus (et le zoom reste après) — c'est la
@@ -789,7 +797,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <div><label data-i18n="edition.date">Date de la fiche</label><input id="ed-date" type="date"></div>
           <div style="display:flex;align-items:flex-end;"><button class="btn btn-primary btn-sm" onclick="chargerEditionJour()" data-i18n="edition.charger">📂 Charger</button></div>
         </div>
-        <div id="edition-inv-wrap" style="overflow-x:auto;margin-top:12px;"></div>
+        <!-- Pas d'overflow-x ici : c'était un reste de l'affichage en tableau.
+             Il ne réglait rien, il déplaçait juste le débordement dans une
+             barre de défilement horizontale que personne ne voyait. -->
+        <div id="edition-inv-wrap" style="margin-top:12px;"></div>
       </div>
 
       <div class="card" style="margin-top:14px;">
@@ -4301,7 +4312,7 @@ async function chargerEditionJour(){
                 title="${esc(t('btn.delete'))}">🗑️</button>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+      <div class="ed-grid">
         <div>
           <label style="font-size:.72rem;">${esc(t('label.statut'))}</label>
           <select class="ed-statut">${STATUTS.map(s=>`<option value="${esc(s)}"${i.statut===s?' selected':''}>${esc(s)}</option>`).join('')}</select>
@@ -4369,17 +4380,22 @@ async function chargerEditionClient(){
   if(!c){el.innerHTML=`<div class="empty"><p>${esc(t('edition.clientIntrouvable'))}</p></div>`;return;}
   const svc=(res.clientsFtth||[]).some(x=>String(x.num)===num)?'FTTH':'CUIVRE';
   const ch=(id,lbl,val)=>`<div><label>${esc(lbl)}</label><input id="${id}" value="${esc(val||'')}"></div>`;
-  el.innerHTML=`<div class="form-row">
+  // Une seule grille auto-ajustée plutôt que quatre rangées figées à deux
+  // colonnes : le nombre de colonnes suit la largeur réelle, et un champ ne
+  // peut jamais être plus large que la carte qui le contient.
+  el.innerHTML=`<div class="ed-grid">
       ${ch('edc-nom',t('common.name.label'),c.nom)}
       <div><label>Service</label><select id="edc-service">
         <option value="FTTH"${svc==='FTTH'?' selected':''}>FTTH</option>
         <option value="CUIVRE"${svc==='CUIVRE'?' selected':''}>Cuivre</option></select></div>
+      ${ch('edc-tel','Téléphone',c.tel)}${ch('edc-telsec','Tél. secondaire',c.telSec)}
+      ${ch('edc-ville','Ville',c.ville)}${ch('edc-quartier','Quartier',c.quartier)}
+      ${ch('edc-loc','Localité',c.loc)}${ch('edc-gps','GPS',c.gps)}
     </div>
-    <div class="form-row">${ch('edc-tel','Téléphone',c.tel)}${ch('edc-telsec','Tél. secondaire',c.telSec)}</div>
-    <div class="form-row">${ch('edc-ville','Ville',c.ville)}${ch('edc-quartier','Quartier',c.quartier)}</div>
-    <div class="form-row">${ch('edc-loc','Localité',c.loc)}${ch('edc-gps','GPS',c.gps)}</div>
-    <button class="btn btn-green btn-sm" onclick="enregistrerEditionClient('${escJsAttr(num)}')">${esc(t('edition.enregistrer'))}</button>
-    <button class="btn btn-danger btn-sm" onclick="archiverClient('${escJsAttr(num)}')">🗑️</button>`;
+    <div class="ed-actions">
+      <button class="btn btn-green btn-sm" onclick="enregistrerEditionClient('${escJsAttr(num)}')">${esc(t('edition.enregistrer'))}</button>
+      <button class="btn btn-danger btn-sm" onclick="archiverClient('${escJsAttr(num)}')">🗑️</button>
+    </div>`;
 }
 
 async function enregistrerEditionClient(num){
@@ -4564,7 +4580,8 @@ const NOTES_MAJ={
       'Le lien « Ouvrir sur Maps » sous chaque intervention a été retiré : le badge 📌 GPS en haut de la ligne, à côté du quartier, ouvre déjà la carte.',
       'Études FTTH : les cases affichent maintenant « FDT- », « FAT- » et « Distance = » en clair. Il n’y a plus que le numéro à taper, et il reste lisible une fois enregistré.',
       'Le numéro de téléphone saisi pour une étude FTTH apparaît maintenant sur la vue terrain, comme pour les autres interventions : il suffit d’appuyer dessus pour appeler.',
-      'Correction : changer le statut d’une intervention ne remplace plus la remarque par les coordonnées GPS.'
+      'Correction : changer le statut d’une intervention ne remplace plus la remarque par les coordonnées GPS.',
+      'Page Édition (administration) : les champs ne débordent plus de l’écran sur téléphone, tout tient dans la largeur.'
     ]
   },
   en:{
@@ -4573,7 +4590,8 @@ const NOTES_MAJ={
       'The "Open in Maps" link under each job has been removed: the 📌 GPS badge at the top of the line, next to the neighbourhood, already opens the map.',
       'FTTH surveys: the boxes now show "FDT-", "FAT-" and "Distance =" on screen. You only type the number, and it stays readable once saved.',
       'The phone number entered for an FTTH survey now shows up in the field view like every other job: just tap it to call.',
-      'Fix: changing a job’s status no longer replaces the remark with the GPS coordinates.'
+      'Fix: changing a job’s status no longer replaces the remark with the GPS coordinates.',
+      'Editing page (admin): fields no longer run off the screen on a phone — everything fits the width.'
     ]
   }
 };

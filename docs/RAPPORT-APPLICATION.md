@@ -224,6 +224,16 @@ Depuis le 2026-08-12 :
   **GPS**, et écrivait donc les coordonnées à la place de la remarque (constaté en base). La
   lecture se fait maintenant par `#rem-<invId>`.
 
+### Édition manuelle (admin)
+Corriger une intervention (statut, dates, remarque) ou une fiche client, tout étant journalisé.
+Depuis le 2026-08-12, les champs passent par `.ed-grid`
+(`repeat(auto-fit,minmax(min(100%,190px),1fr))`) : la borne `min(100%,…)` est ce qui empêche
+le débordement. Mesuré sur une carte de 320 px, l'ancienne règle `minmax(150px,1fr)` produisait
+**deux colonnes de 155 px** alors qu'un `input[type=date]` réclame **158 px au minimum** (plus
+encore sur les widgets natifs mobiles) — les champs sortaient de la carte. Le wrapper
+`overflow-x:auto`, reste de l'affichage en tableau, a été retiré : il ne corrigeait rien, il
+cachait le débordement dans une barre de défilement.
+
 ### Historique
 Consomme `getAll` (dédupliqué mensuellement), sélecteur de mois, statistiques, mêmes filtres
 croisés, cache localStorage par mois.
