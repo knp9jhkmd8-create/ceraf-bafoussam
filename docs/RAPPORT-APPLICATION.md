@@ -342,12 +342,25 @@ Deux dates, deux rôles à ne pas confondre :
   démarrage) qui affiche une **bannière « Recharger »**. On propose, on ne force jamais :
   recharger sur `controllerchange` avec `clients.claim()` boucle à l'infini.
   `reg.update()` est aussi relancé au retour au premier plan, espacé de 5 minutes.
-- **Le « quoi de neuf » s'affiche APRÈS le rechargement, pas dans la bannière.** Raison
-  dirimante : avant le rechargement, le JS en mémoire est celui de l'ANCIENNE version — il ne
-  contient donc pas les notes de celle qui arrive, et la bannière annonçait en fait la version
-  qu'on quitte. La bannière est redevenue un simple « Nouvelle version disponible /
-  Recharger » ; les notes s'ouvrent au lancement suivant dans `#modal-maj`
-  (`afficherQuoiDeNeufSiBesoin`), résumé puis détail derrière « Voir plus ».
+- **Le « quoi de neuf » s'affiche APRÈS le rechargement.** Raison dirimante : avant le
+  rechargement, le JS en mémoire est celui de l'ANCIENNE version — il ne contient donc pas les
+  notes de celle qui arrive, et l'annonce portait en fait sur la version qu'on quitte. Les
+  notes s'ouvrent au lancement suivant dans `#modal-maj` (`afficherQuoiDeNeufSiBesoin`),
+  résumé puis détail derrière « Voir plus ».
+- **Une seule fenêtre pour toute la mise à jour** (2026-08-13). Il y en avait deux — le
+  panneau de notes et une bannière « Recharger » en bas — et elles pouvaient s'afficher
+  **ensemble** : au démarrage la page récupère déjà le nouveau fichier (network-first) pendant
+  que le service worker finit son installation quelques instants plus tard. On lisait donc les
+  nouveautés d'une version en même temps qu'on nous l'annonçait comme « à venir ». La bannière
+  est supprimée ; `#modal-maj` sert aux deux usages, titre et boutons s'adaptant à la
+  situation (`afficherMajDispo`, `majBoutons`).
+- **Le bouton principal applique la mise à jour**, mais seulement s'il y en a une :
+  `majEnAttente` (armé par `proposerMaj`) décide entre recharger et simplement fermer.
+  Recharger « pour rien » ferait perdre une consistance en cours de frappe, qui ne vit qu'en
+  mémoire — d'où aussi le bouton « Plus tard », visible uniquement quand une mise à jour est
+  réellement en attente : on propose, on n'impose pas. `majModeDispo` évite qu'un clic en mode
+  « disponible » marque comme lues des notes jamais affichées. Couvert par
+  `tests/test-fenetre-maj.mjs` (26 assertions, 6 situations).
 - Affichage **une seule fois par appareil** : `MAJ_ID` est mémorisé dans
   `localStorage['ceraf_maj_vue']` à la fermeture, donc un utilisateur qui a déjà lu ces
   nouveautés ne les revoit jamais — seul un `MAJ_ID` inédit rouvre le panneau. Sur un appareil

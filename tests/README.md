@@ -36,6 +36,21 @@ Détail à connaître si tu ajoutes des cas : les `const` de `Code.gs` (comme
 contrairement aux `function`. Pour y accéder, passer par
 `vm.runInContext('PIN_SALT', ctx)`.
 
+## `test-fenetre-maj.mjs`
+
+```bash
+node tests/test-fenetre-maj.mjs
+```
+
+Rejoue les six situations de la fenêtre de mise à jour sur le **vrai** code extrait
+d'`index.html` (la portion `MAJ_ID` → section PWA), avec un DOM minimal : appareil neuf,
+notes déjà lues, nouveautés seules, nouveautés + mise à jour arrivant pendant la lecture,
+mise à jour seule sur une app ouverte depuis longtemps, et « Plus tard ».
+
+Ce que le harnais protège, et qui n'est visible d'aucune autre façon : le bouton ne
+recharge que s'il y a réellement une mise à jour en attente — un rechargement gratuit
+ferait perdre une consistance en cours de frappe, qui ne vit qu'en mémoire.
+
 ## `check-inline-js.js`
 
 `index.html` embarque ~3000 lignes de JS inline sans aucune étape de build :

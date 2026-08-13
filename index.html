@@ -874,13 +874,18 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   </div>
 </div>
 
-<!-- « Quoi de neuf » — s'ouvre APRÈS un rechargement de mise à jour, une seule
-     fois par appareil et par version (voir MAJ_ID). -->
+<!-- Fenêtre UNIQUE de mise à jour. Deux usages, un seul bouton principal :
+     - « Quoi de neuf » après un rechargement (une fois par appareil, MAJ_ID) ;
+     - « Mise à jour disponible » quand un nouveau service worker s'installe —
+       le bouton applique alors directement la mise à jour. -->
 <div class="modal-overlay" id="modal-maj">
   <div class="modal-box" style="max-width:480px;">
-    <div class="modal-title" data-i18n="maj.quoiDeNeuf">✨ Quoi de neuf</div>
+    <div class="modal-title" id="maj-titre" data-i18n="maj.quoiDeNeuf">✨ Quoi de neuf</div>
     <div class="modal-body" id="maj-corps"></div>
-    <button class="btn btn-primary btn-sm" onclick="fermerQuoiDeNeuf()" data-i18n="maj.ok">J'ai compris</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <button class="btn btn-primary btn-sm" id="maj-btn" onclick="fermerQuoiDeNeuf()" data-i18n="maj.ok">J'ai compris</button>
+      <button class="btn btn-ghost btn-sm hidden" id="maj-plus-tard" onclick="reporterMaj()" data-i18n="maj.plusTard">Plus tard</button>
+    </div>
   </div>
 </div>
 
@@ -1036,6 +1041,7 @@ fr:{
   'maj.recharger':'Recharger',
   'maj.voirPlus':'Voir plus','maj.voirMoins':'Voir moins',
   'maj.quoiDeNeuf':'✨ Quoi de neuf','maj.ok':"J'ai compris",
+  'maj.titreDispo':'🔄 Mise à jour disponible','maj.plusTard':'Plus tard',
   'admin.backups.title':'🌙 Sauvegardes automatiques',
   'admin.backups.sub':"Une sauvegarde est prise chaque nuit et conservée 30 jours. Elles restent chez l'hébergeur : téléchargez-en une de temps en temps pour en garder une copie ailleurs.",
   'admin.backups.none':'Aucune sauvegarde automatique pour le moment — la première sera prise cette nuit.',
@@ -1317,6 +1323,7 @@ en:{
   'maj.recharger':'Reload',
   'maj.voirPlus':'See more','maj.voirMoins':'See less',
   'maj.quoiDeNeuf':"✨ What's new",'maj.ok':'Got it',
+  'maj.titreDispo':'🔄 Update available','maj.plusTard':'Later',
   'admin.backups.title':'🌙 Automatic backups',
   'admin.backups.sub':'A backup is taken every night and kept for 30 days. They stay with the hosting provider — download one now and then to keep a copy elsewhere.',
   'admin.backups.none':'No automatic backup yet — the first one will be taken tonight.',
@@ -4647,31 +4654,45 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-08-12-terrain';
+const MAJ_ID='2026-08-13-fenetre-maj';
 const NOTES_MAJ={
   fr:{
-    resume:'Vue terrain plus simple à remplir et à lire.',
+    resume:'Une seule fenêtre, et un seul bouton, pour les mises à jour.',
     details:[
-      'Le lien « Ouvrir sur Maps » sous chaque intervention a été retiré : le badge 📌 GPS en haut de la ligne, à côté du quartier, ouvre déjà la carte.',
-      'Études FTTH : les cases affichent maintenant « FDT- », « FAT- » et « Distance = » en clair. Il n’y a plus que le numéro à taper, et il reste lisible une fois enregistré.',
-      'Le numéro de téléphone saisi pour une étude FTTH apparaît maintenant sur la vue terrain, comme pour les autres interventions : il suffit d’appuyer dessus pour appeler.',
-      'Correction : changer le statut d’une intervention ne remplace plus la remarque par les coordonnées GPS.',
-      'Page Édition (administration) : les champs ne débordent plus de l’écran sur téléphone, et le bandeau du haut ne se chevauche plus.',
-      'La liste du statut prend maintenant la couleur du statut choisi : jaune en attente, vert réalisé, rouge injoignable, violet problème.'
+      'Il y avait deux messages pour une même mise à jour : cette fenêtre, et un bandeau « Recharger » en bas de l’écran. Le bandeau a été supprimé.',
+      'Le bouton de cette fenêtre installe désormais la mise à jour directement : plus besoin de chercher autre chose à appuyer.',
+      'Quand une nouvelle version arrive pendant que vous travaillez, un bouton « Plus tard » vous permet de finir ce que vous êtes en train de saisir avant d’installer.'
     ]
   },
   en:{
-    resume:'The field view is easier to fill in and to read.',
+    resume:'One window, one button, for updates.',
     details:[
-      'The "Open in Maps" link under each job has been removed: the 📌 GPS badge at the top of the line, next to the neighbourhood, already opens the map.',
-      'FTTH surveys: the boxes now show "FDT-", "FAT-" and "Distance =" on screen. You only type the number, and it stays readable once saved.',
-      'The phone number entered for an FTTH survey now shows up in the field view like every other job: just tap it to call.',
-      'Fix: changing a job’s status no longer replaces the remark with the GPS coordinates.',
-      'Editing page (admin): fields no longer run off the screen on a phone, and the top bar no longer overlaps itself.',
-      'The status dropdown now takes the colour of the selected status: yellow pending, green done, red unreachable, purple issue.'
+      'There were two messages for the same update: this window, and a "Reload" bar at the bottom of the screen. The bar has been removed.',
+      'This window’s button now installs the update directly — nothing else to look for.',
+      'When a new version arrives while you are working, a "Later" button lets you finish what you are typing before installing.'
     ]
   }
 };
+
+// Une SEULE fenêtre pour toute la mise à jour. Il y en avait deux — le panneau
+// « Quoi de neuf » et une bannière « Recharger » en bas — et elles pouvaient
+// s'afficher ensemble : au démarrage, la page récupère déjà le nouveau fichier
+// (network-first) pendant que le service worker, lui, finit son installation
+// quelques instants plus tard. L'utilisateur lisait donc les nouveautés d'une
+// version… en même temps qu'on lui annonçait cette même version comme « à
+// venir ». La bannière est supprimée : tout passe par `#modal-maj`.
+//
+// `majEnAttente` retient qu'un nouveau service worker attend d'être activé.
+// C'est lui qui décide de ce que fait le bouton de la fenêtre :
+//   - mise à jour en attente → il RECHARGE, donc il applique la mise à jour ;
+//   - rien en attente        → il ferme, sans plus.
+// On ne recharge jamais « pour rien » : un rechargement en pleine saisie ferait
+// perdre une consistance en cours de frappe, qui ne vit qu'en mémoire.
+let majEnAttente=false;
+// Vrai quand la fenêtre affiche « mise à jour disponible » et non les
+// nouveautés : dans ce cas le bouton ne doit PAS marquer des notes comme lues,
+// puisqu'aucune note n'a été montrée.
+let majModeDispo=false;
 
 // Ouvre le panneau « Quoi de neuf » si, et seulement si, cet appareil n'a pas
 // déjà lu CES notes-là.
@@ -4718,12 +4739,53 @@ function afficherQuoiDeNeufSiBesoin(){
     };
     corps.appendChild(plus);corps.appendChild(ul);
   }
+  document.getElementById('maj-titre').textContent=t('maj.quoiDeNeuf');
+  majModeDispo=false;
   modale.classList.add('active');
+  majBoutons();
 }
+
+// Fenêtre en mode « une nouvelle version est disponible » : appelée quand un
+// service worker vient de s'installer alors que l'app tourne déjà. Aucun détail
+// ici, et ce n'est pas un oubli : le code en cours d'exécution est celui de
+// l'ANCIENNE version, il ne connaît pas les nouveautés de celle qui arrive.
+// Elles seront lues après le rechargement.
+function afficherMajDispo(){
+  const modale=document.getElementById('modal-maj');
+  const corps=document.getElementById('maj-corps');
+  if(!modale||!corps) return;
+  if(modale.classList.contains('active')){ majBoutons(); return; }  // déjà ouverte : on ne l'écrase pas
+  corps.textContent=t('maj.dispo');
+  document.getElementById('maj-titre').textContent=t('maj.titreDispo');
+  majModeDispo=true;
+  modale.classList.add('active');
+  majBoutons();
+}
+
+// Ajuste les boutons à la situation réelle.
+function majBoutons(){
+  const btn=document.getElementById('maj-btn'), tard=document.getElementById('maj-plus-tard');
+  if(!btn) return;
+  btn.textContent=majEnAttente?t('maj.recharger'):t('maj.ok');
+  // « Plus tard » n'apparaît que s'il y a vraiment quelque chose à reporter.
+  // On propose la mise à jour, on ne l'impose pas : forcer un rechargement
+  // pendant une saisie ferait perdre le travail en cours.
+  if(tard) tard.classList.toggle('hidden',!majEnAttente);
+}
+
 function fermerQuoiDeNeuf(){
-  try{ localStorage.setItem('ceraf_maj_vue',MAJ_ID); }catch(e){}
+  // Des notes n'ont été lues que si des notes ont été affichées.
+  if(!majModeDispo){ try{ localStorage.setItem('ceraf_maj_vue',MAJ_ID); }catch(e){} }
   const m=document.getElementById('modal-maj');
   if(m) m.classList.remove('active');
+  // Le bouton principal APPLIQUE la mise à jour quand il y en a une en attente.
+  if(majEnAttente) location.reload();
+}
+function reporterMaj(){
+  const m=document.getElementById('modal-maj');
+  if(m) m.classList.remove('active');
+  // Volontairement : ni drapeau posé, ni rechargement. La fenêtre reviendra au
+  // prochain lancement, et les notes n'auront pas été « lues » entre-temps.
 }
 
 // ══════════════════════════════════════════════
@@ -4767,28 +4829,13 @@ function fermerQuoiDeNeuf(){
     }).catch(err=>console.warn('[SW] Erreur:',err));
   }
 
+  // Un nouveau service worker attend d'être activé. Plus de bannière séparée en
+  // bas de l'écran : on note la mise à jour en attente — ce qui suffit à faire
+  // du bouton de la fenêtre un vrai bouton « mettre à jour » — et on affiche la
+  // fenêtre unique, sauf si elle est déjà ouverte sur les nouveautés.
   function proposerMaj(){
-    if(document.getElementById('maj-dispo'))return;
-    // Volontairement sans détail : à cet instant, le code qui tourne est celui
-    // de l'ANCIENNE version et ne connaît pas les nouveautés de celle qui
-    // arrive. Le « quoi de neuf » s'affiche après le rechargement, une fois —
-    // voir afficherQuoiDeNeufSiBesoin().
-    const d=document.createElement('div');
-    d.id='maj-dispo';
-    d.style.cssText='position:fixed;left:12px;right:12px;bottom:16px;z-index:9999;'
-      +'background:var(--navy,#1e293b);color:#fff;border-radius:12px;padding:12px 14px;'
-      +'box-shadow:0 8px 24px rgba(0,0,0,.28);display:flex;align-items:center;gap:10px;'
-      +'font-size:.85rem;';
-    const txt=document.createElement('span');
-    txt.style.cssText='flex:1;line-height:1.35;';
-    txt.textContent=t('maj.dispo');
-    const btn=document.createElement('button');
-    btn.textContent=t('maj.recharger');
-    btn.style.cssText='background:#fff;color:var(--navy,#1e293b);border:none;border-radius:8px;'
-      +'padding:8px 14px;font-weight:700;font-size:.85rem;white-space:nowrap;cursor:pointer;';
-    btn.onclick=()=>location.reload();
-    d.appendChild(txt);d.appendChild(btn);
-    document.body.appendChild(d);
+    majEnAttente=true;
+    afficherMajDispo();
   }
 
   // ── BANNIÈRE ──────────────────────────────────────────────
