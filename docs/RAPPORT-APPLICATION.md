@@ -359,8 +359,16 @@ Deux dates, deux rôles à ne pas confondre :
   Recharger « pour rien » ferait perdre une consistance en cours de frappe, qui ne vit qu'en
   mémoire — d'où aussi le bouton « Plus tard », visible uniquement quand une mise à jour est
   réellement en attente : on propose, on n'impose pas. `majModeDispo` évite qu'un clic en mode
-  « disponible » marque comme lues des notes jamais affichées. Couvert par
-  `tests/test-fenetre-maj.mjs` (26 assertions, 6 situations).
+  « disponible » marque comme lues des notes jamais affichées.
+- **« Plus tard » n'est pas un refus définitif** : `reproposerMajSiEnAttente()` est rappelée à
+  chaque retour au premier plan (`visibilitychange`), donc **à chaque ouverture de l'app**,
+  tant que la mise à jour n'est pas installée. Sans ça, « Plus tard » revenait à ne plus
+  jamais rien dire : le service worker déjà installé n'émet plus d'événement, et une PWA
+  reprise depuis l'arrière-plan n'est pas rechargée — on aurait fait tourner l'ancienne
+  version pendant des jours, soit l'incident du 08/08 réintroduit par une autre porte.
+  Ce rappel n'est **pas** soumis au throttle de 5 min qui espace les `reg.update()` : c'est
+  une décision déjà prise, pas une interrogation réseau.
+- Couvert par `tests/test-fenetre-maj.mjs` (37 assertions, 8 situations).
 - Affichage **une seule fois par appareil** : `MAJ_ID` est mémorisé dans
   `localStorage['ceraf_maj_vue']` à la fermeture, donc un utilisateur qui a déjà lu ces
   nouveautés ne les revoit jamais — seul un `MAJ_ID` inédit rouvre le panneau. Sur un appareil

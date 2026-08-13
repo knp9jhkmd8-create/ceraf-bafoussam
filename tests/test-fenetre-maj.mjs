@@ -33,7 +33,8 @@ function nouveauContexte(stockage) {
   };
   ctx.globalThis = ctx;
   const f = new Function('LANG','t','document','localStorage','location',
-    code + '\nreturn {afficherQuoiDeNeufSiBesoin,afficherMajDispo,fermerQuoiDeNeuf,reporterMaj,proposerMajTest:()=>{majEnAttente=true;afficherMajDispo();},MAJ_ID};');
+    code + '\nreturn {afficherQuoiDeNeufSiBesoin,afficherMajDispo,fermerQuoiDeNeuf,reporterMaj,'
+         + 'reproposerMajSiEnAttente,proposerMajTest:()=>{majEnAttente=true;afficherMajDispo();},MAJ_ID};');
   const api = f(ctx.LANG, ctx.t, ctx.document, ctx.localStorage, ctx.location);
   return { api, noeuds, stockage, nbRecharges: () => recharge };
 }
@@ -107,6 +108,34 @@ console.log('\n6. « Plus tard » : ne recharge pas, ne marque rien');
   v('fenêtre fermée', !ouverte(c));
   v('aucun rechargement', c.nbRecharges() === 0);
   v('drapeau inchangé', c.stockage['ceraf_maj_vue'] === 'ancien-id');
+}
+
+console.log('\n7. « Plus tard » puis REOUVERTURE de l’app — la fenêtre revient');
+{
+  const c = nouveauContexte({ ceraf_url: 'x', ceraf_maj_vue: 'ancien-id' });
+  c.api.proposerMajTest();
+  c.api.reporterMaj();
+  v('fenêtre bien fermée', !ouverte(c));
+  // Retour au premier plan
+  v('elle se represente', c.api.reproposerMajSiEnAttente() === true);
+  v('fenêtre rouverte', ouverte(c));
+  v('toujours le bon titre', c.noeuds['maj-titre'].textContent === 'maj.titreDispo');
+  v('bouton = Recharger', c.noeuds['maj-btn'].textContent === 'maj.recharger');
+  // Repoussable autant de fois qu'on veut
+  c.api.reporterMaj();
+  v('2e report accepté', !ouverte(c) && c.nbRecharges() === 0);
+  v('et elle revient encore', c.api.reproposerMajSiEnAttente() === true && ouverte(c));
+  c.api.fermerQuoiDeNeuf();
+  v('installée quand on accepte enfin', c.nbRecharges() === 1);
+}
+
+console.log('\n8. Aucune mise à jour en attente — aucune fenêtre à l’ouverture');
+{
+  const c0 = nouveauContexte({}); const ID = c0.api.MAJ_ID;
+  const c = nouveauContexte({ ceraf_url: 'x', ceraf_maj_vue: ID });
+  v('rien à reproposer', c.api.reproposerMajSiEnAttente() === false);
+  v('aucune fenêtre', !ouverte(c));
+  v('aucun rechargement', c.nbRecharges() === 0);
 }
 
 console.log(`\n${ok} OK / ${ko} ECHEC`);

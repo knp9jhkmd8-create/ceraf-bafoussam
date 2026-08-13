@@ -42,14 +42,22 @@ contrairement aux `function`. Pour y accéder, passer par
 node tests/test-fenetre-maj.mjs
 ```
 
-Rejoue les six situations de la fenêtre de mise à jour sur le **vrai** code extrait
-d'`index.html` (la portion `MAJ_ID` → section PWA), avec un DOM minimal : appareil neuf,
-notes déjà lues, nouveautés seules, nouveautés + mise à jour arrivant pendant la lecture,
-mise à jour seule sur une app ouverte depuis longtemps, et « Plus tard ».
+37 assertions sur 8 situations, jouées sur le **vrai** code extrait d'`index.html` (la
+portion `MAJ_ID` → section PWA) avec un DOM minimal : appareil neuf, notes déjà lues,
+nouveautés seules, nouveautés + mise à jour arrivant pendant la lecture, mise à jour seule
+sur une app ouverte depuis longtemps, « Plus tard », retour de la fenêtre à chaque
+réouverture tant que la mise à jour n'est pas installée, et absence de fenêtre quand il n'y
+a rien en attente.
 
-Ce que le harnais protège, et qui n'est visible d'aucune autre façon : le bouton ne
-recharge que s'il y a réellement une mise à jour en attente — un rechargement gratuit
-ferait perdre une consistance en cours de frappe, qui ne vit qu'en mémoire.
+Deux propriétés que le harnais protège, invisibles autrement :
+
+1. **Le bouton ne recharge que s'il y a réellement une mise à jour en attente.** Un
+   rechargement gratuit ferait perdre une consistance en cours de frappe, qui ne vit qu'en
+   mémoire.
+2. **« Plus tard » n'éteint jamais définitivement la proposition.** Le service worker déjà
+   installé n'émet plus d'événement, et une PWA reprise depuis l'arrière-plan n'est pas
+   rechargée : sans le rappel à chaque ouverture, l'ancienne version tournerait des jours
+   durant sans le moindre signe.
 
 ## `check-inline-js.js`
 

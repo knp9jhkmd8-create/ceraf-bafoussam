@@ -4661,7 +4661,8 @@ const NOTES_MAJ={
     details:[
       'Il y avait deux messages pour une même mise à jour : cette fenêtre, et un bandeau « Recharger » en bas de l’écran. Le bandeau a été supprimé.',
       'Le bouton de cette fenêtre installe désormais la mise à jour directement : plus besoin de chercher autre chose à appuyer.',
-      'Quand une nouvelle version arrive pendant que vous travaillez, un bouton « Plus tard » vous permet de finir ce que vous êtes en train de saisir avant d’installer.'
+      'Quand une nouvelle version arrive pendant que vous travaillez, un bouton « Plus tard » vous permet de finir ce que vous êtes en train de saisir avant d’installer.',
+      '« Plus tard » ne fait pas disparaître la mise à jour : le message revient à chaque fois que vous rouvrez l’application, jusqu’à ce que vous l’installiez.'
     ]
   },
   en:{
@@ -4669,7 +4670,8 @@ const NOTES_MAJ={
     details:[
       'There were two messages for the same update: this window, and a "Reload" bar at the bottom of the screen. The bar has been removed.',
       'This window’s button now installs the update directly — nothing else to look for.',
-      'When a new version arrives while you are working, a "Later" button lets you finish what you are typing before installing.'
+      'When a new version arrives while you are working, a "Later" button lets you finish what you are typing before installing.',
+      '"Later" does not make the update go away: the message comes back every time you reopen the app, until you install it.'
     ]
   }
 };
@@ -4784,8 +4786,24 @@ function fermerQuoiDeNeuf(){
 function reporterMaj(){
   const m=document.getElementById('modal-maj');
   if(m) m.classList.remove('active');
-  // Volontairement : ni drapeau posé, ni rechargement. La fenêtre reviendra au
-  // prochain lancement, et les notes n'auront pas été « lues » entre-temps.
+  // Volontairement : ni drapeau posé, ni rechargement. Ce n'est PAS un refus
+  // définitif — voir reproposerMajSiEnAttente().
+}
+
+// Une mise à jour repoussée revient à CHAQUE ouverture de l'application, tant
+// qu'elle n'est pas installée.
+//
+// Sans ça, « Plus tard » revenait à ne plus jamais rien dire : le service
+// worker déjà installé n'émet plus d'événement, et une PWA basculée en
+// arrière-plan puis rouverte n'est PAS rechargée — elle reprend le JS qu'elle
+// avait en mémoire. On se retrouvait donc à faire tourner l'ancienne version
+// pendant des jours sans aucun signe : exactement l'incident du 08/08, réintroduit
+// par une autre porte. Le retour au premier plan est le bon moment pour
+// redemander : l'utilisateur arrive dans l'app, il n'est pas en pleine saisie.
+function reproposerMajSiEnAttente(){
+  if(!majEnAttente) return false;
+  afficherMajDispo();
+  return true;
 }
 
 // ══════════════════════════════════════════════
@@ -4822,7 +4840,11 @@ function reporterMaj(){
       // terrain à chaque bascule d'application.
       let dernier=0;
       document.addEventListener('visibilitychange',()=>{
-        if(document.hidden||Date.now()-dernier<5*60*1000)return;
+        if(document.hidden)return;
+        // Reproposée à chaque ouverture, sans attendre le délai ci-dessous :
+        // c'est une décision déjà prise, pas une nouvelle interrogation réseau.
+        reproposerMajSiEnAttente();
+        if(Date.now()-dernier<5*60*1000)return;
         dernier=Date.now();
         reg.update().catch(()=>{});
       });
