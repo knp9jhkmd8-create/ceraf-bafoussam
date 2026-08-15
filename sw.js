@@ -1,5 +1,5 @@
 // ============================================================
-//  CERAF Bafoussam — Service Worker v30
+//  CERAF Bafoussam — Service Worker v31
 //  - Met en cache index.html pour accès hors ligne
 //  - Ne touche PAS aux requêtes Apps Script
 //  - Vide automatiquement l'ancien cache à chaque mise à jour
@@ -9,7 +9,7 @@
 //    le cache ne sert plus que de secours hors-ligne.
 // ============================================================
 
-const CACHE_VERSION = 'ceraf-v30';
+const CACHE_VERSION = 'ceraf-v31';
 const CACHE_FILES   = ['./index.html', './manifest.json'];
 
 // ── INSTALLATION ────────────────────────────────────────────
@@ -35,9 +35,6 @@ self.addEventListener('activate', e => {
 // ── FETCH ───────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-
-  // Ne jamais intercepter les requêtes Apps Script
-  if (url.hostname.includes('script.google.com')) return;
 
   // Ne JAMAIS intercepter la sonde de connectivité (ping.txt?p=…). Elle n'est
   // pas dans CACHE_FILES aujourd'hui, donc elle passe déjà au réseau — mais si

@@ -6,59 +6,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CERAF Bafoussam — a PWA for managing field interventions (FTTH/LS/Cuivre) for a telecom crew. Two independently deployed halves that share no build tooling:
 
-- **Frontend**: [index.html](index.html) — a single-file vanilla JS SPA (~1600 lines of inline `<script>`), hosted on GitHub Pages. No framework, no bundler, no npm dependencies for the frontend itself. [manifest.json](manifest.json) + [sw.js](sw.js) make it an installable offline-first PWA.
-- **Backend**: [Code.gs](Code.gs) — a Google Apps Script project bound to a Google Sheet (ID in `SHEET_ID` constant), exposed as a web app via `doGet`/`doPost` returning JSON. This is the only "API" — there is no separate server.
+- **Frontend**: [index.html](index.html) — a single-file vanilla JS SPA (inline `<script>`), hosted on GitHub Pages. No framework, no bundler, no npm dependencies for the frontend itself. [manifest.json](manifest.json) + [sw.js](sw.js) make it an installable offline-first PWA.
+- **Backend**: [api/core.mjs](api/core.mjs) — the entire API logic, hosting-agnostic (Web APIs only: `fetch`, `crypto.subtle`, `crypto.randomUUID` — no Node-specific code). Deployed as a Cloudflare Worker via the adapter in [cloudflare/src/worker.mjs](cloudflare/src/worker.mjs); a Netlify adapter also exists under `netlify/functions/` but is not the live path (see [[netlify-api]] memory — abandoned after a build-credits outage). Data lives in Neon (managed Postgres, London region). See [cloudflare/README.md](cloudflare/README.md) for the deploy procedure.
 
-The frontend talks to the backend over a user-configured Apps Script web app URL (entered once in the app's setup screen, stored in `localStorage['ceraf_url']`) — it is **not** hardcoded in the source.
+  **This used to be a Google Apps Script project bound to a Google Sheet (`Code.gs`).** That backend was fully retired 2026-08-06 (migrated to Neon) and the file was deleted from this repo 2026-08-15 — if you see stale references to `Code.gs`, `clasp`, or `script.google.com` anywhere (docs, comments, old memory entries), they describe history, not the live system.
 
-## Deploying the backend (Code.gs)
+The frontend talks to the backend over a configurable API URL, defaulting to the Cloudflare Worker (`API_URL` constant in `index.html`) and stored in `localStorage['ceraf_url']` once set. `migrerUrlBackend()` auto-upgrades any device still pointing at an old `script.google.com` URL — no user action needed, no backend redeploy required for that migration path.
 
-The backend is managed with `clasp` (Google's official Apps Script CLI), already configured in this repo:
-
-- `.clasp.json` links this directory to the Apps Script project (scriptId, not the Sheet ID).
-- `.claspignore` restricts what clasp will sync to **only** `Code.gs` and `appsscript.json` — the frontend files (`index.html`, `sw.js`, `manifest.json`, icons) must never be pushed to Apps Script. `sw.js` in particular would be pushed as a `.js` file and Apps Script would try to interpret it as server-side script, which breaks the project (it contains `self.addEventListener` service-worker code, invalid as Apps Script).
-
-Typical workflow after editing `Code.gs`:
+## Deploying the backend
 
 ```bash
-clasp push --force                      # sync Code.gs to the Apps Script project
-clasp version "description of change"   # snapshot a version
-clasp deploy -i <deploymentId> -V <versionNumber> -d "description"   # publish to the LIVE deployment
+cd cloudflare
+wrangler deploy
 ```
 
-Always deploy with `-i <deploymentId>` targeting the **existing production deployment** (find it via `clasp deployments` — it's the one whose URL matches what's configured in the app's setup screen / what both "chef" and "technicien" roles use). Deploying without `-i` creates a brand-new deployment with a different URL, which would silently break the app for all users since they'd still be pointing at the old URL. There is no staging environment — the live deployment IS production.
+Full procedure, including the Neon connection string secret and post-deploy verification order, is in [cloudflare/README.md](cloudflare/README.md) — follow it, don't improvise a shortcut. There is no staging environment; the deployed Worker IS production.
 
-Before pushing, sanity-check syntax since Apps Script errors only surface at runtime in the Sheet, not at push time:
-```bash
-cp Code.gs /tmp/Code_check.js && node --check /tmp/Code_check.js
-```
-(copy to `.js` extension first — `node --check` refuses `.gs`.)
+There is no automated test suite for routine changes, but `tests/test-api-live.mjs` exists for live verification against a real URL (creates and tears down its own throwaway test account — never a permanent one, see the feedback memory on that incident).
 
-There is no automated test suite. Verification is done by curling the deployed web app directly, e.g.:
-```bash
-curl -sL "https://script.google.com/macros/s/<deploymentId>/exec?action=getAll&role=chef&month=2026-07"
-```
-`doGet`/`doPost` redirect (302) before returning JSON — use `-L` to follow.
+## Data model (Neon Postgres — 8 tables, 2 views)
 
-## Data model (Google Sheet, 5 tabs)
+Tables: `utilisateurs`, `consistances`, `interventions`, `clients`, `clients_ls`, `clients_resilies`, `sessions`, `audit_log`. Views: `v_consistances`, `v_interventions`. Exact columns and query shapes live in [api/core.mjs](api/core.mjs) (`sql()` calls) — read that file rather than assuming, the behaviors below describe intent, not a schema dump.
 
-Column order is **not** trustworthy — read every sheet through the dynamic header-index helpers (`getColMap`, `getClientsIdx`, `getClientsLsIdx`, `getInvIdx`, `getConsistIdx` in Code.gs) rather than hardcoded column numbers. The schema has been migrated multiple times in place (columns added/removed/reordered), so header-name lookup is the only safe way to access a column.
+- **Consistances**: one row per day. A "fiche du jour".
+- **Interventions**: one row per intervention, linked to a Consistance. Type (FTTH/LS/Cuivre), `statut` (`En attente` / `Réalisé` / `Injoignable` / `Problème`), origin date carried through report chains for duration calculation.
+- **Clients FTTH/Cuivre** live in the single `clients` table (service is implicit from which sheet-equivalent flow wrote it, carried over from the pre-Neon split — see `typeToService`-equivalent logic in `core.mjs`). Deduplicated by line number; GPS lives here, not on the intervention row.
+- **Clients LS** (`clients_ls`): LS interventions have no line number (name is the only mandatory field), so LS clients are keyed by normalized name.
+- **Clients Résiliés** (`clients_resilies`): terminated clients, archived separately from active ones.
 
-- **Consistances**: one row per day (`ID_Consistance`, `Date`, `Nb_Interventions`, `Realisees`, `Instances`). A "fiche du jour".
-- **Interventions**: one row per intervention, linked to a Consistance by `ID_Consistance`. Type (FTTH/LS/Cuivre), `Statut` (`En attente` / `Réalisé` / `Injoignable` / `Problème`), `Reporté_depuis` (origin date of first occurrence, carried through report chains), `Duree_Jours` (legacy incremental counter — **no longer the source of truth for duration**, see below).
-- **Clients FTTH** and **Clients Cuivre** (split from the single `Clients` sheet on 2026-07-10): one sheet per service, **no `Service` column** — the sheet itself is the classification; `typeToService()` only picks which sheet to write to (`sheetForService_`). Deduplicated by line number (`Numero`); a number lives in exactly one of the two sheets, and re-saving under the other service **moves** the row (reclassement). Client names are stored UPPERCASE. Any lookup by number must scan both sheets — use `trouverClientRow_`/`clientsSheets_`. GPS coordinates live here, not on the intervention row — `getByDate`/`getAll` always return `gps: ''` for interventions; the frontend merges in `clientsCache[num].gps` client-side.
-- **Clients LS**: LS interventions have **no line number** (name is the only mandatory field), so LS clients live in their own sheet keyed by normalized name (`nomKeyLs_`). Upserted by `saveConsistance` via `upsertClientLs_` (non-empty values only). `getClientHistory`/`updateClientGPS`/`deleteClient` accept a `nomLs` param for this sheet.
+## Key backend behaviors (api/core.mjs)
 
-`getClients` returns `clientsFtth`, `clientsCuivre`, `clientsLs` (plus a merged `clients` array kept for stale cached frontends). The archived pre-split sheet `zz_Clients_archive_20260710` can be deleted once the split is confirmed good.
-
-## Key backend behaviors (Code.gs)
-
-- **Role enforcement is server-side**, not just UI: `doGet`/`doPost` check `role` against action name (`getAll`/`getClients` chef-only for GET; `deleteClient`/`deleteIntervention`/`saveClient` chef-only for POST). Don't assume the frontend hiding a button is sufficient access control.
-- **Automatic daily carry-forward**: `reporterInterventionsEnAttente` runs on a time trigger (1am) and moves any intervention still `En attente`/`Injoignable`/`Problème` to the next business day's Consistance, incrementing `Duree_Jours` and preserving `Reporté_depuis` (the true origin date). Interventions marked `Réalisé` are excluded and thus frozen.
-- **Duration (`duree`) is computed on read, not trusted from storage**: `calculerDuree(reporteDepuis, dateLigne, statut)` computes `joursOuvres(origine, fin) - 1` at request time (`fin` = today if still open, or the row's own date if `Réalisé`). This was changed from an incrementally-stored counter because that counter silently diverges from reality whenever the nightly trigger doesn't run reliably (e.g. an old Apps Script deployment stuck live for weeks). Prefer computing derived values like this from source dates over trusting an incrementally-maintained counter.
-- **`normDate()` is not just a formatter — it's a data-corruption shim.** Historical bugs wrote `Date.toString()` (e.g. `"Mon Jun 22 2026 00:00:00 GMT+0100 (West Africa Time)"`) into cells as literal text instead of an ISO date. `normDate()` handles native `Date` objects, clean `YYYY-MM-DD` strings, *and* falls back to `new Date(s)` parsing for that legacy corrupted format. Any new code reading a date-ish cell should go through `normDate()`, never a bare `String(cell)`.
-- **Monthly history dedup** (`getAll`): the same logical intervention can appear as multiple rows across a month (once per day it was carried forward). Dedup key is `nom|num|type`; the surviving row is chosen by most-advanced status (`statutPoids`: Réalisé > Problème > Injoignable > En attente), tie-broken by latest date. The earliest `Reporté_depuis` across all duplicates is preserved as `datePremiere` so duration calculation still reflects the true origin even though only one row survives.
-- **Client deletion cascades**: deleting a client also deletes all its interventions across every Consistance and recalculates affected `Nb_Interventions` counts.
+- **Role enforcement is server-side**, not just UI: `traiterRequete` checks `role` against the requested action (`getAll`/`getClients` chef-only for GET; `deleteClient`/`deleteIntervention`/`saveClient` chef-only for POST). Don't assume the frontend hiding a button is sufficient access control.
+- **Automatic daily carry-forward**: `reporterNocturne` (run on a Cloudflare Cron Trigger) moves any intervention still `En attente`/`Injoignable`/`Problème` to the next business day's Consistance, preserving the true origin date. Interventions marked `Réalisé` are excluded and thus frozen.
+- **Duration is computed on read, not trusted from storage** — same principle as the old Apps Script backend (computed from origin date vs. today/completion date at request time), so it can't silently diverge if a nightly job misses a run.
+- **Monthly history dedup** (`getAll`): the same logical intervention can appear as multiple rows across a month (once per day it was carried forward). Dedup keeps the most-advanced status, tie-broken by latest date, while preserving the earliest origin date for duration purposes.
+- **Client deletion cascades**: deleting a client also deletes all its interventions and recalculates affected counts.
 
 ## Frontend structure (index.html)
 
@@ -73,6 +55,72 @@ Single file, no build step — edit directly and reload. Rough map by function, 
 
 ## When making a change
 
-- If you touch anything date-related in `Code.gs`, run it through `normDate()`/`joursOuvres()` rather than assuming sheet cells are clean — this codebase has a documented history of date-as-text corruption.
-- Prefer fixing root causes over one-off repair scripts. The bottom third of `Code.gs` is a graveyard of `reparer*`/`corriger*`/`migrer*` functions written to patch specific past data corruption incidents — they're useful as forensic evidence of what already went wrong, not a pattern to keep extending.
-- After any `Code.gs` change intended for production, push, version, deploy to the existing deployment ID, and verify against the **live** URL with `curl` before declaring it done — there's no staging/CI to catch regressions otherwise.
+- Prefer fixing root causes over one-off repair scripts — the pre-Neon Apps Script backend had a graveyard of `reparer*`/`corriger*`/`migrer*` functions written to patch past data corruption; don't restart that pattern in `api/core.mjs`.
+- After any `api/core.mjs` or `cloudflare/src/worker.mjs` change intended for production, deploy per [cloudflare/README.md](cloudflare/README.md) and verify against the **live** URL before declaring it done — there's no staging/CI to catch regressions otherwise.
+
+# Instructions de Design Visuel (Style Apple HIG)
+
+Pour tout le code UI, CSS, JSX ou Tailwind que tu génères, applique strictement la charte visuelle d'Apple (Human Interface Guidelines) pour éviter le style "IA générique" :
+
+## 1. Typographie
+- Polices : Utilise le System Font Stack d'Apple (`-apple-system`, `BlinkMacSystemFont`, `SF Pro Display`, `SF Pro Text`, `sans-serif`).
+- Style : Applique un letter-spacing légèrement resserré (`tracking-tight`) sur les grands titres et des contrastes de taille très marqués.
+
+## 2. Cartes & Surfaces
+- Bordures : Ultra-subtiles (`1px` avec opacité très faible : `border-black/5` en mode clair ou `border-white/10` en mode sombre).
+- Radii : Bords généreusement arrondis (`rounded-2xl` à `rounded-3xl` pour les cartes, `rounded-xl` pour les boutons).
+- Glassmorphism : Effet de flou sur les barres et modales (`backdrop-blur-md` avec fond semi-transparent).
+
+## 3. Couleurs & Ombres
+- Fond global : `#F5F5F7` (clair) ou `#000000` / `#1C1C1E` (sombre).
+- Ombres : Ombres diffusées et très douces (`shadow-sm` ou ombres sur-mesure très légères).
+- Accents : Utilise le bleu Apple (`#007AFF`) ou violet/vert uniquement pour les CTA principaux.
+
+## 4. Spacing & Micro-interactions
+- Donne beaucoup de padding et d'espace respirant.
+- Ajoute des transitions fluides au survol (`transition-all duration-200 hover:scale-[1.01]`).
+
+# Directives UI/UX : Design System & Animations Style Apple
+
+Lorsque tu rédiges ou modifies des interfaces utilisateur (HTML, CSS, composants React/Vue/Svelte), applique rigoureusement les principes de design et d'animations d'Apple (iOS & macOS).
+
+---
+
+## 1. Philosophie & Règle d'Or (Le Principe Cardinal)
+- **La Règle d'Or :** Les animations Apple doivent être **discrètes, physiques et réactives**. Une animation ne doit jamais faire attendre l'utilisateur ni ralentir son travail ; elle sert uniquement à rendre la navigation fluide, naturelle et agréable. Si une animation perturbe la vitesse d'exécution de l'application, simplifie-la.
+
+---
+
+## 2. Physique des Mouvements (Spring Physics)
+- **Pas de mouvements linéaires :** Interdiction d'utiliser des transitions rigides ou basiques (`linear`, `ease`).
+- **Courbes fluides :** Utilise des courbes d'amortissement douces (effet ressort/physique) pour donner une impression de légèreté.
+- **Micro-durées :** Les animations doivent être ultra-rapides (entre 0.2s et 0.35s maximum).
+
+---
+
+## 3. Feedback Tactile & Micro-interactions
+- **Enfoncement physique :** Au clic ou au toucher (`:active`), les boutons, cartes et éléments cliquables doivent légèrement se réduire (scale) pour donner un retour physique instantané à l'utilisateur.
+- **Survol élégant :** Sur ordinateur, les survols (`:hover`) doivent être très subtils (légère élévation et ombrage ultra-doux).
+
+---
+
+## 4. Matériaux & Profondeur (Glassmorphism)
+- **Effet Verre Trempé :** Utilise le flou d'arrière-plan (Backdrop Blur) et la translucidité pour les barres de navigation, les fenêtres modales et les panneaux d'action.
+- **Bordures ultra-fines :** Sépare les cartes et conteneurs avec des bordures très discrètes plutôt que des traits sombres épais.
+- **Mode Sombre Négatif :** Adapte automatiquement les fonds et le flou pour le mode sombre natif.
+
+---
+
+## 5. Entrées Séquentielles (Staggered Animations)
+- Lors du chargement d'une page ou d'une liste, fais apparaître les éléments progressivement du bas vers le haut avec un très léger décalage entre chaque élément.
+
+## ❌ Interdiction des Émojis & Remplacement par Icônes SVG
+
+1. **ZÉRO ÉMOJI DANS L'APPLICATION ET L'API :**
+   - Interdiction stricte d'inclure des émojis (ex: 🚀, 📊, ⚠️, 📌, ✅, 💡) dans les textes, titres, notifications, boutons ou réponses d'API.
+   - Les émojis donnent un aspect "généré par IA", manquent de sobriété et cassent l'esthétique professionnelle.
+
+2. **UTILISATION EXCLUSIVE D'ICÔNES SVG VECTORIELLES :**
+   - Si un élément visuel ou une icône est nécessaire, utilise **exclusivement un SVG inline** propre, vectoriel et stylisé.
+   - Design de l'icône : Lignes fines (*stroke-width: 1.5px* ou *2px*), style épuré, angles arrondis (*stroke-linecap="round"* *stroke-linejoin="round"*), parfaitement aligné avec la typographie.
+   - Les SVG doivent pouvoir hériter de la couleur du texte parent (`stroke="currentColor"` ou `fill="currentColor"`).
