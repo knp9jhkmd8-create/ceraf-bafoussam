@@ -15,7 +15,9 @@
 //  minimal — cohérent avec un projet qui n'a jamais eu d'étape de build.
 // ============================================================================
 
-const SESSION_DUREE_JOURS = 7;
+// Glissante : chaque requête authentifiée repousse l'expiration de 10h
+// (voir resoudreSession). Pas une durée fixe depuis la connexion.
+const SESSION_DUREE_HEURES = 10;
 const DEFAULT_PIN = '0000';
 // Sel historique, UNIQUEMENT pour les comptes créés avant la migration vers le
 // sel par utilisateur (format « <hash>:<sel> »). Doit rester identique à celui
@@ -130,8 +132,12 @@ async function resoudreSession(token) {
         AND u.actif AND u.supprime_le IS NULL`,
     [await hashToken(token)]);
   if (!l) return null;
-  // Trace de dernier accès — utile à l'onglet Audit, sans coût perceptible.
-  sql('UPDATE sessions SET dernier_acces = now() WHERE id = $1', [l.id]).catch(() => {});
+  // Fenêtre glissante : chaque accès repousse l'expiration de 10h. Une session
+  // inactive plus de 10h est donc rejetée par le WHERE expire_le > now()
+  // ci-dessus, sans job de purge à écrire.
+  sql(`UPDATE sessions SET dernier_acces = now(),
+                            expire_le = now() + ($2 || ' hours')::interval
+       WHERE id = $1`, [l.id, String(SESSION_DUREE_HEURES)]).catch(() => {});
   return {
     sessionId: l.id, matricule: l.matricule, nom: l.nom,
     roles: l.roles || [],
@@ -213,8 +219,8 @@ async function login(d, ctx) {
   const token = crypto.randomUUID() + '-' + crypto.randomUUID();
   await sql(
     `INSERT INTO sessions (token_hash, matricule, expire_le, appareil)
-     VALUES ($1, $2, now() + ($3 || ' days')::interval, $4)`,
-    [await hashToken(token), u.matricule, String(SESSION_DUREE_JOURS), (ctx.userAgent || '').slice(0, 200)]);
+     VALUES ($1, $2, now() + ($3 || ' hours')::interval, $4)`,
+    [await hashToken(token), u.matricule, String(SESSION_DUREE_HEURES), (ctx.userAgent || '').slice(0, 200)]);
   await sql('UPDATE utilisateurs SET derniere_connexion = now() WHERE matricule = $1', [u.matricule]);
   ctx.matricule = u.matricule;
 
@@ -334,9 +340,9 @@ async function getByDate(d) {
 
 async function getClients() {
   const [ftth, cuivre, ls, actives] = await Promise.all([
-    sql(`SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, gps, derniere_maj
+    sql(`SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, derniere_maj
            FROM clients WHERE service='FTTH' AND supprime_le IS NULL ORDER BY nom`),
-    sql(`SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, gps, derniere_maj
+    sql(`SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, derniere_maj
            FROM clients WHERE service='CUIVRE' AND supprime_le IS NULL ORDER BY nom`),
     sql(`SELECT nom, telephone, tel_secondaire, localite, ville, quartier, pop, gps, derniere_maj
            FROM clients_ls WHERE supprime_le IS NULL ORDER BY nom`),
@@ -344,7 +350,8 @@ async function getClients() {
           WHERE statut <> 'Réalisé' ORDER BY date`)
   ]);
   const mapC = r => ({ num: r.numero, nom: r.nom, tel: r.telephone || '', telSec: r.tel_secondaire || '',
-    loc: r.localite || '', ville: r.ville || '', quartier: r.quartier || '', gps: r.gps || '', maj: r.derniere_maj });
+    loc: r.localite || '', ville: r.ville || '', quartier: r.quartier || '', gps: r.gps || '',
+    fdt: r.fdt || '', fat: r.fat || '', distanceFatClient: r.distance_fat_client || '', maj: r.derniere_maj });
   const mapL = r => ({ nom: r.nom, tel: r.telephone || '', telSec: r.tel_secondaire || '',
     loc: r.localite || '', ville: r.ville || '', quartier: r.quartier || '', pop: r.pop || '',
     gps: r.gps || '', maj: r.derniere_maj });
@@ -764,6 +771,25 @@ async function updateStatus(d, ctx, session) {
     [statut, d.remarque === undefined ? null : String(d.remarque),
      d.panne === undefined ? null : String(d.panne), session.matricule, id]);
 
+  // Champs structurés d'étude FTTH (saisie Terrain) : seule cette vue les
+  // envoie, en plus de la remarque composée ci-dessus. Écrits À CÔTÉ, jamais
+  // à la place — la remarque reste la source d'affichage terrain existante,
+  // etudes_ftth la source durable indépendante du cycle de vie de la fiche.
+  if (['fdt', 'fat', 'distance', 'conclusion', 'note'].some(k => d[k] !== undefined)) {
+    const distNum = d.distance !== undefined && d.distance !== '' && !isNaN(Number(d.distance))
+      ? Number(d.distance) : null;
+    await sql(
+      `INSERT INTO etudes_ftth (intervention_id, fdt, fat, distance_fat_client, conclusion, note, maj_le)
+       VALUES ($1,$2,$3,$4,$5,$6, now())
+       ON CONFLICT (intervention_id) DO UPDATE SET
+         fdt = EXCLUDED.fdt, fat = EXCLUDED.fat,
+         distance_fat_client = EXCLUDED.distance_fat_client,
+         conclusion = EXCLUDED.conclusion, note = EXCLUDED.note,
+         maj_le = now()`,
+      [id, formatRepereFtth('FDT', d.fdt) || null, formatRepereFtth('FAT', d.fat) || null,
+       distNum, d.conclusion || null, d.note || null]);
+  }
+
   ctx.entite = 'intervention'; ctx.entiteId = id;
   ctx.avant = avant;
   ctx.apres = { statut, remarque: d.remarque, panne: d.panne };
@@ -771,6 +797,16 @@ async function updateStatus(d, ctx, session) {
 }
 
 const sansAccents = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+// Format canonique « FDT-X »/« FAT-X », idempotent quel que soit ce qui a été
+// saisi (suffixe brut depuis le formulaire technicien, ou valeur déjà
+// préfixée retapée par un admin). Miroir de sansPrefixe() côté index.html.
+function formatRepereFtth(prefixe, valeur) {
+  const v = String(valeur || '').trim();
+  if (!v) return '';
+  const suffixe = v.replace(new RegExp('^' + prefixe + '[\\s\\-:.]*', 'i'), '');
+  return prefixe + '-' + suffixe;
+}
 const serviceDuType = (t) => {
   const s = String(t || '').toLowerCase();
   if (s.includes('ftth')) return 'FTTH';
@@ -878,12 +914,25 @@ async function saveConsistance(d, ctx, session) {
     // imposait de DÉPLACER une ligne entre deux feuilles, n'est plus qu'un
     // UPDATE de la colonne `service`.
     if (estEtude) {
-      // Rien à faire : ni fiche FTTH/Cuivre, ni fiche LS. L'intervention est
-      // enregistrée normalement et apparaîtra dans l'historique.
-    } else if (numKey && service !== 'LS') {
+      // Toujours pas de fiche FTTH/Cuivre ni LS (décision du 2026-08-07 :
+      // pas encore de ligne attribuée). Mais le téléphone/la localité saisis
+      // ici ne vivaient QUE dans la remarque composée ci-dessus — perdus de
+      // vue dès que l'intervention sortait de l'historique actif. Table
+      // dédiée pour les préserver indépendamment (voir etudes_ftth).
       await sql(
-        `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, derniere_maj)
-         VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8, now())
+        `INSERT INTO etudes_ftth (intervention_id, telephone, tel_secondaire, localite)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (intervention_id) DO NOTHING`,
+        [invId, inv.tel || null, inv.numSec || null, inv.loc || null]);
+    } else if (numKey && service !== 'LS') {
+      // FDT/FAT : formulaire Installation FTTH uniquement (autres types
+      // n'envoient rien) ; format canonique complet stocké ici, cohérent
+      // avec le suffixe brut saisi côté formulaire (voir gf()/fields-install_ftth).
+      const fdtVal = formatRepereFtth('FDT', inv.fdt);
+      const fatVal = formatRepereFtth('FAT', inv.fat);
+      await sql(
+        `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, fdt, fat, derniere_maj)
+         VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$10,$11, now())
          ON CONFLICT (numero) DO UPDATE SET
            service        = EXCLUDED.service,
            nom            = CASE WHEN $9 THEN EXCLUDED.nom       ELSE clients.nom END,
@@ -894,11 +943,13 @@ async function saveConsistance(d, ctx, session) {
            -- Le numéro secondaire doit persister même hors mise à jour complète :
            -- il n'était écrit qu'à la création dans l'ancien backend.
            tel_secondaire = COALESCE(NULLIF(EXCLUDED.tel_secondaire, ''), clients.tel_secondaire),
+           fdt            = COALESCE(NULLIF(EXCLUDED.fdt, ''), clients.fdt),
+           fat            = COALESCE(NULLIF(EXCLUDED.fat, ''), clients.fat),
            supprime_le    = NULL,
            derniere_maj   = now()`,
         [numKey, service, String(inv.nom || '').toUpperCase(), inv.tel || null,
          inv.numSec || null, inv.loc || null, inv.ville || null, inv.quartier || null,
-         !!inv.updateClient]);
+         !!inv.updateClient, fdtVal, fatVal]);
     } else if (service === 'LS' && String(inv.nom || '').trim()) {
       // Clé métier LS = (nom, ville, quartier) normalisés, calculée par la base.
       await sql(
@@ -927,17 +978,21 @@ async function saveClient(d, ctx) {
   if (!num) return { success: false, error: 'Numéro manquant' };
   const service = String(d.service || '').toUpperCase() === 'CUIVRE' ? 'CUIVRE' : 'FTTH';
   const avant = await un('SELECT * FROM clients WHERE numero = $1', [num]);
+  const distFat = d.distanceFatClient !== undefined && d.distanceFatClient !== '' && !isNaN(Number(d.distanceFatClient))
+    ? Number(d.distanceFatClient) : null;
   await sql(
-    `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, gps, derniere_maj)
-     VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$9, now())
+    `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, derniere_maj)
+     VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now())
      ON CONFLICT (numero) DO UPDATE SET
        service=EXCLUDED.service, nom=EXCLUDED.nom, telephone=EXCLUDED.telephone,
        tel_secondaire=EXCLUDED.tel_secondaire, localite=EXCLUDED.localite,
        ville=EXCLUDED.ville, quartier=EXCLUDED.quartier,
        gps=COALESCE(NULLIF(EXCLUDED.gps,''), clients.gps),
+       fdt=EXCLUDED.fdt, fat=EXCLUDED.fat, distance_fat_client=EXCLUDED.distance_fat_client,
        supprime_le=NULL, derniere_maj=now()`,
     [num, service, String(d.nom || '').toUpperCase(), d.tel || null, d.telSec || null,
-     d.loc || null, d.ville || null, d.quartier || null, d.gps || '']);
+     d.loc || null, d.ville || null, d.quartier || null, d.gps || '',
+     formatRepereFtth('FDT', d.fdt) || null, formatRepereFtth('FAT', d.fat) || null, distFat]);
   ctx.entite = 'client'; ctx.entiteId = num; ctx.avant = avant;
   return { success: true, action: avant ? 'maj' : 'created' };
 }

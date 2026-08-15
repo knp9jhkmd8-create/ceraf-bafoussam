@@ -272,8 +272,8 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .badge{padding:3px 10px;border-radius:999px;font-size:.71rem;font-weight:700;white-space:nowrap;}
 .b-pending{background:var(--yellow-lt);color:var(--yellow);border:1px solid #fde68a;}
 .b-ok{background:var(--green-lt);color:var(--green);border:1px solid #86efac;}
-.b-unreachable{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
-.b-issue{background:var(--purple-lt);color:var(--purple);border:1px solid #c4b5fd;}
+.b-unreachable{background:var(--purple-lt);color:var(--purple);border:1px solid #c4b5fd;}
+.b-issue{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
 .b-transfere{background:#e2e8f0;color:#64748b;border:1px solid #cbd5e1;}
 .duree-badge{display:inline-flex;align-items:center;gap:4px;background:#fefce8;color:#854d0e;border:1px solid #fde68a;border-radius:999px;padding:2px 9px;font-size:.7rem;font-weight:700;}
 
@@ -285,8 +285,8 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
    rester lisible sur fond teinté. */
 select.sel-pending,select.sel-pending:focus{background:var(--yellow-lt);color:var(--yellow);border-color:#fde68a;font-weight:700;}
 select.sel-ok,select.sel-ok:focus{background:var(--green-lt);color:var(--green);border-color:#86efac;font-weight:700;}
-select.sel-unreachable,select.sel-unreachable:focus{background:var(--red-lt);color:var(--red);border-color:#fca5a5;font-weight:700;}
-select.sel-issue,select.sel-issue:focus{background:var(--purple-lt);color:var(--purple);border-color:#c4b5fd;font-weight:700;}
+select.sel-unreachable,select.sel-unreachable:focus{background:var(--purple-lt);color:var(--purple);border-color:#c4b5fd;font-weight:700;}
+select.sel-issue,select.sel-issue:focus{background:var(--red-lt);color:var(--red);border-color:#fca5a5;font-weight:700;}
 .remark-inp{width:100%;margin-top:7px;background:var(--surface);border:1.5px solid var(--border2);border-radius:9px;color:var(--text);padding:6px 10px;font-size:16px;font-family:var(--font-system);outline:none;transition:border-color .2s var(--ease);}
 .remark-inp:focus{border-color:var(--blue-mid);}
 /* Champ à libellé fixe (FDT-, FAT-, Distance =) : le libellé reste visible
@@ -444,7 +444,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login" data-i18n-html="login.btn">Se connecter</button>
     <div id="login-error" class="hidden" style="color:var(--red);font-size:.8rem;margin-top:12px;text-align:center;"></div>
   </div>
-  <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);" data-i18n="login.note">Connexion valable 30 jours sur cet appareil</p>
+  <p style="margin-top:24px;font-size:.73rem;color:var(--muted2);" data-i18n="login.note">Déconnexion automatique après 10h sans activité</p>
 </div>
 
 <!-- CHOIX DU RÔLE ACTIF (comptes multi-rôles uniquement) -->
@@ -533,8 +533,8 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <div class="secnum-row" id="f2sec-row"><input id="f2sec" placeholder="Numéro secondaire (9 chiffres)" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f2v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
           <div class="form-row">
-            <div><label data-i18n="label.fdt">FDT</label><input id="f2fdt" placeholder="Ex: FDT-1"></div>
-            <div><label data-i18n="label.fat">FAT</label><input id="f2fat" placeholder="Ex: FAT-12"></div>
+            <div><label data-i18n="label.fdt">FDT</label><div class="inp-prefixed"><span class="inp-prefix">FDT-</span><input type="text" id="f2fdt" placeholder="X"></div></div>
+            <div><label data-i18n="label.fat">FAT</label><div class="inp-prefixed"><span class="inp-prefix">FAT-</span><input type="text" id="f2fat" placeholder="X"></div></div>
           </div>
         </div>
 
@@ -1046,7 +1046,7 @@ fr:{
   'login.pin.label':'Code PIN',
   'login.btn':ICO.lockOpen+' Se connecter',
   'login.btn.loading':'Connexion...',
-  'login.note':'Connexion valable 30 jours sur cet appareil',
+  'login.note':'Déconnexion automatique après 10h sans activité',
   'login.err.required':'Matricule et PIN requis',
   'login.err.notFound':'Matricule introuvable',
   'login.err.badPin':'PIN incorrect',
@@ -1144,6 +1144,7 @@ fr:{
   'btn.refresh':'Actualiser',
   'clients.th.num':'N° Ligne','clients.th.nom':'Nom','clients.th.tel':'Téléphone','clients.th.tel2':'2ème contact',
   'clients.th.loc':'Localité','clients.th.ville':'Ville','clients.th.quartier':'Quartier','clients.th.gps':'GPS',
+  'clients.th.fdt':'FDT','clients.th.fat':'FAT',
   'clients.th.pop':'POP','clients.tab.cuivre':'Cuivre',
   'clients.merge.btn':ICO.link+' Fusionner',
   'clients.merge.title':ICO.link+' Fusion des fiches LS',
@@ -1331,7 +1332,7 @@ en:{
   'login.pin.label':'PIN code',
   'login.btn':ICO.lockOpen+' Log in',
   'login.btn.loading':'Logging in...',
-  'login.note':'Login valid for 30 days on this device',
+  'login.note':'Automatically logged out after 10h of inactivity',
   'login.err.required':'Staff ID and PIN required',
   'login.err.notFound':'Staff ID not found',
   'login.err.badPin':'Incorrect PIN',
@@ -1429,6 +1430,7 @@ en:{
   'btn.refresh':'Refresh',
   'clients.th.num':'Line No.','clients.th.nom':'Name','clients.th.tel':'Phone','clients.th.tel2':'2nd contact',
   'clients.th.loc':'Location','clients.th.ville':'City','clients.th.quartier':'Neighborhood','clients.th.gps':'GPS',
+  'clients.th.fdt':'FDT','clients.th.fat':'FAT',
   'clients.th.pop':'POP','clients.tab.cuivre':'Copper',
   'clients.merge.btn':ICO.link+' Merge',
   'clients.merge.title':ICO.link+' Merge LS records',
@@ -3147,8 +3149,9 @@ function renderClientsTable(list,wrapId){
   const wrap=document.getElementById(wrapId);
   if(!list||list.length===0){wrap.innerHTML=`<div class="empty"><div class="eicon">${ICO.users}</div><p>${t('clients.empty')}</p></div>`;return;}
   const showHist=role==='chef';
+  const showFdtFat=clientsView==='ftth';
   let h=`<table class="clients-table"><thead><tr>
-    <th>${t('clients.th.num')}</th><th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.gps')}</th>${showHist?`<th></th>`:''}
+    <th>${t('clients.th.num')}</th><th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.gps')}</th>${showFdtFat?`<th>${t('clients.th.fdt')}</th><th>${t('clients.th.fat')}</th>`:''}${showHist?`<th></th>`:''}
   </tr></thead><tbody>`;
   list.forEach(c=>{
     // GPS valide = contient des chiffres et une virgule (coordonnées)
@@ -3165,6 +3168,7 @@ function renderClientsTable(list,wrapId){
       <td>${esc(c.loc)||'—'}</td><td>${esc(c.ville)||'—'}</td>
       <td>${c.quartier?`<span class="tag tag-quartier">${esc(c.quartier)}</span>`:'—'}</td>
       <td>${gpsH}</td>
+      ${showFdtFat?`<td>${esc(c.fdt)||'—'}</td><td>${esc(c.fat)||'—'}</td>`:''}
       ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('${escJsAttr(c.num)}','${escJsAttr(c.nom||'')}')">${ICO.scroll}</button></td>`:''}
     </tr>`;
   });
@@ -3507,7 +3511,7 @@ function renderTerrain(data){
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=terrainStatutFilter===sk;
-      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--red)','issue':'var(--purple)'};
+      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--purple)','issue':'var(--red)'};
       const col=colors[sk];
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="setTerrainFilter('s','${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
@@ -3995,14 +3999,24 @@ async function updStructured(invId){
   invRef.remarque=remarque;
   if(panne!==undefined)invRef.panne=panne;
 
+  const payload={action:'updateStatus',invId,statut,remarque,panne};
+  // Champs bruts en plus de la remarque composée : etudes_ftth les stocke à
+  // part, indépendamment de ce qui arrive au texte de la remarque (voir
+  // updateStatus côté backend). Uniquement pour l'étude, jamais le
+  // dérangement (kind==='panne').
+  if(structured&&structured.kind==='etude'){
+    payload.fdt=structured.fdt;payload.fat=structured.fat;payload.distance=structured.distance;
+    payload.conclusion=structured.conclusion;payload.note=structured.note;
+  }
+
   if(estHorsLigne()){
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
+    offlineEnqueue(payload);
     saveTerrainCache();
     return;
   }
-  const res=await apiPost({action:'updateStatus',invId,statut,remarque,panne});
+  const res=await apiPost(payload);
   if(!res.success&&(res.networkError||res.serverError)){
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});saveTerrainCache();
+    offlineEnqueue(payload);saveTerrainCache();
   }
 }
 
@@ -4221,7 +4235,7 @@ function renderHistoForMonth(){
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=activeS===sk;
-      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--red)','issue':'var(--purple)'};
+      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--purple)','issue':'var(--red)'};
       const col=colors[sk];
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="filterHistoByStatut('${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
@@ -4655,6 +4669,8 @@ async function chargerEditionClient(){
       ${ch('edc-tel','Téléphone',c.tel)}${ch('edc-telsec','Tél. secondaire',c.telSec)}
       ${ch('edc-ville','Ville',c.ville)}${ch('edc-quartier','Quartier',c.quartier)}
       ${ch('edc-loc','Localité',c.loc)}${ch('edc-gps','GPS',c.gps)}
+      ${ch('edc-fdt','FDT',c.fdt)}${ch('edc-fat','FAT',c.fat)}
+      ${ch('edc-distfat','Distance FAT-client (m)',c.distanceFatClient)}
     </div>
     <div class="ed-actions">
       <button class="btn btn-green btn-sm" onclick="enregistrerEditionClient('${escJsAttr(num)}')">${esc(t('edition.enregistrer'))}</button>
@@ -4666,7 +4682,8 @@ async function enregistrerEditionClient(num){
   const V=id=>(document.getElementById(id)||{}).value||'';
   const res=await apiPost({action:'saveClient',num,
     nom:V('edc-nom'),service:V('edc-service'),tel:V('edc-tel'),telSec:V('edc-telsec'),
-    ville:V('edc-ville'),quartier:V('edc-quartier'),loc:V('edc-loc'),gps:V('edc-gps')});
+    ville:V('edc-ville'),quartier:V('edc-quartier'),loc:V('edc-loc'),gps:V('edc-gps'),
+    fdt:V('edc-fdt'),fat:V('edc-fat'),distanceFatClient:V('edc-distfat')});
   if(res.success)showToast(t('toast.saved'));
   else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
@@ -4849,22 +4866,22 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-08-15-nouveau-look';
+const MAJ_ID='2026-08-16-couleurs-fdt-session';
 const NOTES_MAJ={
   fr:{
-    resume:'Un nouveau look, plus clair et plus simple à lire.',
+    resume:'Couleurs de statut inversées, FDT/FAT plus cohérents, déconnexion après 10h d’inactivité.',
     details:[
-      'L’apparence de l’application a changé : fond plus clair, cartes et boutons aux coins arrondis, texte plus net.',
-      'Les petits pictogrammes colorés (📋 ➕ 🔧 …) ont été remplacés par des icônes simples, en traits fins, plus faciles à distinguer d’un coup d’œil en plein soleil.',
-      'Rien ne change dans la façon de travailler : mêmes écrans, mêmes boutons, aux mêmes endroits — seule l’apparence est différente.'
+      'Les couleurs des statuts « Injoignable » et « Problème » sont inversées : Injoignable est maintenant en violet, Problème en rouge.',
+      'À l’installation FTTH, les champs FDT et FAT s’écrivent maintenant sous la même forme qu’à l’étude (FDT-X, FAT-X) — ces informations sont désormais gardées avec la fiche du client et visibles dans la liste des clients.',
+      'Une session reste maintenant ouverte 10 heures sans activité, au lieu de 30 jours. Passé ce délai, il suffit de se reconnecter avec son code habituel — rien n’est réinitialisé.'
     ]
   },
   en:{
-    resume:'A new look — clearer and easier to read.',
+    resume:'Swapped status colors, more consistent FDT/FAT, logout after 10h of inactivity.',
     details:[
-      'The app’s appearance has changed: a lighter background, rounder cards and buttons, crisper text.',
-      'The small colored pictograms (📋 ➕ 🔧 …) have been replaced with simple line icons, easier to tell apart at a glance in bright sunlight.',
-      'Nothing changes in how you work: same screens, same buttons, same places — only the look is different.'
+      'The colors for “Unreachable” and “Issue” statuses are swapped: Unreachable is now purple, Issue is now red.',
+      'On FTTH installation, the FDT and FAT fields are now written the same way as during the study (FDT-X, FAT-X) — this information is now kept with the client record and shown in the client list.',
+      'A session now stays open for 10 hours of inactivity instead of 30 days. After that, just log back in with your usual code — nothing gets reset.'
     ]
   }
 };

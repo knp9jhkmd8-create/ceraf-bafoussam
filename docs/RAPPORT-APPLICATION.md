@@ -111,10 +111,12 @@ téléphones déjà configurés sur Apps Script basculent tout seuls.
   `<hash>:<sel>` ; les comptes antérieurs à la migration du sel retombent sur `PIN_SALT`
   (`api/core.mjs:23`), qui doit rester identique à celui d'Apps Script sous peine d'invalider
   tous les PIN existants.
-- **Sessions** : token = double UUID, valable 7 jours (`SESSION_DUREE_JOURS`), **stocké haché**
-  (`token_hash`). Une fuite de la base ne donne aucune session utilisable. La table `sessions`
-  distingue les appareils : la révocation est individuelle et l'admin voit les sessions
-  ouvertes.
+- **Sessions** : token = double UUID, **stocké haché** (`token_hash`). Fenêtre glissante de
+  10h (`SESSION_DUREE_HEURES`) : chaque requête authentifiée repousse `expire_le`, une session
+  inactive plus de 10h expire d'elle-même (pas de job de purge à écrire). Expirée, elle exige
+  une reconnexion avec le PIN habituel de l'utilisateur — seul `adminResetPin` remet un PIN à
+  0000. Une fuite de la base ne donne aucune session utilisable. La table `sessions` distingue
+  les appareils : la révocation est individuelle et l'admin voit les sessions ouvertes.
 - **Rate-limit de login**, lu depuis `audit_log` (aucun cache externe) : 5 échecs par matricule
   et 20 par IP sur une fenêtre de 15 min, comptés dans **une seule requête** par agrégat
   conditionnel.

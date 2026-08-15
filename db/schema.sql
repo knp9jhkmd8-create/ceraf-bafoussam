@@ -124,20 +124,56 @@ CREATE INDEX ON interventions (numero_ligne)        WHERE supprime_le IS NULL;
 --  Noms stockés en MAJUSCULES (convention existante, conservée).
 -- ============================================================================
 CREATE TABLE clients (
-  numero          text PRIMARY KEY,
-  service         service_t NOT NULL CHECK (service IN ('FTTH', 'CUIVRE')),
-  nom             text NOT NULL,
-  telephone       text,
-  tel_secondaire  text,
-  localite        text,
-  ville           text,
-  quartier        text,
-  gps             text,                        -- « lat,lon », saisi au terrain
-  derniere_maj    timestamptz NOT NULL DEFAULT now(),
-  supprime_le     timestamptz
+  numero               text PRIMARY KEY,
+  service              service_t NOT NULL CHECK (service IN ('FTTH', 'CUIVRE')),
+  nom                  text NOT NULL,
+  telephone            text,
+  tel_secondaire       text,
+  localite             text,
+  ville                text,
+  quartier             text,
+  gps                  text,                   -- « lat,lon », saisi au terrain
+  -- Repère réseau FTTH, renseigné à l'Installation ou corrigé par l'admin.
+  -- Sans objet pour le Cuivre (colonnes présentes mais toujours NULL).
+  fdt                  text,                   -- ex. « FDT-1 »
+  fat                  text,                   -- ex. « FAT-12 »
+  distance_fat_client  integer,                -- mètres, saisi par l'admin uniquement
+  derniere_maj         timestamptz NOT NULL DEFAULT now(),
+  supprime_le          timestamptz
 );
 CREATE INDEX ON clients (service)  WHERE supprime_le IS NULL;
 CREATE INDEX ON clients (quartier) WHERE supprime_le IS NULL;
+
+-- ============================================================================
+--  ÉTUDES FTTH — une étude ne crée volontairement aucune fiche client (pas
+--  encore de ligne attribuée, décision du 2026-08-07, voir estEtude dans
+--  saveConsistance). Avant cette table, tout ce qui était recueilli à
+--  l'étude (téléphone, localité, FDT, FAT, distance FAT-client, conclusion)
+--  ne vivait qu'en texte libre dans interventions.remarque — perdu de vue
+--  dès que l'intervention sortait de l'historique actif. Cette table le
+--  préserve indépendamment, sans rien présumer du lien futur vers un client
+--  éventuel (numero_ligne sur interventions reste le candidat naturel pour
+--  cette jointure, à construire plus tard).
+--
+--  intervention_id est une clé stable : le report nocturne déplace la ligne
+--  en GARDANT son id (voir reporter_interventions() plus bas) — une étude
+--  encore ouverte garde donc la même clé tant qu'elle n'est pas Réalisée.
+--  Pas de colonnes date/nom/ville/quartier ici : déjà sur interventions,
+--  les dupliquer désynchroniserait au report nocturne.
+-- ============================================================================
+CREATE TABLE etudes_ftth (
+  intervention_id      text PRIMARY KEY REFERENCES interventions(id) ON DELETE CASCADE,
+  telephone            text,
+  tel_secondaire       text,
+  localite             text,
+  fdt                  text,
+  fat                  text,
+  distance_fat_client  integer,               -- mètres
+  conclusion           text,                  -- FAVORABLE / DEFAVORABLE
+  note                 text,
+  cree_le              timestamptz NOT NULL DEFAULT now(),
+  maj_le               timestamptz NOT NULL DEFAULT now()
+);
 
 -- ============================================================================
 --  CLIENTS LS — pas de numéro de ligne, le nom est le seul champ obligatoire.
@@ -288,14 +324,25 @@ SELECT c.id,
  WHERE c.supprime_le IS NULL
  GROUP BY c.id, c.date, c.publie_par;
 
--- Interventions enrichies : GPS fusionné depuis la fiche client (le GPS vit sur
--- le client, pas sur l'intervention — comportement repris de getClientsJoinMap)
--- et durée calculée. Ce JOIN remplace les deux lectures de feuilles entières
--- que faisait chaque getByDate.
+-- Interventions enrichies : GPS/téléphone fusionnés depuis la fiche client
+-- (ces champs vivent sur le client, pas sur l'intervention — comportement
+-- repris de getClientsJoinMap) et durée calculée. Ce JOIN remplace les deux
+-- lectures de feuilles entières que faisait chaque getByDate.
+--
+-- Colonnes explicites plutôt que `i.*` : CREATE OR REPLACE VIEW refuse de
+-- renommer une colonne existante en place, seul un AJOUT en fin de liste est
+-- permis — toute évolution future de cette vue doit continuer à ajouter les
+-- nouvelles colonnes à la fin, jamais au milieu.
 CREATE VIEW v_interventions AS
-SELECT i.*,
+SELECT i.id, i.consistance_id, i.date, i.type, i.service, i.numero_ligne, i.nom_client,
+       i.statut, i.panne, i.remarque, i.reporte_depuis, i.ville, i.quartier, i.publie_par,
+       i.statut_par, i.mis_a_jour_le, i.client_request_id, i.supprime_le,
        duree_intervention(i.reporte_depuis, i.date, i.statut) AS duree,
-       coalesce(cl.gps, '')                                    AS gps
+       coalesce(cl.gps, '')             AS gps,
+       coalesce(cl.telephone, '')       AS tel,
+       coalesce(cl.tel_secondaire, '')  AS tel_sec,
+       cl.fdt,
+       cl.fat
   FROM interventions i
   LEFT JOIN clients cl ON cl.numero = i.numero_ligne AND cl.supprime_le IS NULL
  WHERE i.supprime_le IS NULL;
