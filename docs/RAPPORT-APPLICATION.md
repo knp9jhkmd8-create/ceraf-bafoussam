@@ -1,6 +1,7 @@
 # CERAF Bafoussam — Rapport descriptif de l'application
 
-*Réécrit le 2026-08-07 à partir d'une lecture du code réellement en production :
+*Mis à jour le 2026-09-15 (règle d'appartenance au mois, retrait du dédoublonnage).
+Réécrit le 2026-08-07 à partir d'une lecture du code réellement en production :
 `api/core.mjs`, `db/schema.sql`, `db/report-nocturne.sql`, `cloudflare/`, `index.html`, `sw.js`.
 Remplace la version du 2026-08-05, qui décrivait le backend Apps Script aujourd'hui hors circuit.*
 
@@ -40,13 +41,14 @@ Détail et arbitrages dans [AMELIORATIONS-API.md](AMELIORATIONS-API.md).
   ainsi devenus des « clients ». Une étude est une demande à l'instruction, pas un client.
   Elle reste dans l'historique et ne crée plus rien, ni en FTTH/Cuivre ni en LS. 8 fiches
   existantes archivées, **interventions intactes**.
-- **« Durée moy. sur le mois »** couvre **toutes** les interventions du mois — enregistrées
-  dans le mois comme héritées du mois précédent — et le compteur d'un dossier hérité **repart
-  au 1er du mois** (fonction `duree_dans_mois`, exposée par `getAll` sous `dureeMois`).
-  Résultat comparable d'un mois à l'autre : août 3,0 j / juillet 3,7 j / juin 1,8 j.
-  ⚠️ La durée propre à **chaque** intervention reste la VRAIE, comptée depuis son origine
-  réelle : seul l'agrégat change. Une intervention née le 09/07 affiche toujours ses 21 j sur
-  sa ligne tout en comptant 4 j dans la statistique d'août.
+- **« Durée moy. sur le mois »** est la moyenne des durées **réelles** des interventions du
+  mois, en jours ouvrés depuis leur ouverture (`duree_intervention`, exposée par `getAll`
+  sous `duree`). Août 8,0 j / juillet 4,7 j / juin 1,8 j.
+  ♦ *Révisé le 2026-09-15.* L'agrégat s'appuyait jusque-là sur `duree_dans_mois`, un compteur
+  remis à zéro au 1er et arrêté au 31. Il allait de pair avec l'ancienne règle d'appartenance,
+  où un dossier non résolu migrait vers le mois suivant et devait y être rattrapé. Depuis que
+  chaque intervention reste dans son mois (voir §5), ce compteur ne ferait plus que tronquer.
+  La fonction SQL `duree_dans_mois` n'est plus appelée par personne.
 - **Filtre par panne** retiré de l'Historique ; **icône ☎** retirée partout (le paramètre
   `avecIcone` de `lienTel` est supprimé, plus aucun appelant ne le demandait).
 - **L'admin peut corriger les dates d'une intervention** — voir §5bis.
@@ -245,8 +247,9 @@ encore sur les widgets natifs mobiles) — les champs sortaient de la carte. Le 
 cachait le débordement dans une barre de défilement.
 
 ### Historique
-Consomme `getAll` (dédupliqué mensuellement), sélecteur de mois, statistiques, mêmes filtres
-croisés, cache localStorage par mois.
+Consomme `getAll`, sélecteur de mois, statistiques, mêmes filtres croisés, cache localStorage
+par mois. Plus aucun dédoublonnage : chaque intervention de la base est une intervention à
+l'écran (voir §5).
 
 ### Clients
 4 onglets (FTTH / Cuivre / LS / Résiliés — ce dernier chef-only), recherche, historique par
@@ -281,10 +284,25 @@ possible par `audit_log`.
   au Cameroun (UTC+1 — les crons Cloudflare sont toujours en UTC, écrire `0 0` déclencherait
   à 1 h locale), plus un filet de sécurité appelé par `getByDate` sur la date du jour. Si le
   déclencheur saute, l'arriéré remonte dès qu'un technicien ouvre sa fiche.
-- **Dédoublonnage mensuel** (`getAll`) : la même intervention logique apparaît une fois par
-  jour de report. Clé `nom|num|type`, survivant choisi par statut le plus avancé
-  (Réalisé > Problème > Injoignable > En attente), départagé par date la plus récente ; le
-  `reporte_depuis` le plus ancien est conservé pour que la durée reste juste.
+- **À quel mois appartient une intervention** (`getAll`) — corrigé le **2026-09-15**, après
+  un mois d'août affiché à 100 % de réalisation. Règle : une intervention compte dans le mois
+  où elle a été **réalisée** ; tant qu'elle ne l'est pas, dans le mois où elle a été
+  **ouverte**. En SQL :
+  `CASE WHEN statut = 'Réalisé' THEN date ELSE COALESCE(reporte_depuis, date) END`.
+  *Pourquoi ce n'est pas simplement `date`* : `date` est la date de PLANIFICATION, que le
+  report nocturne fait avancer tant que l'intervention n'est pas réalisée. Un dossier encore
+  ouvert le 31 voyait donc sa date basculer dans le mois suivant et QUITTAIT son mois. Il ne
+  restait dans un mois écoulé que des « Réalisé » — d'où un taux figé à 100 % sur tout mois
+  passé, pendant que le mois en cours portait l'arriéré de tous les autres. Mesuré avant
+  correction : juin, juillet et août tous à 100 %. Après : août 62 interventions dont 4
+  ouvertes, 94 %.
+- **Plus de dédoublonnage mensuel** — retiré le **2026-09-15**. `getAll` fusionnait les lignes
+  sur la clé `nom|num|type`, règle héritée d'Apps Script où le report créait bien une ligne
+  par jour. Depuis Neon, le report **déplace** la ligne : une intervention logique = une ligne
+  (vérifié sur toute la base — aucun couple de lignes ne partage la même origine). La règle ne
+  fusionnait donc plus que des interventions DISTINCTES : deux dérangements du même client
+  dans le mois n'en faisaient qu'un, soit **6 interventions effacées de juillet 2026** (65
+  affichées au lieu de 59). Ne pas la réintroduire.
 - **Identité d'un client LS** = `(nom, ville, quartier)` normalisés. Ce n'est pas une
   convention applicative mais la définition de `clients_ls.cle_normalisee` et de son index
   unique : une orthographe différente crée une **autre** fiche. Toute requête sur un client LS

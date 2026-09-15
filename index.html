@@ -331,7 +331,7 @@ select.sel-issue,select.sel-issue:focus{background:var(--red-lt);color:var(--red
 .hs-val{font-size:1.2rem;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
 .hs-lbl{font-size:.67rem;color:var(--muted);margin-top:3px;line-height:1.3;}
 @media(prefers-reduced-motion:reduce){.hs-bar>span{transition:none;}}
-.qpill{display:inline-flex;align-items:center;gap:6px;background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;border-radius:20px;padding:4px 10px;font-size:.74rem;font-weight:700;margin:0 6px 6px 0;}
+.qpill{display:inline-flex;align-items:center;gap:6px;background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;border-radius:20px;padding:4px 10px;font-size:.74rem;font-weight:400;margin:0 6px 6px 0;}
 .qpill-clickable{cursor:pointer;transition:all .2s;}
 .qpill-active{background:var(--teal);color:#fff;border-color:var(--teal);cursor:default;}
 .qpill b{background:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;color:var(--teal);}
@@ -1661,6 +1661,10 @@ const TI={
   derang_cuivre:ICO.derangCuivre, etude_ls:ICO.etudeLs, derang_ls:ICO.derangLs, install_ls:ICO.installLs,
   resiliation_ftth:ICO.resiliation, resiliation_cuivre:ICO.resiliation, resiliation_ls:ICO.resiliation
 };
+// `interventions.type` stocké en base est le LIBELLÉ (TL[clé]), pas la clé
+// interne ci-dessus — sans cet alias, TI[gt] ne matchait jamais et chaque
+// intervention retombait sur l'icône générique ICO.clipboard en vue Terrain.
+Object.keys(TI).forEach(k=>{ if(TL[k]) TI[TL[k]]=TI[k]; });
 const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',issue:'b-issue',transfere:'b-transfere'};
 // Teinte d'une liste déroulante de statut. Appelée au rendu (classe posée dans
 // le HTML) ET à chaque changement, sinon la couleur resterait celle du statut
@@ -1685,7 +1689,7 @@ const QUARTIERS_BAFOUSSAM=[
   "MARCHE B","MARCHE A","TYO VILLE","FEU ROUGE","TOURISTIQUE","BAMENZI","KOUOGOUO",
   "DJEMOUN","NDIANSO","BANENGO","SOCADA","TAMDJA","KAMKOP","BALENG","EVECHE","COLACO",
   "BIPMOP","TOCKET","MAETUR","BINAM","DUBAI","AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO","FAMLA",
-  "AKWA","SENS INTERDIT"
+  "AKWA","SENS INTERDIT","MADELON"
 ].sort((a,b)=>b.length-a.length);
 
 // Options de "nature de la panne" pour les Dérangements FTTH
@@ -3650,6 +3654,17 @@ function invRowHTML(inv,idx){
     :(estTypeLs(inv.type)&&inv.nom?allClientsLsList.find(c=>String(c.nom).trim().toUpperCase()===String(inv.nom).trim().toUpperCase()):null)||null;
   // Enrichir avec telSec du cache client si disponible
   if(cacheClient&&cacheClient.telSec&&!inv.telSec) inv={...inv,telSec:cacheClient.telSec};
+  // FDT/FAT vivent sur la fiche client (colonne dédiée, plus dans la
+  // remarque) — repli sur le cache client si la ligne d'intervention ne les
+  // porte pas encore (ex. cache local pas encore rafraîchi).
+  if(cacheClient&&cacheClient.fdt&&!inv.fdt) inv={...inv,fdt:cacheClient.fdt};
+  if(cacheClient&&cacheClient.fat&&!inv.fat) inv={...inv,fat:cacheClient.fat};
+  // Toujours affichée sous le nom du client, y compris vide (placeholder
+  // "FDT- • FAT-") : l'équipe voulait ces repères visibles sans avoir à
+  // ouvrir la fiche client.
+  const fdtTxt=(inv.fdt&&inv.fdt!=='null')?inv.fdt:'FDT-';
+  const fatTxt=(inv.fat&&inv.fat!=='null')?inv.fat:'FAT-';
+  const fdtFatHTML=`<div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${esc(fdtTxt)} • ${esc(fatTxt)}</div>`;
   const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
                 :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps:'';
   const hasGps=gpsValue!=='';
@@ -3663,6 +3678,7 @@ function invRowHTML(inv,idx){
     return`<div class="inv-row" id="row-${inv.id}" style="opacity:.55;background:#f1f5f9;">
       <div class="inv-info">
         <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
+        ${fdtFatHTML}
         ${buildTags(inv)}
         <div class="inv-report">${ICO.arrowRight} ${esc(inv.remarque)}</div>
       </div>
@@ -3677,6 +3693,7 @@ function invRowHTML(inv,idx){
     return`<div class="inv-row" id="row-${inv.id}">
       <div class="inv-info">
         <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
+        ${fdtFatHTML}
         ${buildTags(inv)}
         ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
         ${inv.panne&&inv.panne!=='null'?`<div class="inv-remark-disp">${ICO.wrench} ${esc(trPanne(inv.panne))}</div>`:''}
@@ -3733,6 +3750,7 @@ function invRowHTML(inv,idx){
   return`<div class="inv-row" id="row-${inv.id}">
     <div class="inv-info">
       <div class="inv-name">${idx+1}. ${buildLabel(inv)}</div>
+      ${fdtFatHTML}
       ${buildTags(inv)}
       ${inv.reporteDepuis&&inv.reporteDepuis!='null'&&inv.reporteDepuis!=''?`<div class="inv-report">${t('common.carriedFrom',{date:formatDateDisplay(inv.reporteDepuis)})}</div>`:''}
       ${!isEtudeFtth&&!isDerangFtth&&displayRemarque(inv.remarque)?`<div class="inv-remark-disp">${ICO.chat} ${esc(displayRemarque(inv.remarque))}</div>`:''}
@@ -4160,21 +4178,20 @@ function renderHistoForMonth(){
   const instances=total-ok;
   const taux=total>0?Math.round(ok*100/total):0;
   const tauxColor=taux>=80?'var(--green)':taux>=50?'var(--yellow)':'var(--red)';
-  // Durée moyenne DU MOIS : on prend TOUTES les interventions du mois — celles
-  // enregistrées dans le mois comme celles héritées du mois précédent — et le
-  // compteur d'un dossier hérité repart au 1er du mois. Un dossier ouvert le 3
-  // et toujours en cours compte ses jours normalement ; un dossier venu de
-  // juillet compte à partir du 1er août, pas depuis juillet.
+  // Durée moyenne du mois : la VRAIE durée de chaque intervention, en jours
+  // ouvrés depuis son ouverture réelle (`duree`, calculée en base par
+  // duree_intervention — comme tout ce qui touche aux jours ouvrés, une
+  // seconde implémentation en JS finirait par diverger).
   //
-  // Calculé en base (`duree_dans_mois`), comme tout ce qui touche aux jours
-  // ouvrés : une seconde implémentation en JS finirait par diverger.
-  //
-  // ⚠️ Ceci ne concerne QUE cet agrégat. La durée propre à chaque intervention
-  // (`i.duree`) reste la VRAIE, comptée depuis son origine réelle, et continue
-  // de s'afficher telle quelle sur chaque ligne et dans la fiche client.
-  const avecDuree=allInvs.filter(i=>i.dureeMois!==undefined&&i.dureeMois!==null);
+  // Une version précédente utilisait `dureeMois`, un compteur remis à zéro au
+  // 1er du mois et arrêté au 31. Il allait avec l'ancienne règle, où un dossier
+  // non résolu MIGRAIT vers le mois suivant et fallait donc l'y rattraper.
+  // Maintenant qu'une intervention reste dans son mois, ce compteur ne ferait
+  // que tronquer : un dossier ouvert le 20/08 et réalisé le 03/09 aurait compté
+  // 8 jours en août au lieu de sa durée réelle.
+  const avecDuree=allInvs.filter(i=>i.duree!==undefined&&i.duree!==null);
   const dureeMoy=avecDuree.length>0
-    ? avecDuree.reduce((a,i)=>a+(Number(i.dureeMois)||0),0)/avecDuree.length
+    ? avecDuree.reduce((a,i)=>a+(Number(i.duree)||0),0)/avecDuree.length
     : null;
   const dureeMoyTxt=dureeMoy===null?'—':(Math.round(dureeMoy*10)/10)+'&nbsp;j';
   document.getElementById('stats-row').innerHTML=`
@@ -4836,10 +4853,11 @@ function displayRemarque(r){
   if(!r||r==='null')return'';
   let s=String(r).trim();
   if(/^\(?\s*(Reporté\s+(du|au)|Réparé)/i.test(s))return'';
-  // Les segments Tel/Tel2/Localité (interventions sans fiche Client) sont
-  // réextraits par le backend et affichés comme de vrais champs — ne pas
-  // les répéter dans la remarque.
-  s=s.split(' • ').filter(seg=>!/^(Tel|Tel2|Localité):\s/.test(seg.trim())).join(' • ');
+  // Les segments Tel/Tel2/Localité (interventions sans fiche Client) et
+  // FDT/FAT (désormais sur la fiche client, affichés en dédié sous le nom)
+  // sont réextraits ailleurs — ne pas les répéter dans la remarque. Le filtre
+  // FDT/FAT couvre aussi les remarques historiques qui les portaient encore.
+  s=s.split(' • ').filter(seg=>!/^(Tel|Tel2|Localité|FDT|FAT):\s/.test(seg.trim())).join(' • ');
   if(!s.trim())return'';
   return s.replace(/[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}\s\d{2}:\d{2}:\d{2}\sGMT[+-]\d{4}\s\([^)]*\)/g,m=>{
     const d=new Date(m);if(isNaN(d.getTime()))return m;
@@ -4866,19 +4884,23 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-08-16-couleurs-fdt-session';
+const MAJ_ID='2026-09-15-stats-mensuelles';
 const NOTES_MAJ={
   fr:{
-    resume:'Couleurs de statut inversées, FDT/FAT plus cohérents, déconnexion après 10h d’inactivité.',
+    resume:'Statistiques du mois corrigées, couleurs de statut inversées, FDT/FAT plus cohérents, déconnexion après 10h d’inactivité.',
     details:[
+      'Les statistiques mensuelles étaient fausses. Une intervention non terminée le dernier jour du mois basculait sur le mois suivant et disparaissait du mois où elle avait été ouverte : chaque mois écoulé finissait donc par afficher 100 % de réalisation, et le mois en cours portait le retard de tous les autres. Désormais une intervention réalisée compte dans le mois où elle a été réalisée, et une intervention encore en cours reste rattachée au mois où elle a été ouverte.',
+      'L’historique remontre des interventions qui disparaissaient à tort : quand un même client avait plusieurs passages du même type dans le mois, ils étaient comptés pour un seul.',
       'Les couleurs des statuts « Injoignable » et « Problème » sont inversées : Injoignable est maintenant en violet, Problème en rouge.',
       'À l’installation FTTH, les champs FDT et FAT s’écrivent maintenant sous la même forme qu’à l’étude (FDT-X, FAT-X) — ces informations sont désormais gardées avec la fiche du client et visibles dans la liste des clients.',
       'Une session reste maintenant ouverte 10 heures sans activité, au lieu de 30 jours. Passé ce délai, il suffit de se reconnecter avec son code habituel — rien n’est réinitialisé.'
     ]
   },
   en:{
-    resume:'Swapped status colors, more consistent FDT/FAT, logout after 10h of inactivity.',
+    resume:'Fixed monthly statistics, swapped status colors, more consistent FDT/FAT, logout after 10h of inactivity.',
     details:[
+      'Monthly statistics were wrong. A job still open on the last day of the month rolled over to the next month and vanished from the month it was opened in, so every past month ended up showing a 100% completion rate while the current month carried everyone else’s backlog. From now on, a completed job counts in the month it was completed, and a job still open stays attached to the month it was opened.',
+      'The history shows jobs that were wrongly disappearing: when the same client had several visits of the same kind in one month, they were counted as one.',
       'The colors for “Unreachable” and “Issue” statuses are swapped: Unreachable is now purple, Issue is now red.',
       'On FTTH installation, the FDT and FAT fields are now written the same way as during the study (FDT-X, FAT-X) — this information is now kept with the client record and shown in the client list.',
       'A session now stays open for 10 hours of inactivity instead of 30 days. After that, just log back in with your usual code — nothing gets reset.'

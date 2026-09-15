@@ -304,11 +304,13 @@ const ligneInv = (r) => {
   panne: r.panne || '', remarque: r.remarque || '',
   reporteDepuis: r.reporte_depuis || '', ville: r.ville || '', quartier: r.quartier || '',
   duree: r.duree, gps: r.gps || '',
-  // Présent uniquement sur getAll, qui seul connaît le mois demandé.
-  ...(r.duree_mois === undefined ? {} : { dureeMois: r.duree_mois }),
   // Le contact vient de la fiche client, joint par la vue v_interventions.
   // Son absence rendait les libellés muets côté frontend (buildLabel les lit).
   tel: r.tel || c.tel, telSec: r.tel_sec || c.telSec, loc: c.loc,
+  // FDT/FAT : déjà joints depuis `clients` par v_interventions, mais jamais
+  // renvoyés jusqu'ici — le frontend les affichait donc en les reparsant
+  // depuis la remarque, source qu'on vient justement d'arrêter d'alimenter.
+  fdt: r.fdt || '', fat: r.fat || '',
   publiePar: r.publie_par || '', statutPar: r.statut_par || ''
   };
 };
@@ -373,38 +375,50 @@ async function getAll(d) {
   const mois = String(d.month || '').slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(mois)) return { success: false, error: 'Mois invalide' };
   const debut = mois + '-01';
-  // `duree_mois` s'ajoute à `duree` sans la remplacer : la première sert à la
-  // statistique du mois (compteur remis à zéro au 1er pour tout dossier hérité
-  // du mois précédent), la seconde reste la durée VRAIE depuis l'origine, celle
-  // qui s'affiche sur chaque intervention et dans la fiche client.
+
+  // ── À QUEL MOIS APPARTIENT UNE INTERVENTION ──────────────────────────────
+  // Règle, en une phrase : une intervention compte dans le mois où elle a été
+  // RÉALISÉE ; tant qu'elle ne l'est pas, dans le mois où elle a été OUVERTE.
+  //
+  // Pourquoi ce n'est pas simplement `date` : `date` est la date de
+  // PLANIFICATION. Le report nocturne (reporter_interventions()) DÉPLACE la
+  // ligne au jour ouvré suivant tant qu'elle n'est pas réalisée — il n'en crée
+  // pas une nouvelle. Un dossier resté ouvert voit donc sa date avancer jusqu'à
+  // aujourd'hui, et QUITTE son mois. Filtrer sur `date` vidait tout mois écoulé
+  // de ses dossiers non résolus : il n'y restait que des « Réalisé », d'où un
+  // taux de réalisation figé à 100 % sur tous les mois passés, pendant que le
+  // mois en cours héritait de l'arriéré de tous les précédents.
+  //
+  // Une fois le statut passé à « Réalisé », le report cesse de la déplacer :
+  // `date` est alors figée au jour de réalisation, et c'est bien le mois voulu.
+  // Sinon on retombe sur l'origine, COALESCE(reporte_depuis, date), qui est
+  // posée au premier report et ne bouge plus jamais.
+  const MOIS_STAT = `CASE WHEN statut = 'Réalisé' THEN date ELSE COALESCE(reporte_depuis, date) END`;
+
   const inv = await sql(
-    `SELECT *, duree_dans_mois(reporte_depuis, date, statut, $1::date) AS duree_mois
+    `SELECT *, ${MOIS_STAT} AS date_stat
        FROM v_interventions
-      WHERE date >= $1::date AND date < ($1::date + interval '1 month')
-      ORDER BY date, id`, [debut]);
+      WHERE ${MOIS_STAT} >= $1::date
+        AND ${MOIS_STAT} < ($1::date + interval '1 month')
+      ORDER BY date_stat, id`, [debut]);
+
+  // Fiches du mois. Leurs compteurs sont RECALCULÉS plus bas sur les
+  // interventions réellement rattachées : ceux de v_consistances comptent par
+  // `consistance_id`, qui suit la ligne quand elle est reportée, et ne
+  // décrivent donc plus le contenu réel d'une fiche passée.
   const consists = await sql(
-    `SELECT id, date, nb_interventions, realisees, instances FROM v_consistances
+    `SELECT id, date FROM v_consistances
       WHERE date >= $1::date AND date < ($1::date + interval '1 month') ORDER BY date`, [debut]);
 
-  // Dédoublonnage : une même intervention logique apparaît une fois par jour
-  // de report. Clé nom|num|type, le statut le plus avancé gagne, départage par
-  // date la plus récente — reprise fidèle de statutPoids().
-  const poids = { 'Réalisé': 4, 'Problème': 3, 'Injoignable': 2, 'En attente': 1 };
-  const parCle = new Map();
-  inv.forEach(r => {
-    const cle = `${r.nom_client}|${r.numero_ligne}|${r.type}`;
-    const actuel = parCle.get(cle);
-    if (!actuel) { parCle.set(cle, r); return; }
-    const pa = poids[actuel.statut] || 0, pr = poids[r.statut] || 0;
-    if (pr > pa || (pr === pa && r.date > actuel.date)) {
-      // On conserve la PLUS ANCIENNE origine, pour que la durée reflète le
-      // vrai début même si seule une ligne survit.
-      const origine = [actuel.reporte_depuis, r.reporte_depuis].filter(Boolean).sort()[0];
-      parCle.set(cle, { ...r, reporte_depuis: origine || r.reporte_depuis });
-    } else if (actuel.reporte_depuis && r.reporte_depuis && r.reporte_depuis < actuel.reporte_depuis) {
-      actuel.reporte_depuis = r.reporte_depuis;
-    }
-  });
+  // ── PAS DE DÉDOUBLONNAGE ─────────────────────────────────────────────────
+  // Une version précédente fusionnait les lignes sur la clé nom|numéro|type,
+  // héritée d'Apps Script où le report créait bien une ligne par jour. Ce n'est
+  // plus le cas depuis Neon : une intervention logique = une ligne. Vérifié sur
+  // toute la base — aucun couple de lignes ne partage la même origine. La règle
+  // ne fusionnait donc plus que des interventions DISTINCTES : deux
+  // dérangements du même client dans le mois n'en faisaient qu'un (6
+  // interventions effacées de juillet 2026 à elles seules). Ne pas la remettre.
+
   // ── FORME DE LA RÉPONSE ───────────────────────────────────────────────────
   // Le frontend attend des FICHES avec leurs interventions IMBRIQUÉES, plus la
   // liste des mois disponibles :
@@ -418,30 +432,45 @@ async function getAll(d) {
   // adapter loadHistorique()/renderHistoForMonth() dans index.html.
   const parFiche = new Map();
   consists.forEach(c => parFiche.set(c.id, {
-    id: c.id, date: c.date, nb: c.nb_interventions,
-    realisees: c.realisees, instances: c.instances, interventions: []
+    id: c.id, date: c.date, nb: 0, realisees: 0, instances: 0, interventions: []
   }));
-  [...parCle.values()].forEach(r => {
-    const ligne = ligneInv(r);
-    let fiche = parFiche.get(r.consistance_id);
+  const jour = (v) => String(v instanceof Date ? v.toISOString() : v).slice(0, 10);
+  inv.forEach(r => {
+    // Rattachement à la fiche du jour retenu ci-dessus, pas à celle où le
+    // report a déposé la ligne. Les identifiants de fiche sont de la forme
+    // C_YYYYMMDD (vérifié : 60/60 en base), on la retrouve sans jointure.
+    const idFiche = 'C_' + jour(r.date_stat).replace(/-/g, '');
+    let fiche = parFiche.get(idFiche);
     if (!fiche) {
       // Filet : une intervention dont la fiche manquerait ne doit pas
       // disparaître silencieusement de l'historique.
-      fiche = { id: r.consistance_id, date: r.date, nb: 0, realisees: 0, instances: 0, interventions: [] };
-      parFiche.set(r.consistance_id, fiche);
+      fiche = { id: idFiche, date: r.date_stat, nb: 0, realisees: 0, instances: 0, interventions: [] };
+      parFiche.set(idFiche, fiche);
     }
-    fiche.interventions.push(ligne);
+    fiche.interventions.push(ligneInv(r));
+  });
+  // Compteurs par fiche, recalculés sur le contenu réel.
+  parFiche.forEach(f => {
+    f.nb = f.interventions.length;
+    f.realisees = f.interventions.filter(i => i.statut === 'Réalisé').length;
+    f.instances = f.nb - f.realisees;
   });
 
   // Mois réellement présents en base : sans ça le sélecteur de mois du
-  // frontend retombe sur le mois courant et la navigation est morte.
+  // frontend retombe sur le mois courant et la navigation est morte. Même
+  // règle d'appartenance que ci-dessus, sinon le sélecteur proposerait des mois
+  // vides et en cacherait d'autres.
   const mois_dispo = await sql(
-    `SELECT DISTINCT to_char(date, 'YYYY-MM') AS m FROM interventions
+    `SELECT DISTINCT to_char(${MOIS_STAT}, 'YYYY-MM') AS m FROM interventions
       WHERE supprime_le IS NULL ORDER BY m DESC`);
 
   return {
     success: true,
-    data: [...parFiche.values()].sort((a, b) => String(b.date).localeCompare(String(a.date))),
+    // Les fiches vides sont écartées : le report nocturne crée une consistance
+    // pour le jour où il dépose les dossiers repoussés, et cette fiche-là n'a
+    // aucune intervention qui lui appartienne au sens ci-dessus.
+    data: [...parFiche.values()].filter(f => f.interventions.length > 0)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date))),
     availableMonths: mois_dispo.map(x => x.m)
   };
 }
@@ -855,8 +884,9 @@ async function saveConsistance(d, ctx, session) {
     // Remarque composée — format IDENTIQUE à Apps Script, sinon l'affichage
     // technicien (displayRemarque) ne sait plus la relire.
     const parts = [];
-    if (inv.fdt)     parts.push('FDT: ' + String(inv.fdt).trim());
-    if (inv.fat)     parts.push('FAT: ' + String(inv.fat).trim());
+    // FDT/FAT ne sont PLUS encodés ici : ils vivent sur la fiche client
+    // (colonnes dédiées, upsert plus bas) et le frontend les affiche depuis
+    // là — les y remettre les dupliquerait avec ce nouvel affichage dédié.
     if (inv.gps)     parts.push('GPS: ' + String(inv.gps).trim());
     if (inv.chambre) parts.push('Chambre: ' + String(inv.chambre).trim());
     if (inv.motif)   parts.push('Motif: ' + String(inv.motif).trim());
