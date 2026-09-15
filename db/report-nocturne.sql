@@ -8,6 +8,15 @@
 --  première occurrence et ne bouge jamais — c'est la seule source de vérité
 --  pour la durée.
 --
+--  STATUT AU REPORT (révisé le 2026-09-15) :
+--    « Injoignable » repasse à « En attente ». C'est le comportement d'origine
+--      et il est voulu : un client injoignable hier peut décrocher aujourd'hui,
+--      le statut de la veille ne doit pas préjuger de la tentative du jour.
+--    « Problème » est CONSERVÉ. Un poteau cassé ou une fibre manquante ne se
+--      résout pas pendant la nuit. Le remettre à « En attente » chaque matin
+--      effaçait le fait que le dossier est bloqué, et le stock de blocages
+--      n'était visible nulle part.
+--
 --  DEUX ÉCARTS ASSUMÉS avec l'implémentation Apps Script :
 --
 --  1. On DÉPLACE la ligne en gardant son ID, au lieu d'en créer une nouvelle
@@ -54,30 +63,34 @@ RETURNS TABLE(reportees integer, vers date) LANGUAGE plpgsql AS $fn$
 DECLARE
   n integer := 0;
   cible_min date;
+  -- Heure du Cameroun, pas UTC : `current_date` faisait basculer de jour à 1 h
+  -- du matin local. `date_locale()` est définie dans schema.sql.
+  aujourdhui date := date_locale();
 BEGIN
   -- Fiches de destination manquantes. La cible est le jour ouvré suivant la
   -- date de l'intervention, jamais avant aujourd'hui, jamais un week-end.
   INSERT INTO consistances (id, date)
   SELECT DISTINCT 'C_' || to_char(c.cible, 'YYYYMMDD'), c.cible
-    FROM (SELECT GREATEST(prochain_jour_ouvre(i.date), jour_ouvre_ou_suivant(current_date)) AS cible
+    FROM (SELECT GREATEST(prochain_jour_ouvre(i.date), jour_ouvre_ou_suivant(aujourdhui)) AS cible
             FROM interventions i
-           WHERE i.supprime_le IS NULL AND i.statut <> 'Réalisé' AND i.date < current_date) c
+           WHERE i.supprime_le IS NULL AND i.statut <> 'Réalisé' AND i.date < aujourdhui) c
   ON CONFLICT (date) DO NOTHING;
 
   -- Déplacer. L'ID ne change pas (voir l'écart n°1 en tête de fichier).
-  -- Le statut repasse à « En attente » : comportement d'origine, un
-  -- « Injoignable » de la veille ne doit pas préjuger de la tentative du jour.
+  -- Statut : voir « STATUT AU REPORT » en tête de fichier.
   WITH a AS (
     SELECT i.id,
-           GREATEST(prochain_jour_ouvre(i.date), jour_ouvre_ou_suivant(current_date)) AS cible,
+           GREATEST(prochain_jour_ouvre(i.date), jour_ouvre_ou_suivant(aujourdhui)) AS cible,
            COALESCE(i.reporte_depuis, i.date) AS origine
       FROM interventions i
-     WHERE i.supprime_le IS NULL AND i.statut <> 'Réalisé' AND i.date < current_date
+     WHERE i.supprime_le IS NULL AND i.statut <> 'Réalisé' AND i.date < aujourdhui
   ), maj AS (
     UPDATE interventions i
        SET date           = a.cible,
            consistance_id = c.id,
-           statut         = 'En attente',
+           statut         = CASE WHEN i.statut = 'Problème'::statut_t
+                                 THEN 'Problème'::statut_t
+                                 ELSE 'En attente'::statut_t END,
            reporte_depuis = a.origine,
            mis_a_jour_le  = now()
       FROM a JOIN consistances c ON c.date = a.cible
