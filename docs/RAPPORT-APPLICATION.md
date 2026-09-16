@@ -307,6 +307,14 @@ possible par `audit_log`.
   convention applicative mais la définition de `clients_ls.cle_normalisee` et de son index
   unique : une orthographe différente crée une **autre** fiche. Toute requête sur un client LS
   doit reprendre cette clé — c'est ce qui a été corrigé le 07/08 sur `getClientHistory`.
+- **`saveClient` : un champ ABSENT de la requête n'est plus écrasé** — corrigé le **2026-09-16**.
+  Absent (`undefined`) = on laisse en place ; fourni mais vide = on efface. Encodé par un NULL SQL
+  (`COALESCE(EXCLUDED.x, clients.x)`), sauf `distance_fat_client` qui est un entier — NULL y
+  signifierait à la fois « absent » et « effacé », il lui faut son propre drapeau.
+  *Pourquoi :* le formulaire « Ajouter un client » de l'onglet Admin n'affiche ni FDT, ni FAT, ni la
+  distance, donc ne les envoie pas — et les effaçait à chaque enregistrement sur un numéro
+  existant. Des repères relevés sur le terrain, perdus par un écran qui ne les montre même pas.
+  `nom` reste toujours écrit : la colonne est NOT NULL.
 - **Reclassement de service** : un numéro vit dans une seule ligne `clients` ; le re-saisir
   sous l'autre service met à jour la colonne `service`, il ne crée pas de doublon.
 - **Une correction de fiche client suit les interventions EN COURS** (`saveClient`) — ajouté le

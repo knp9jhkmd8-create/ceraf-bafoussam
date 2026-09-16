@@ -1008,21 +1008,44 @@ async function saveClient(d, ctx) {
   if (!num) return { success: false, error: 'Numéro manquant' };
   const service = String(d.service || '').toUpperCase() === 'CUIVRE' ? 'CUIVRE' : 'FTTH';
   const avant = await un('SELECT * FROM clients WHERE numero = $1', [num]);
-  const distFat = d.distanceFatClient !== undefined && d.distanceFatClient !== '' && !isNaN(Number(d.distanceFatClient))
+
+  // ── « Absent » et « vidé » ne veulent PAS dire la même chose ──────────────
+  // Un champ ABSENT de la requête laisse la valeur en place ; un champ FOURNI
+  // mais vide l'efface. Sans cette distinction, tout appelant qui n'envoyait
+  // pas un champ l'effaçait sans le savoir : le formulaire « Ajouter un
+  // client » de l'onglet Admin n'affiche ni FDT, ni FAT, ni la distance, et les
+  // effaçait donc à chaque enregistrement sur un numéro existant — des repères
+  // relevés sur le terrain, perdus par un écran qui ne les montre même pas.
+  // On l'encode par un NULL SQL, d'où les COALESCE ci-dessous.
+  const fourni = (v) => v === undefined ? null : String(v);
+  const repere = (prefixe, v) => v === undefined ? null : (formatRepereFtth(prefixe, v) || '');
+  // `distance_fat_client` est un entier : NULL y signifierait à la fois « absent »
+  // et « effacé ». Il lui faut donc son propre drapeau.
+  const distFournie = d.distanceFatClient !== undefined;
+  const distFat = (distFournie && d.distanceFatClient !== '' && !isNaN(Number(d.distanceFatClient)))
     ? Number(d.distanceFatClient) : null;
+
   await sql(
     `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, derniere_maj)
      VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now())
      ON CONFLICT (numero) DO UPDATE SET
-       service=EXCLUDED.service, nom=EXCLUDED.nom, telephone=EXCLUDED.telephone,
-       tel_secondaire=EXCLUDED.tel_secondaire, localite=EXCLUDED.localite,
-       ville=EXCLUDED.ville, quartier=EXCLUDED.quartier,
-       gps=COALESCE(NULLIF(EXCLUDED.gps,''), clients.gps),
-       fdt=EXCLUDED.fdt, fat=EXCLUDED.fat, distance_fat_client=EXCLUDED.distance_fat_client,
+       service=EXCLUDED.service, nom=EXCLUDED.nom,
+       telephone      = COALESCE(EXCLUDED.telephone,      clients.telephone),
+       tel_secondaire = COALESCE(EXCLUDED.tel_secondaire, clients.tel_secondaire),
+       localite       = COALESCE(EXCLUDED.localite,       clients.localite),
+       ville          = COALESCE(EXCLUDED.ville,          clients.ville),
+       quartier       = COALESCE(EXCLUDED.quartier,       clients.quartier),
+       gps            = COALESCE(NULLIF(EXCLUDED.gps,''), clients.gps),
+       fdt            = COALESCE(EXCLUDED.fdt,            clients.fdt),
+       fat            = COALESCE(EXCLUDED.fat,            clients.fat),
+       distance_fat_client = CASE WHEN $13 THEN EXCLUDED.distance_fat_client
+                                  ELSE clients.distance_fat_client END,
        supprime_le=NULL, derniere_maj=now()`,
-    [num, service, String(d.nom || '').toUpperCase(), d.tel || null, d.telSec || null,
-     d.loc || null, d.ville || null, d.quartier || null, d.gps || '',
-     formatRepereFtth('FDT', d.fdt) || null, formatRepereFtth('FAT', d.fat) || null, distFat]);
+    // `nom` reste toujours écrit : la colonne est NOT NULL, et les deux écrans
+    // qui appellent cette action l'exigent déjà avant d'envoyer.
+    [num, service, String(d.nom || '').toUpperCase(),
+     fourni(d.tel), fourni(d.telSec), fourni(d.loc), fourni(d.ville), fourni(d.quartier),
+     d.gps || '', repere('FDT', d.fdt), repere('FAT', d.fat), distFat, distFournie]);
 
   // ── Propagation aux interventions EN COURS ───────────────────────────────
   // La ligne d'intervention garde sa PROPRE copie de nom/ville/quartier, figée
