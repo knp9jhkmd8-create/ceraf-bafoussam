@@ -39,6 +39,21 @@
   --ease:cubic-bezier(.16,1,.3,1);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
+/* AUCUNE page ne doit pouvoir être tirée latéralement. Les rares contenus plus
+   larges que l'écran — tableaux Clients, Utilisateurs, Audit — ont leur PROPRE
+   conteneur `overflow-x:auto` : leur défilement reste à l'intérieur du tableau,
+   et cette règle ne les gêne pas.
+   Le cas qui a motivé ceci : l'onglet Édition, dont le conteneur de défilement
+   avait été retiré. Le débordement ne disparaissait pas pour autant, il
+   remontait au document entier, et toute la page glissait de gauche à droite
+   sous le doigt. La cause est un `input[type=date]` : son contenu NATIF ne se
+   comprime pas avec sa boîte sur mobile — Chrome de bureau le tronque, ce qui
+   rend le défaut irreproductible en émulation.
+   `clip` et non `hidden` : `hidden` ferait de body un conteneur de défilement
+   et casserait le `position:sticky` de la barre du haut. `clip` coupe sans
+   créer de scrollport. Un navigateur trop ancien ignore la règle — on retombe
+   alors sur le comportement actuel, sans régression. */
+html,body{overflow-x:clip;}
 .ico{width:1.1em;height:1.1em;vertical-align:-.15em;flex-shrink:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--font-system);min-height:100vh;display:flex;flex-direction:column;}
 
@@ -187,21 +202,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-system);min-h
    largeur intrinsèque. La grille se replie d'elle-même avant d'en arriver là,
    ceci n'est qu'un garde-fou si une colonne devenait plus étroite. */
 #page-edition input[type=date]{min-width:0;max-width:100%;}
-/* Champ orné d'une icône décorative (Date de la fiche). L'icône est en position
-   absolue : contrairement à .inp-prefixed, elle ne pèse donc pas dans le calcul
-   de largeur du parent flex — c'est justement ce qu'on veut ici. */
-.inp-ico{position:relative;display:block;}
-.inp-ico>.ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:1.05rem;height:1.05rem;color:var(--muted2);cursor:pointer;transition:color .2s var(--ease);}
-.inp-ico>input{padding-left:36px;}
-/* :focus-within et non « input:focus + .ico » : l'icône PRÉCÈDE le champ dans
-   le balisage, et CSS ne sait pas viser un frère situé avant. */
-.inp-ico:hover>.ico,.inp-ico:focus-within>.ico{color:var(--blue-mid);}
-/* Chrome dessine DÉJÀ un calendrier à droite d'un champ date : garder les deux
-   en afficherait un de chaque côté. On efface le sien et c'est le nôtre, à
-   gauche, qui ouvre le sélecteur — un seul repère, au même endroit partout.
-   L'indicateur natif reste présent (opacité nulle, pas display:none) pour ne
-   pas perdre son comportement clavier. */
-.inp-ico>input::-webkit-calendar-picker-indicator{opacity:0;}
+/* Icône devant le LIBELLÉ d'un champ, pas à l'intérieur du champ.
+   Première version : l'icône était posée DANS le champ, en absolu, avec
+   `padding-left:36px` sur l'input. Sur un écran de 320px le champ ne fait que
+   ~224px : il ne restait que ~176px au contenu NATIF d'un input[type=date],
+   qui ne se comprime pas — de quoi le faire déborder, et faire glisser toute
+   la page. Dans le libellé, l'icône ne coûte aucune largeur au champ, garde
+   exactement le même rôle visuel, et l'indicateur natif de Chrome reprend sa
+   place (plus besoin de le masquer). */
+.lbl-ico{display:inline-flex;align-items:center;gap:6px;}
+.lbl-ico>.ico{width:1rem;height:1rem;color:var(--muted2);cursor:pointer;transition:color .2s var(--ease);}
+.lbl-ico:hover>.ico{color:var(--blue-mid);}
 .ed-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
 label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
 /* font-size 16px minimum sur les champs : en dessous, iOS Safari zoome
@@ -911,7 +922,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <!-- SVG en dur et non ICO.calendar : ce balisage est statique, il
                n'est pas produit par un littéral de gabarit. Mêmes traits que le
                reste du jeu d'icônes (voir _ico()). -->
-          <div class="ed-load-field"><label data-i18n="edition.date">Date de la fiche</label><div class="inp-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" onclick="ouvrirSelecteurDate('ed-date')"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><input id="ed-date" type="date"></div></div>
+          <div class="ed-load-field"><label class="lbl-ico" for="ed-date"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" onclick="event.preventDefault();event.stopPropagation();ouvrirSelecteurDate('ed-date')"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span data-i18n="edition.date">Date de la fiche</span></label><input id="ed-date" type="date"></div>
           <button class="btn btn-primary btn-sm" onclick="chargerEditionJour()" data-i18n-html="edition.charger">Charger</button>
         </div>
         <!-- Pas d'overflow-x ici : c'était un reste de l'affichage en tableau.
@@ -4635,10 +4646,11 @@ function dateHeure(v){
 // ══════════════════════════════════════════════
 //  ONGLET ÉDITION MANUELLE (admin)
 // ══════════════════════════════════════════════
-// Ouvre le sélecteur de date natif depuis l'icône, l'indicateur de Chrome étant
-// masqué (voir .inp-ico dans le CSS). `showPicker()` demande Chrome 99+ /
-// Safari 16+ et lève si le navigateur le refuse : on retombe alors sur le
-// focus, qui suffit à saisir la date au clavier.
+// Ouvre le sélecteur de date natif depuis l'icône du libellé (voir .lbl-ico).
+// Simple confort : l'indicateur natif du champ reste présent, c'est lui la
+// commande principale. `showPicker()` demande Chrome 99+ / Safari 16+ et lève
+// si le navigateur le refuse — on retombe alors sur le focus, qui suffit à
+// saisir la date au clavier.
 function ouvrirSelecteurDate(id){
   const el=document.getElementById(id);
   if(!el)return;
@@ -4971,24 +4983,22 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-16-confort-usage';
+const MAJ_ID='2026-09-16-propagation-corrections';
 const NOTES_MAJ={
   fr:{
-    resume:'L’application rouvre sur l’onglet où vous étiez, et l’écran de correction s’affiche enfin correctement sur téléphone.',
+    resume:'Une correction de fiche client se répercute maintenant sur les interventions en cours, et la page ne glisse plus de côté sur téléphone.',
     details:[
-      'Quand vous actualisez la page ou rouvrez l’application, vous revenez sur l’onglet où vous travailliez, au lieu d’être ramené au premier.',
-      'Sur les installations FTTH, les repères FDT et FAT n’apparaissent plus dans la case Remarque : ils restent affichés juste sous le nom du client, où ils ont leur place.',
-      'Côté administrateur, la fenêtre « Corriger une intervention » ne se chevauche plus et ne déborde plus de l’écran sur téléphone. Le champ de date porte une icône de calendrier qui ouvre le calendrier d’un appui.',
-      'Les libellés ne répètent plus « (9 chiffres) » : les champs continuent de n’accepter que 9 chiffres, c’est simplement moins encombré à lire.'
+      'Quand on corrige une fiche client — un quartier, une ville, un nom — la correction s’applique désormais aussi aux interventions du client qui ne sont pas encore terminées. Les techniciens voient donc tout de suite la bonne information sur leur fiche du jour, au lieu de garder l’ancienne sous les yeux.',
+      'Les interventions déjà marquées Réalisé ne changent pas : elles gardent ce qui a été constaté sur le terrain ce jour-là.',
+      'Sur téléphone, la page ne peut plus être tirée de gauche à droite. Dans l’onglet Édition, l’icône de calendrier est passée au-dessus du champ de date pour lui laisser toute la largeur.'
     ]
   },
   en:{
-    resume:'The app reopens on the tab you were using, and the correction screen finally displays properly on phones.',
+    resume:'Correcting a client record now carries over to their ongoing jobs, and pages no longer slide sideways on phones.',
     details:[
-      'When you refresh the page or reopen the app, you come back to the tab you were working in, instead of being sent back to the first one.',
-      'On FTTH installations, the FDT and FAT references no longer appear in the Remark box: they stay shown right under the client name, where they belong.',
-      'On the admin side, the "Correct an intervention" panel no longer overlaps itself or run off the screen on phones. The date field now has a calendar icon that opens the picker with one tap.',
-      'Labels no longer repeat "(9 digits)": the fields still accept only 9 digits, it is simply less cluttered to read.'
+      'When a client record is corrected — a neighbourhood, a town, a name — the correction now also applies to that client’s jobs that are not finished yet. Technicians immediately see the right information on their daily sheet instead of the old one.',
+      'Jobs already marked Completed are left untouched: they keep what was recorded in the field that day.',
+      'On phones, the page can no longer be dragged left and right. In the Edit tab, the calendar icon moved above the date field to leave it the full width.'
     ]
   }
 };

@@ -309,6 +309,17 @@ possible par `audit_log`.
   doit reprendre cette clé — c'est ce qui a été corrigé le 07/08 sur `getClientHistory`.
 - **Reclassement de service** : un numéro vit dans une seule ligne `clients` ; le re-saisir
   sous l'autre service met à jour la colonne `service`, il ne crée pas de doublon.
+- **Une correction de fiche client suit les interventions EN COURS** (`saveClient`) — ajouté le
+  **2026-09-16**. La ligne d'intervention garde sa propre copie de `nom_client`/`ville`/
+  `quartier`, figée à la publication ; téléphone, GPS, FDT et FAT, eux, sont lus depuis la fiche
+  client par `v_interventions`. Ces trois champs étaient donc les seuls à ne pas suivre une
+  correction : corriger le quartier d'un client laissait le technicien avec l'ancien quartier
+  sur sa fiche du jour (constaté sur 7 interventions).
+  Deux bornes volontaires : seules les interventions **non réalisées** sont alignées — une
+  intervention terminée est le procès-verbal de ce qui a été constaté ce jour-là, elle ne se
+  réécrit pas ; et un champ **vide** ne propage rien, pour qu'une fiche client sans quartier
+  n'efface pas celui que le technicien a relevé sur place. Les clients LS ne sont pas concernés :
+  leur clé métier EST `(nom, ville, quartier)`, y toucher changerait leur identité.
 - **Résiliation** : publiée directement en `Réalisé`, la fiche est archivée vers
   `clients_resilies` avec son motif, sans toucher aux interventions passées.
 - **Journal d'audit au point de dispatch** : toutes les mutations passent par le même endroit,

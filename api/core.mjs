@@ -1023,8 +1023,39 @@ async function saveClient(d, ctx) {
     [num, service, String(d.nom || '').toUpperCase(), d.tel || null, d.telSec || null,
      d.loc || null, d.ville || null, d.quartier || null, d.gps || '',
      formatRepereFtth('FDT', d.fdt) || null, formatRepereFtth('FAT', d.fat) || null, distFat]);
+
+  // ── Propagation aux interventions EN COURS ───────────────────────────────
+  // La ligne d'intervention garde sa PROPRE copie de nom/ville/quartier, figée
+  // au moment de la publication. Téléphone, GPS, FDT et FAT, eux, sont lus
+  // depuis la fiche client par v_interventions : ces trois champs-là étaient
+  // donc les seuls à ne pas suivre une correction. Concrètement, corriger le
+  // quartier d'un client laissait le technicien avec l'ancien quartier sous les
+  // yeux sur sa fiche du jour.
+  //
+  // Seules les interventions NON RÉALISÉES sont touchées : une intervention
+  // terminée est un procès-verbal de ce qui a été constaté ce jour-là, elle ne
+  // se réécrit pas. C'est aussi ce que fait déjà mergeClientsLs().
+  //
+  // Un champ VIDE ne propage pas (COALESCE + NULLIF) : une fiche client sans
+  // quartier ne doit pas effacer celui que le technicien a relevé sur place.
+  const majInv = await sql(
+    `UPDATE interventions
+        SET nom_client    = COALESCE(NULLIF($2, ''), nom_client),
+            ville         = COALESCE(NULLIF($3, ''), ville),
+            quartier      = COALESCE(NULLIF($4, ''), quartier),
+            mis_a_jour_le = now()
+      WHERE numero_ligne = $1
+        AND supprime_le IS NULL
+        AND statut <> 'Réalisé'
+        AND (COALESCE(nom_client,'') IS DISTINCT FROM COALESCE(NULLIF($2,''), nom_client)
+          OR COALESCE(ville,'')      IS DISTINCT FROM COALESCE(NULLIF($3,''), ville)
+          OR COALESCE(quartier,'')   IS DISTINCT FROM COALESCE(NULLIF($4,''), quartier))
+      RETURNING id`,
+    [num, String(d.nom || '').toUpperCase(), String(d.ville || ''), String(d.quartier || '')]);
+
   ctx.entite = 'client'; ctx.entiteId = num; ctx.avant = avant;
-  return { success: true, action: avant ? 'maj' : 'created' };
+  ctx.apres = { interventionsAlignees: majInv.length };
+  return { success: true, action: avant ? 'maj' : 'created', interventionsAlignees: majInv.length };
 }
 
 async function saveClientLs(d, ctx) {
