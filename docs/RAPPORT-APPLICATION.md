@@ -315,11 +315,20 @@ possible par `audit_log`.
   client par `v_interventions`. Ces trois champs étaient donc les seuls à ne pas suivre une
   correction : corriger le quartier d'un client laissait le technicien avec l'ancien quartier
   sur sa fiche du jour (constaté sur 7 interventions).
-  Deux bornes volontaires : seules les interventions **non réalisées** sont alignées — une
-  intervention terminée est le procès-verbal de ce qui a été constaté ce jour-là, elle ne se
-  réécrit pas ; et un champ **vide** ne propage rien, pour qu'une fiche client sans quartier
+  **Le nom et le lieu ne suivent pas la même règle**, parce qu'ils ne sont pas de même nature :
+  - `nom_client` est une **identité**. Une faute d'orthographe n'a jamais été juste : la
+    correction s'applique à **toutes** les interventions du client, réalisées comprises.
+  - `ville`/`quartier` sont un **constat de terrain**. Le technicien a pu relever autre chose que
+    ce que dit la fiche, et une intervention terminée est le procès-verbal de ce jour-là : elles
+    ne sont réécrites que **tant que l'intervention est en cours**.
+
+  Dans les deux cas, un champ **vide** ne propage rien, pour qu'une fiche client sans quartier
   n'efface pas celui que le technicien a relevé sur place. Les clients LS ne sont pas concernés :
   leur clé métier EST `(nom, ville, quartier)`, y toucher changerait leur identité.
+
+  *La distinction nom/lieu a été ajoutée le jour même, après un second cas : une intervention du
+  jour déjà passée en « Réalisé » à 11h36 gardait un nom client erroné sur la fiche du terrain,
+  qu'une correction de 15h53 ne rattrapait pas.*
 - **Résiliation** : publiée directement en `Réalisé`, la fiche est archivée vers
   `clients_resilies` avec son motif, sans toucher aux interventions passées.
 - **Journal d'audit au point de dispatch** : toutes les mutations passent par le même endroit,

@@ -4983,21 +4983,21 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-16-propagation-corrections';
+const MAJ_ID='2026-09-16-propagation-corrections-b';
 const NOTES_MAJ={
   fr:{
-    resume:'Une correction de fiche client se répercute maintenant sur les interventions en cours, et la page ne glisse plus de côté sur téléphone.',
+    resume:'Une correction de fiche client se répercute maintenant sur les interventions, et la page ne glisse plus de côté sur téléphone.',
     details:[
-      'Quand on corrige une fiche client — un quartier, une ville, un nom — la correction s’applique désormais aussi aux interventions du client qui ne sont pas encore terminées. Les techniciens voient donc tout de suite la bonne information sur leur fiche du jour, au lieu de garder l’ancienne sous les yeux.',
-      'Les interventions déjà marquées Réalisé ne changent pas : elles gardent ce qui a été constaté sur le terrain ce jour-là.',
+      'Corriger le NOM d’un client le corrige partout : sur toutes ses interventions, y compris celles déjà terminées. Un nom mal écrit n’a jamais été le bon, il n’y a pas de raison de le garder quelque part.',
+      'Corriger la VILLE ou le QUARTIER ne touche que les interventions pas encore terminées. Celles qui sont marquées Réalisé gardent ce que le technicien a constaté sur place ce jour-là.',
       'Sur téléphone, la page ne peut plus être tirée de gauche à droite. Dans l’onglet Édition, l’icône de calendrier est passée au-dessus du champ de date pour lui laisser toute la largeur.'
     ]
   },
   en:{
-    resume:'Correcting a client record now carries over to their ongoing jobs, and pages no longer slide sideways on phones.',
+    resume:'Correcting a client record now carries over to their jobs, and pages no longer slide sideways on phones.',
     details:[
-      'When a client record is corrected — a neighbourhood, a town, a name — the correction now also applies to that client’s jobs that are not finished yet. Technicians immediately see the right information on their daily sheet instead of the old one.',
-      'Jobs already marked Completed are left untouched: they keep what was recorded in the field that day.',
+      'Correcting a client NAME corrects it everywhere: on all of their jobs, including finished ones. A misspelled name was never right, so there is no reason to keep it anywhere.',
+      'Correcting the TOWN or NEIGHBOURHOOD only affects jobs that are not finished yet. Jobs marked Completed keep what the technician recorded on site that day.',
       'On phones, the page can no longer be dragged left and right. In the Edit tab, the calendar icon moved above the date field to leave it the full width.'
     ]
   }

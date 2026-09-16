@@ -1032,24 +1032,32 @@ async function saveClient(d, ctx) {
   // quartier d'un client laissait le technicien avec l'ancien quartier sous les
   // yeux sur sa fiche du jour.
   //
-  // Seules les interventions NON RÉALISÉES sont touchées : une intervention
-  // terminée est un procès-verbal de ce qui a été constaté ce jour-là, elle ne
-  // se réécrit pas. C'est aussi ce que fait déjà mergeClientsLs().
+  // Le NOM et le LIEU ne suivent PAS la même règle, parce qu'ils ne sont pas de
+  // même nature :
+  //  - `nom_client` est une IDENTITÉ. Une faute d'orthographe n'a jamais été
+  //    juste : la correction s'applique à TOUTES les interventions du client,
+  //    réalisées comprises.
+  //  - `ville`/`quartier` sont un CONSTAT de terrain. Le technicien a pu relever
+  //    autre chose que ce que dit la fiche, et une intervention terminée est le
+  //    procès-verbal de ce jour-là : on ne les réécrit que tant qu'elle est en
+  //    cours. C'est aussi ce que fait déjà mergeClientsLs().
   //
   // Un champ VIDE ne propage pas (COALESCE + NULLIF) : une fiche client sans
   // quartier ne doit pas effacer celui que le technicien a relevé sur place.
   const majInv = await sql(
     `UPDATE interventions
         SET nom_client    = COALESCE(NULLIF($2, ''), nom_client),
-            ville         = COALESCE(NULLIF($3, ''), ville),
-            quartier      = COALESCE(NULLIF($4, ''), quartier),
+            ville         = CASE WHEN statut <> 'Réalisé'
+                                 THEN COALESCE(NULLIF($3, ''), ville)    ELSE ville    END,
+            quartier      = CASE WHEN statut <> 'Réalisé'
+                                 THEN COALESCE(NULLIF($4, ''), quartier) ELSE quartier END,
             mis_a_jour_le = now()
       WHERE numero_ligne = $1
         AND supprime_le IS NULL
-        AND statut <> 'Réalisé'
-        AND (COALESCE(nom_client,'') IS DISTINCT FROM COALESCE(NULLIF($2,''), nom_client)
-          OR COALESCE(ville,'')      IS DISTINCT FROM COALESCE(NULLIF($3,''), ville)
-          OR COALESCE(quartier,'')   IS DISTINCT FROM COALESCE(NULLIF($4,''), quartier))
+        AND (nom_client IS DISTINCT FROM COALESCE(NULLIF($2,''), nom_client)
+          OR (statut <> 'Réalisé'
+              AND (ville    IS DISTINCT FROM COALESCE(NULLIF($3,''), ville)
+                OR quartier IS DISTINCT FROM COALESCE(NULLIF($4,''), quartier))))
       RETURNING id`,
     [num, String(d.nom || '').toUpperCase(), String(d.ville || ''), String(d.quartier || '')]);
 
