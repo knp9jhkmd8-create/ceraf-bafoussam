@@ -191,17 +191,35 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-system);min-h
    ce qui masquait le défaut en émulation). Mesuré : à 390px la ligne fait
    302px pour 205 (champ) + 10 + 87 (bouton) — aucune marge ; à 320px c'est
    déjà 12px de trop. Empilés, les deux occupent toute la largeur de la carte
-   et le chevauchement devient impossible. */
+   et le chevauchement devient impossible.
+   Le bouton, lui, garde sa largeur NATURELLE : `align-items:flex-start` et non
+   `stretch`. Étiré sur toute la largeur d'une carte, « Charger » devenait une
+   barre bleue démesurée pour un mot de six lettres. */
 @media(max-width:560px){
-  .ed-load-row{flex-direction:column;align-items:stretch;}
-  .ed-load-row>.btn{width:100%;}
+  .ed-load-row{flex-direction:column;align-items:flex-start;}
+  .ed-load-row>.ed-load-field{width:100%;flex:none;}
 }
 .ed-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px;}
 .ed-grid>div{min-width:0;}
-/* Même cause dans les cartes : un champ date ne doit jamais descendre sous sa
-   largeur intrinsèque. La grille se replie d'elle-même avant d'en arriver là,
-   ceci n'est qu'un garde-fou si une colonne devenait plus étroite. */
-#page-edition input[type=date]{min-width:0;max-width:100%;}
+/* ── Champs date : iOS les dimensionne sur leur CONTENU ───────────────────
+   Sur iPhone, un <input type="date"> qui garde son apparence native se
+   dimensionne sur sa valeur et IGNORE `width` comme `max-width`. Dans l'onglet
+   Édition, les deux champs date dépassaient donc leur colonne d'environ 24px :
+   ils s'arrêtaient plus à droite que le champ Remarque et que le sélecteur de
+   statut, pourtant dans la même grille. C'est ce débordement-là qui était
+   visible, pas un défilement de la page.
+   `appearance:none` lui rend une boîte ordinaire, qui obéit enfin à sa largeur.
+   `::-webkit-date-and-time-value` corrige la valeur centrée — même origine iOS,
+   et c'est ce qui trahissait le rendu natif sur les captures.
+   Règle GLOBALE et non limitée à #page-edition : l'onglet Audit a deux champs
+   date de plus, qui souffraient exactement du même défaut. */
+input[type=date]{
+  -webkit-appearance:none;
+  appearance:none;
+  min-width:0;
+  max-width:100%;
+}
+input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0;}
 /* Icône devant le LIBELLÉ d'un champ, pas à l'intérieur du champ.
    Première version : l'icône était posée DANS le champ, en absolu, avec
    `padding-left:36px` sur l'input. Sur un écran de 320px le champ ne fait que

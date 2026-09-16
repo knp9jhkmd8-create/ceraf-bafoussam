@@ -370,6 +370,28 @@ Deux dates, deux rôles à ne pas confondre :
 
 ---
 
+### Champs date sur iPhone — un piege a connaitre
+
+Sur iOS, un `<input type="date"> ` qui garde son **apparence native** se dimensionne sur son
+CONTENU et ignore `width` comme `max-width`. Dans l'onglet Edition, les deux champs date
+depassaient ainsi leur colonne d'environ 24 px : ils s'arretaient plus a droite que le champ
+Remarque et que le selecteur de statut, pourtant dans la meme grille.
+
+Correction (regle **globale**, l'onglet Audit a deux champs date de plus) :
+```css
+input[type=date]{ -webkit-appearance:none; appearance:none; min-width:0; max-width:100%; }
+input[type=date]::-webkit-date-and-time-value{ text-align:left; margin:0; }
+```
+`appearance:none` lui rend une boite ordinaire, qui obeit enfin a sa largeur. La seconde regle
+corrige la valeur **centree**, meme origine iOS — et c'est elle qui trahit le rendu natif sur une
+capture : une date centree dans son champ = iOS, donc largeur non maitrisee.
+
+⚠️ **Chrome de bureau ne reproduit rien de tout ceci** : il tronque la ou iOS deborde. Deux
+tentatives de correction ont echoue avant d'avoir identifie la vraie cause, faute de pouvoir la
+reproduire en emulation. Se fier aux MESURES prises sur une capture de l'appareil reel.
+
+---
+
 ## 6. PWA / offline
 
 - Cache localStorage *stale-while-revalidate* pour Terrain, Historique (par mois) et Clients :
