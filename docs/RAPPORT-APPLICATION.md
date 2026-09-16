@@ -408,15 +408,27 @@ Deux dates, deux rôles à ne pas confondre :
   version pendant des jours, soit l'incident du 08/08 réintroduit par une autre porte.
   Ce rappel n'est **pas** soumis au throttle de 5 min qui espace les `reg.update()` : c'est
   une décision déjà prise, pas une interrogation réseau.
-- Couvert par `tests/test-fenetre-maj.mjs` (37 assertions, 8 situations).
-- Affichage **une seule fois par appareil** : `MAJ_ID` est mémorisé dans
-  `localStorage['ceraf_maj_vue']` à la fermeture, donc un utilisateur qui a déjà lu ces
-  nouveautés ne les revoit jamais — seul un `MAJ_ID` inédit rouvre le panneau. Sur un appareil
-  **neuf** (ni `ceraf_url` ni `ceraf_role` en mémoire) le drapeau est posé en silence : on ne
-  déroule pas les correctifs d'une version jamais utilisée.
-- `NOTES_MAJ` (FR + EN) et `MAJ_ID` sont **à réécrire à chaque déploiement**, en langage
-  courant — c'est lu par des techniciens, pas par des développeurs : décrire ce qui change
-  *à l'écran*, jamais le code. Oublier de changer `MAJ_ID` = personne ne voit les notes.
+- Couvert par `tests/test-fenetre-maj.mjs` (**51 assertions, 13 situations**), dont le ciblage
+  par role et la cle « deja lu » par role. Le harnais rejoue le VRAI code extrait d'`index.html`.
+- Affichage **une seule fois par appareil ET par rôle** : `MAJ_ID` est mémorisé à la fermeture
+  dans `localStorage['ceraf_maj_vue_<rôle>']`, donc un utilisateur qui a déjà lu ces nouveautés
+  ne les revoit jamais — seul un `MAJ_ID` inédit rouvre le panneau. Sur un appareil **neuf**
+  (ni `ceraf_url` ni `ceraf_role` en mémoire) le drapeau est posé en silence : on ne déroule pas
+  les correctifs d'une version jamais utilisée. L'ancienne clé sans rôle, `ceraf_maj_vue`, est
+  encore **lue** pour ne pas rouvrir le panneau chez ceux qui avaient déjà lu ces notes-là.
+- **Chaque note s'adresse à un rôle** (`pour:['admin']`, `['tous']`…) — ajouté le **2026-09-16**.
+  Le panneau ne montre que les notes du rôle actif et **ne s'ouvre pas du tout** si aucune ne le
+  concerne : avertir un technicien qu'un écran réservé à l'administrateur a changé ne lui apprend
+  rien et use son attention pour les fois où ça compte. Dans ce cas le drapeau est posé en
+  silence, sans quoi le panneau se rouvrirait à chaque lancement sur une liste vide.
+  `chooseActiveRole()` rappelle la fonction : un compte qui cumule les rôles lit donc les
+  nouveautés de **chacun** en basculant, au lieu des seules notes du premier rôle ouvert.
+  Plus de résumé ni de « Voir plus » : filtrée par rôle, la liste tient à l'écran — et un résumé
+  doublait le contenu, donc finissait par le contredire (constaté le jour même).
+- `NOTES_MAJ` (FR + EN, avec le public de chaque note) et `MAJ_ID` sont **à réécrire à chaque
+  déploiement**, en langage courant — c'est lu par des techniciens, pas par des développeurs :
+  décrire ce qui change *à l'écran*, jamais le code. Oublier de changer `MAJ_ID` = personne ne
+  voit les notes.
   Et la bannière ne s'affiche que si un **nouveau service worker** s'installe : incrémenter
   `CACHE_VERSION` dans `sw.js` à chaque livraison, même quand seul `index.html` change.
 - `warmupBackend()` subsiste (`index.html:1710`) : hérité du cold start Apps Script (10-30 s),

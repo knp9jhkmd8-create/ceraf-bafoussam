@@ -976,7 +976,8 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
 </div>
 
 <!-- Fenêtre UNIQUE de mise à jour. Deux usages, un seul bouton principal :
-     - « Quoi de neuf » après un rechargement (une fois par appareil, MAJ_ID) ;
+     - « Quoi de neuf » après un rechargement (une fois par appareil ET par rôle,
+       MAJ_ID ; seules les notes concernant le rôle actif sont montrées) ;
      - « Mise à jour disponible » quand un nouveau service worker s'installe —
        le bouton applique alors directement la mise à jour. -->
 <div class="modal-overlay" id="modal-maj">
@@ -1215,7 +1216,7 @@ fr:{
   'audit.f.tous':'Tous','audit.f.toutes':'Toutes',
   'maj.dispo':'Une nouvelle version de l’application est disponible.',
   'maj.recharger':'Recharger',
-  'maj.voirPlus':'Voir plus','maj.voirMoins':'Voir moins',
+  'maj.intro':'Voici ce qui change pour vous :',
   'maj.quoiDeNeuf':ICO.sparkle+' Quoi de neuf','maj.ok':"J'ai compris",
   'maj.titreDispo':'Mise à jour disponible','maj.plusTard':'Plus tard',
   'admin.backups.title':ICO.moon+' Sauvegardes automatiques',
@@ -1501,7 +1502,7 @@ en:{
   'audit.f.tous':'All','audit.f.toutes':'All',
   'maj.dispo':'A new version of the app is available.',
   'maj.recharger':'Reload',
-  'maj.voirPlus':'See more','maj.voirMoins':'See less',
+  'maj.intro':'Here is what changes for you:',
   'maj.quoiDeNeuf':ICO.sparkle+" What's new",'maj.ok':'Got it',
   'maj.titreDispo':'Update available','maj.plusTard':'Later',
   'admin.backups.title':ICO.moon+' Automatic backups',
@@ -2054,6 +2055,12 @@ function showRoleSwitch(){
 function chooseActiveRole(r){
   role=r;localStorage.setItem('ceraf_role',r);
   startApp(r);
+  // Les notes de version dépendent du rôle : au démarrage, rien n'a pu être
+  // montré tant qu'il n'était pas choisi. C'est aussi ce qui fait qu'un compte
+  // cumulant les rôles lit les nouveautés de CHACUN en basculant de l'un à
+  // l'autre, au lieu de n'avoir que celles du premier rôle ouvert.
+  const annonce=document.getElementById('modal-annonce');
+  if(!annonce||!annonce.classList.contains('active')) afficherQuoiDeNeufSiBesoin();
 }
 
 // ══════════════════════════════════════════════
@@ -4966,17 +4973,25 @@ function displayRemarque(r){
 // ══════════════════════════════════════════════
 //  NOTES DE MISE À JOUR — « Quoi de neuf »
 // ══════════════════════════════════════════════
-// Affichées APRÈS le rechargement, pas avant, et UNE SEULE FOIS par appareil.
+// Affichées APRÈS le rechargement, pas avant, UNE SEULE FOIS par appareil, et
+// UNIQUEMENT au rôle concerné.
 //
-// Deux raisons, la première étant rédhibitoire :
+// Trois raisons, la première étant rédhibitoire :
 //  1. Avant le rechargement, le code qui tourne est celui de l'ANCIENNE
 //     version : il ne contient donc pas les notes de la nouvelle. La bannière
 //     « Recharger » ne peut annoncer que la version qu'on quitte — autant dire
 //     l'inverse de ce qu'on veut. Une fois rechargé, la page EST la nouvelle
 //     version : ses notes sont les bonnes.
-//  2. `MAJ_ID` est mémorisé dans localStorage à la fermeture. Un utilisateur qui
-//     a déjà lu ces nouveautés ne les revoit jamais, quel que soit le nombre de
-//     rechargements. Seul un `MAJ_ID` inédit rouvre le panneau.
+//  2. `MAJ_ID` est mémorisé dans localStorage à la fermeture, PAR RÔLE. Un
+//     utilisateur qui a déjà lu ces nouveautés ne les revoit jamais, quel que
+//     soit le nombre de rechargements. Seul un `MAJ_ID` inédit rouvre le
+//     panneau. La clé est suffixée par le rôle parce qu'un compte qui en cumule
+//     plusieurs ne lit pas les mêmes notes selon celui qu'il active.
+//  3. Chaque note dit À QUI elle s'adresse (`pour`). Le panneau ne montre que
+//     celles du rôle actif et ne s'ouvre PAS DU TOUT si aucune ne le concerne :
+//     avertir un technicien qu'un écran réservé à l'administrateur a changé ne
+//     lui apprend rien et use son attention pour les fois où ça compte.
+//     `pour:['tous']` pour ce qui touche tout le monde.
 //
 // Même mécanisme que ANNONCE_ID juste au-dessus, et même discipline :
 // À RÉÉCRIRE À CHAQUE DÉPLOIEMENT, en langage de tous les jours — ces lignes
@@ -4984,24 +4999,20 @@ function displayRemarque(r){
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
 const MAJ_ID='2026-09-16-propagation-corrections-b';
-const NOTES_MAJ={
-  fr:{
-    resume:'Une correction de fiche client se répercute maintenant sur les interventions, et la page ne glisse plus de côté sur téléphone.',
-    details:[
-      'Corriger le NOM d’un client le corrige partout : sur toutes ses interventions, y compris celles déjà terminées. Un nom mal écrit n’a jamais été le bon, il n’y a pas de raison de le garder quelque part.',
-      'Corriger la VILLE ou le QUARTIER ne touche que les interventions pas encore terminées. Celles qui sont marquées Réalisé gardent ce que le technicien a constaté sur place ce jour-là.',
-      'Sur téléphone, la page ne peut plus être tirée de gauche à droite. Dans l’onglet Édition, l’icône de calendrier est passée au-dessus du champ de date pour lui laisser toute la largeur.'
-    ]
-  },
-  en:{
-    resume:'Correcting a client record now carries over to their jobs, and pages no longer slide sideways on phones.',
-    details:[
-      'Correcting a client NAME corrects it everywhere: on all of their jobs, including finished ones. A misspelled name was never right, so there is no reason to keep it anywhere.',
-      'Correcting the TOWN or NEIGHBOURHOOD only affects jobs that are not finished yet. Jobs marked Completed keep what the technician recorded on site that day.',
-      'On phones, the page can no longer be dragged left and right. In the Edit tab, the calendar icon moved above the date field to leave it the full width.'
-    ]
-  }
-};
+const NOTES_MAJ=[
+  { pour:['admin'],
+    fr:'Corriger le NOM d’un client le corrige partout : sur toutes ses interventions, y compris celles déjà terminées. Un nom mal écrit n’a jamais été le bon, il n’y a pas de raison de le garder quelque part.',
+    en:'Correcting a client NAME corrects it everywhere: on all of their jobs, including finished ones. A misspelled name was never right, so there is no reason to keep it anywhere.' },
+  { pour:['admin'],
+    fr:'Corriger la VILLE ou le QUARTIER ne touche que les interventions pas encore terminées. Celles qui sont marquées Réalisé gardent ce que le technicien a constaté sur place ce jour-là.',
+    en:'Correcting the TOWN or NEIGHBOURHOOD only affects jobs that are not finished yet. Jobs marked Completed keep what the technician recorded on site that day.' },
+  { pour:['admin'],
+    fr:'Dans l’onglet Édition, l’icône de calendrier est passée au-dessus du champ de date pour lui laisser toute la largeur.',
+    en:'In the Edit tab, the calendar icon moved above the date field to leave it the full width.' },
+  { pour:['tous'],
+    fr:'Sur téléphone, la page ne peut plus être tirée de gauche à droite.',
+    en:'On phones, the page can no longer be dragged left and right.' }
+];
 
 // Une SEULE fenêtre pour toute la mise à jour. Il y en avait deux — le panneau
 // « Quoi de neuf » et une bannière « Recharger » en bas — et elles pouvaient
@@ -5033,16 +5044,41 @@ let majModeDispo=false;
 //  - Appareil déjà en service → c'est le premier passage sur ce mécanisme, ou
 //    l'utilisateur a vidé son stockage. On affiche : il vient de récupérer ces
 //    changements sans les avoir lus.
+// Clé du drapeau « déjà lu », suffixée par le rôle : les notes n'étant plus les
+// mêmes d'un rôle à l'autre, un drapeau unique en aurait privé un utilisateur
+// qui cumule les rôles dès qu'il en aurait lu un.
+const cleMajVue=(r)=>'ceraf_maj_vue_'+(r||'');
+function marquerMajVue(){
+  try{ localStorage.setItem(cleMajVue(role),MAJ_ID); }catch(e){}
+}
+function notesDuRole(){
+  const lang=(LANG==='en')?'en':'fr';
+  return NOTES_MAJ.filter(n=>n.pour.includes('tous')||n.pour.includes(role))
+                  .map(n=>n[lang]||n.fr)
+                  .filter(Boolean);
+}
 function afficherQuoiDeNeufSiBesoin(){
-  let vu=null,dejaEnService=false;
+  // Sans rôle actif, on ne sait pas à qui on parle : rien à filtrer, rien à
+  // montrer. Le panneau reviendra une fois le rôle choisi — chooseActiveRole()
+  // rappelle cette fonction.
+  if(!role) return;
+  let vu=null,vuLegacy=null,dejaEnService=false;
   try{
-    vu=localStorage.getItem('ceraf_maj_vue');
+    vu=localStorage.getItem(cleMajVue(role));
+    // Drapeau de l'ancien mécanisme, sans rôle. Le respecter évite de rouvrir le
+    // panneau chez ceux qui ont déjà lu ces notes-là avant le passage au
+    // ciblage par rôle.
+    vuLegacy=localStorage.getItem('ceraf_maj_vue');
     dejaEnService=!!(localStorage.getItem('ceraf_url')||localStorage.getItem('ceraf_role'));
   }catch(e){ return; }
-  if(vu===MAJ_ID) return;
-  if(!vu&&!dejaEnService){ try{ localStorage.setItem('ceraf_maj_vue',MAJ_ID); }catch(e){} return; }
+  if(vu===MAJ_ID||vuLegacy===MAJ_ID) return;
+  if(!vu&&!vuLegacy&&!dejaEnService){ marquerMajVue(); return; }
 
-  const notes=NOTES_MAJ[LANG]||NOTES_MAJ.fr;
+  const notes=notesDuRole();
+  // Rien qui concerne ce rôle : on pose le drapeau sans rien afficher, sinon le
+  // panneau se rouvrirait à chaque lancement pour ne montrer qu'une liste vide.
+  if(!notes.length){ marquerMajVue(); return; }
+
   const corps=document.getElementById('maj-corps');
   const modale=document.getElementById('modal-maj');
   if(!corps||!modale) return;
@@ -5050,24 +5086,17 @@ function afficherQuoiDeNeufSiBesoin(){
 
   const p=document.createElement('p');
   p.style.cssText='margin:0 0 10px;font-weight:700;';
-  p.textContent=notes.resume||'';
+  p.textContent=t('maj.intro');
   corps.appendChild(p);
 
-  if(notes.details&&notes.details.length){
-    const ul=document.createElement('ul');
-    ul.style.cssText='display:none;margin:0;padding:0 0 0 18px;line-height:1.45;text-align:left;';
-    notes.details.forEach(x=>{const li=document.createElement('li');li.textContent=x;li.style.marginTop='6px';ul.appendChild(li);});
-    const plus=document.createElement('button');
-    plus.className='btn btn-ghost btn-sm';
-    plus.style.cssText='margin-bottom:8px;font-size:.78rem;';
-    plus.textContent=t('maj.voirPlus');
-    plus.onclick=()=>{
-      const ouvert=ul.style.display!=='none';
-      ul.style.display=ouvert?'none':'block';
-      plus.textContent=t(ouvert?'maj.voirPlus':'maj.voirMoins');
-    };
-    corps.appendChild(plus);corps.appendChild(ul);
-  }
+  // Plus de « Voir plus » : une fois filtrée par rôle, la liste tient à l'écran.
+  // Le résumé a disparu pour la même raison — et parce qu'un résumé doublait le
+  // contenu, donc finissait par le contredire.
+  const ul=document.createElement('ul');
+  ul.style.cssText='margin:0;padding:0 0 0 18px;line-height:1.45;text-align:left;';
+  notes.forEach(x=>{const li=document.createElement('li');li.textContent=x;li.style.marginTop='6px';ul.appendChild(li);});
+  corps.appendChild(ul);
+
   document.getElementById('maj-titre').innerHTML=t('maj.quoiDeNeuf');
   majModeDispo=false;
   modale.classList.add('active');
@@ -5104,7 +5133,7 @@ function majBoutons(){
 
 function fermerQuoiDeNeuf(){
   // Des notes n'ont été lues que si des notes ont été affichées.
-  if(!majModeDispo){ try{ localStorage.setItem('ceraf_maj_vue',MAJ_ID); }catch(e){} }
+  if(!majModeDispo) marquerMajVue();
   const m=document.getElementById('modal-maj');
   if(m) m.classList.remove('active');
   // Le bouton principal APPLIQUE la mise à jour quand il y en a une en attente.
