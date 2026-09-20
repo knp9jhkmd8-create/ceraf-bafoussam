@@ -1,6 +1,7 @@
 # CERAF Bafoussam — Rapport descriptif de l'application
 
-*Mis à jour le 2026-09-15 (règle d'appartenance au mois, retrait du dédoublonnage).
+*Mis à jour le 2026-09-20 (liste des quartiers en base, distance à l'installation, témoin de synchro).
+Mis à jour le 2026-09-15 (règle d'appartenance au mois, retrait du dédoublonnage).
 Réécrit le 2026-08-07 à partir d'une lecture du code réellement en production :
 `api/core.mjs`, `db/schema.sql`, `db/report-nocturne.sql`, `cloudflare/`, `index.html`, `sw.js`.
 Remplace la version du 2026-08-05, qui décrivait le backend Apps Script aujourd'hui hors circuit.*
@@ -131,6 +132,7 @@ téléphones déjà configurés sur Apps Script basculent tout seuls.
   |---|---|
   | `CHEF_ONLY` | `deleteClient`, `deleteIntervention`, `saveClient`, `saveClientLs`, `mergeClientsLs` |
   | `CHEF_READ` | `getAll`, `getClientHistory`, `getClientsResilies` |
+  | *aucune* | `getQuartiers` — ouverte à **tous les rôles** : `detectQuartier()` en a besoin chez le technicien |
   | `ADMIN_ONLY` | gestion utilisateurs, sessions, audit |
 
   `getClients` reste ouvert à tous les rôles : la vue Terrain s'en sert pour l'autofill et la
@@ -315,6 +317,37 @@ possible par `audit_log`.
   distance, donc ne les envoie pas — et les effaçait à chaque enregistrement sur un numéro
   existant. Des repères relevés sur le terrain, perdus par un écran qui ne les montre même pas.
   `nom` reste toujours écrit : la colonne est NOT NULL.
+- **La liste des quartiers est une DONNÉE, plus du code** — depuis le **2026-09-20**. Table
+  `quartiers` (voir `db/quartiers.sql`), le **nom est la clé**, index unique sur
+  `lower(trim(nom))`. Elle était figée dans un tableau d'`index.html`, ce qui interdisait à
+  l'administrateur d'en ajouter un sans déploiement — et la base avait déjà dérivé :
+  « MARCHE BANDJOUN » et « NDJELEN » étaient utilisés sans y figurer. L'amorçage part donc du
+  code **et** du réel.
+  - `getQuartiers` est ouverte à **tous les rôles** : `detectQuartier()` tourne aussi chez le
+    technicien au moment de publier. Seules les écritures sont `ADMIN_ONLY`.
+  - Côté frontend, `QUARTIERS_SECOURS` reste la **graine de repli** : la détection doit
+    continuer de fonctionner **hors ligne**, avant tout appel réseau. La liste vive est mise en
+    cache dans `localStorage['ceraf_quartiers']`.
+  - Le tri par longueur **décroissante** n'est pas cosmétique : `detectQuartier()` retient la
+    première correspondance exacte, il faut donc essayer « MARCHE BANDJOUN » avant « MARCHE A ».
+    À réappliquer après chaque rechargement (`trierQuartiers()`).
+- **Renommer un quartier propage** aux trois tables qui en portent un (`interventions`,
+  `clients`, `clients_ls`) — aucune clé étrangère, ce sont des UPDATE explicites.
+  ⚠️ **Piège vérifié** : l'identité d'une fiche LS EST `(nom, ville, quartier)` —
+  `clients_ls.cle_normalisee` est une colonne **générée**, sous index unique partiel. Un
+  renommage change donc l'identité des fiches concernées et deux peuvent entrer en collision.
+  `adminRenameQuartier` **détecte la collision avant d'écrire** et refuse en nommant les fiches
+  en cause : sans ce contrôle, l'UPDATE remonte une violation de contrainte brute, illisible
+  (reproduit sur une branche Neon avant d'écrire le garde-fou).
+  Renommer vers un nom **déjà dans la liste** est le cas normal d'une fusion de deux
+  orthographes : l'ancienne entrée est alors supprimée au lieu d'être renommée.
+- **Supprimer un quartier encore utilisé est refusé**, avec le compte exact par table. Effacer
+  en silence le quartier de fiches existantes leur ferait perdre une information relevée sur le
+  terrain ; pour s'en débarrasser, on le **renomme** vers le bon.
+- **La distance FAT-client se saisit aussi à l'INSTALLATION** (vue terrain), plus seulement à
+  l'étude. Elle se range sur la **fiche client** (`clients.distance_fat_client`) : c'est une
+  propriété de la ligne, pas de la visite. L'installation est le seul type à champs structurés
+  qui **ne recompose pas sa remarque** — la recomposer écraserait le texte libre saisi à côté.
 - **Reclassement de service** : un numéro vit dans une seule ligne `clients` ; le re-saisir
   sous l'autre service met à jour la colonne `service`, il ne crée pas de doublon.
 - **Une correction de fiche client suit les interventions EN COURS** (`saveClient`) — ajouté le
@@ -389,6 +422,22 @@ capture : une date centree dans son champ = iOS, donc largeur non maitrisee.
 ⚠️ **Chrome de bureau ne reproduit rien de tout ceci** : il tronque la ou iOS deborde. Deux
 tentatives de correction ont echoue avant d'avoir identifie la vraie cause, faute de pouvoir la
 reproduire en emulation. Se fier aux MESURES prises sur une capture de l'appareil reel.
+
+---
+
+### Le témoin de synchronisation suppose qu'un onglet PARLE au serveur
+
+`setSS()` n'est appelé que depuis `apiGet`/`apiPost` : un onglet qui n'émet aucune requête
+laisse le voyant au gris neutre. L'onglet **Édition** était le seul dans ce cas —
+`initEdition()` se contentait de poser la date. Tant qu'on y arrivait en passant par
+*Utilisateurs*, personne ne le voyait ; depuis que l'application **rouvre le dernier onglet
+utilisé** (2026-09-16), un administrateur pouvait démarrer là et ne jamais parler au serveur.
+
+Corrigé le **2026-09-20** : `initEdition()` charge la fiche du jour et la liste des quartiers,
+comme les quatre autres onglets. L'appel `getQuartiers` au démarrage, lui, garantit de toute
+façon un premier contact quel que soit l'onglet restauré.
+
+**À retenir pour tout nouvel onglet** : s'il ne fait aucun appel en arrivant, le voyant ment.
 
 ---
 

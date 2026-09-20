@@ -154,7 +154,8 @@ const MUTATIONS = new Set(['login', 'logout', 'changePin', 'updateStatus', 'save
   'mergeClientsLs', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser', 'adminResetPin',
   // Techniquement une lecture, mais sortir TOUTE la base est précisément ce
   // qu'on veut pouvoir retracer.
-  'adminExport', 'adminCorrigerIntervention']);
+  'adminExport', 'adminCorrigerIntervention',
+  'adminAddQuartier', 'adminRenameQuartier', 'adminDeleteQuartier']);
 
 async function journaliser(ctx, resultat) {
   if (!MUTATIONS.has(ctx.action)) return;
@@ -782,7 +783,7 @@ export async function sauvegarderNocturne() {
 async function updateStatus(d, ctx, session) {
   const id = String(d.invId || '').trim();
   if (!id) return { success: false, error: 'Intervention introuvable' };
-  const avant = await un('SELECT statut, remarque, panne FROM interventions WHERE id = $1 AND supprime_le IS NULL', [id]);
+  const avant = await un('SELECT statut, remarque, panne, numero_ligne FROM interventions WHERE id = $1 AND supprime_le IS NULL', [id]);
   if (!avant) return { success: false, error: 'Intervention introuvable' };
 
   const statuts = ['En attente', 'Injoignable', 'Problème', 'Réalisé'];
@@ -819,9 +820,24 @@ async function updateStatus(d, ctx, session) {
        distNum, d.conclusion || null, d.note || null]);
   }
 
+  // Distance FAT-client relevée par le technicien À LA RÉALISATION d'une
+  // installation. Elle va sur la FICHE CLIENT et non sur l'intervention : c'est
+  // une propriété de la ligne, pas de la visite, et c'est là que l'admin la voit
+  // déjà dans « Corriger une fiche client ». Une intervention sans numéro de
+  // ligne (une étude) n'a pas de fiche où la ranger — d'où le garde-fou.
+  if (d.distanceFatClient !== undefined && avant.numero_ligne) {
+    const dist = (d.distanceFatClient !== '' && !isNaN(Number(d.distanceFatClient)))
+      ? Number(d.distanceFatClient) : null;
+    await sql(
+      'UPDATE clients SET distance_fat_client = $1, derniere_maj = now() WHERE numero = $2 AND supprime_le IS NULL',
+      [dist, avant.numero_ligne]);
+    ctx.apresDistance = dist;
+  }
+
   ctx.entite = 'intervention'; ctx.entiteId = id;
   ctx.avant = avant;
-  ctx.apres = { statut, remarque: d.remarque, panne: d.panne };
+  ctx.apres = { statut, remarque: d.remarque, panne: d.panne,
+                ...(ctx.apresDistance === undefined ? {} : { distanceFatClient: ctx.apresDistance }) };
   return { success: true };
 }
 
@@ -1324,11 +1340,132 @@ async function adminAudit(d) {
 // ============================================================================
 //  DISPATCH
 // ============================================================================
+// ── Quartiers ──────────────────────────────────────────────────────────────
+// La liste vivait dans un tableau figé d'index.html : l'administrateur ne
+// pouvait ni en ajouter, ni en corriger un, sans déploiement — et la base avait
+// déjà dérivé (deux quartiers utilisés sans y figurer). Elle est désormais en
+// base, voir db/quartiers.sql.
+//
+// Le nom EST la clé, et les trois tables qui portent un quartier stockent le
+// LIBELLÉ, sans clé étrangère. Un renommage se propage donc par des UPDATE
+// explicites — rien ne se fait en cascade.
+
+// Comparaison insensible à la casse et aux espaces de bord : « Tamdja »,
+// « TAMDJA » et « tamdja  » désignent le même quartier sur le terrain.
+const CMP_QUARTIER = "lower(trim(coalesce(quartier,'')))";
+
+async function getQuartiers() {
+  const r = await sql('SELECT nom FROM quartiers ORDER BY nom');
+  return { success: true, quartiers: r.map(x => x.nom) };
+}
+
+// Combien de fiches portent ce quartier, table par table. Sert au refus de
+// suppression et au compte rendu d'un renommage.
+async function usageQuartier(nom) {
+  const r = await un(
+    `SELECT (SELECT count(*) FROM interventions WHERE supprime_le IS NULL AND ${CMP_QUARTIER} = lower(trim($1))) AS interventions,
+            (SELECT count(*) FROM clients      WHERE supprime_le IS NULL AND ${CMP_QUARTIER} = lower(trim($1))) AS clients,
+            (SELECT count(*) FROM clients_ls   WHERE supprime_le IS NULL AND ${CMP_QUARTIER} = lower(trim($1))) AS clients_ls`,
+    [nom]);
+  return { interventions: Number(r.interventions), clients: Number(r.clients), clientsLs: Number(r.clients_ls) };
+}
+
+async function adminAddQuartier(d, ctx) {
+  const nom = String(d.nom || '').trim().toUpperCase();
+  if (!nom) return { success: false, error: 'Nom de quartier manquant' };
+  if (nom.length > 60) return { success: false, error: 'Nom trop long (60 caractères maximum)' };
+  const r = await sql(
+    'INSERT INTO quartiers (nom) VALUES ($1) ON CONFLICT DO NOTHING RETURNING nom', [nom]);
+  if (!r.length) return { success: false, error: 'Ce quartier existe déjà' };
+  ctx.entite = 'quartier'; ctx.entiteId = nom; ctx.apres = { nom };
+  return { success: true, nom };
+}
+
+async function adminRenameQuartier(d, ctx) {
+  const ancien  = String(d.ancien  || '').trim();
+  const nouveau = String(d.nouveau || '').trim().toUpperCase();
+  if (!ancien || !nouveau) return { success: false, error: 'Ancien et nouveau nom requis' };
+  if (nouveau.length > 60) return { success: false, error: 'Nom trop long (60 caractères maximum)' };
+  if (ancien.toLowerCase() === nouveau.toLowerCase()) return { success: false, error: 'Ce quartier porte déjà ce nom' };
+
+  const existe = await un('SELECT nom FROM quartiers WHERE lower(trim(nom)) = lower(trim($1))', [ancien]);
+  if (!existe) return { success: false, error: 'Quartier introuvable' };
+
+  // ⚠️ L'identité d'une fiche LS EST (nom, ville, quartier) : clients_ls porte
+  // une colonne GÉNÉRÉE « cle_normalisee », sous index unique partiel. Renommer
+  // un quartier change donc l'identité des fiches concernées, et deux fiches
+  // peuvent atterrir sur la même clé. Sans ce contrôle PRÉALABLE, l'UPDATE
+  // remonte une violation de contrainte brute, illisible pour l'utilisateur —
+  // reproduit sur une branche Neon avant d'écrire ces lignes.
+  const collisions = await sql(
+    `SELECT a.nom, a.ville FROM clients_ls a
+       JOIN clients_ls b ON b.supprime_le IS NULL AND b.id <> a.id
+        AND lower(trim(b.nom)) = lower(trim(a.nom))
+        AND lower(trim(coalesce(b.ville,''))) = lower(trim(coalesce(a.ville,'')))
+        AND lower(trim(coalesce(b.quartier,''))) = lower(trim($2))
+      WHERE a.supprime_le IS NULL AND lower(trim(coalesce(a.quartier,''))) = lower(trim($1))`,
+    [ancien, nouveau]);
+  if (collisions.length) {
+    return { success: false,
+      error: 'Renommage impossible : ' + collisions.map(c => c.nom).join(', ')
+           + ' existerait deux fois en ' + nouveau + '. Fusionnez ces fiches LS avant.' };
+  }
+
+  // La cible peut déjà figurer dans la liste : c'est le cas normal d'une fusion
+  // de deux orthographes. On retire alors l'ancienne entrée au lieu de la
+  // renommer, sinon l'index unique refuse l'opération.
+  const cible = await un('SELECT nom FROM quartiers WHERE lower(trim(nom)) = lower(trim($1))', [nouveau]);
+  if (cible) await sql('DELETE FROM quartiers WHERE lower(trim(nom)) = lower(trim($1))', [ancien]);
+  else       await sql('UPDATE quartiers SET nom = $2 WHERE lower(trim(nom)) = lower(trim($1))', [ancien, nouveau]);
+
+  const [inv, cli, ls] = await Promise.all([
+    sql(`UPDATE interventions SET quartier = $2, mis_a_jour_le = now()
+          WHERE supprime_le IS NULL AND ${CMP_QUARTIER} = lower(trim($1)) RETURNING id`, [ancien, nouveau]),
+    sql(`UPDATE clients SET quartier = $2, derniere_maj = now()
+          WHERE supprime_le IS NULL AND ${CMP_QUARTIER} = lower(trim($1)) RETURNING numero`, [ancien, nouveau]),
+    sql(`UPDATE clients_ls SET quartier = $2, derniere_maj = now()
+          WHERE supprime_le IS NULL AND ${CMP_QUARTIER} = lower(trim($1)) RETURNING id`, [ancien, nouveau]),
+  ]);
+
+  ctx.entite = 'quartier'; ctx.entiteId = ancien;
+  ctx.avant = { nom: ancien };
+  ctx.apres = { nom: nouveau, fusion: !!cible,
+                interventions: inv.length, clients: cli.length, clientsLs: ls.length };
+  return { success: true, nouveau, fusion: !!cible,
+           interventions: inv.length, clients: cli.length, clientsLs: ls.length };
+}
+
+async function adminDeleteQuartier(d, ctx) {
+  const nom = String(d.nom || '').trim();
+  if (!nom) return { success: false, error: 'Nom de quartier manquant' };
+  // Refus si le quartier sert encore, avec le compte exact. Effacer en silence
+  // le quartier de fiches existantes leur ferait perdre une information relevée
+  // sur le terrain ; pour s'en débarrasser, on le RENOMME vers le bon — le
+  // renommage, lui, propage.
+  const u = await usageQuartier(nom);
+  const total = u.interventions + u.clients + u.clientsLs;
+  if (total > 0) {
+    const detail = [u.interventions && u.interventions + ' intervention(s)',
+                    u.clients     && u.clients     + ' fiche(s) client',
+                    u.clientsLs   && u.clientsLs   + ' fiche(s) LS'].filter(Boolean).join(', ');
+    return { success: false, usage: u,
+      error: 'Encore utilisé par ' + detail + '. Renommez-le vers le bon quartier plutôt que de le supprimer.' };
+  }
+  const r = await sql('DELETE FROM quartiers WHERE lower(trim(nom)) = lower(trim($1)) RETURNING nom', [nom]);
+  if (!r.length) return { success: false, error: 'Quartier introuvable' };
+  ctx.entite = 'quartier'; ctx.entiteId = nom; ctx.avant = { nom };
+  return { success: true };
+}
+
 const CHEF_ONLY  = ['deleteClient', 'deleteIntervention', 'saveClient', 'saveClientLs', 'mergeClientsLs'];
 const CHEF_READ  = ['getAll', 'getClientHistory', 'getClientsResilies'];
 const ADMIN_ONLY = ['adminListUsers', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser',
                     'adminResetPin', 'adminAudit', 'adminSessions', 'adminRevoquerSession',
-                    'adminExport', 'adminBackups', 'adminCorrigerIntervention'];
+                    'adminExport', 'adminBackups', 'adminCorrigerIntervention',
+                    // getQuartiers est volontairement ABSENT de cette liste :
+                    // detectQuartier() en a besoin chez le TECHNICIEN au moment
+                    // de publier. Seules les écritures sont réservées à l'admin.
+                    'adminAddQuartier', 'adminRenameQuartier', 'adminDeleteQuartier'];
 
 const ACTIONS = {
   ping:               async () => ({ success: true, pong: true }),
@@ -1336,6 +1473,7 @@ const ACTIONS = {
   login, logout, changePin,
   // Lectures
   getByDate, getClients, getAll, getClientHistory, getClientsResilies, findClient,
+  getQuartiers,
   // Écritures
   updateStatus, saveConsistance, saveClient, saveClientLs, updateClientGPS,
   deleteClient, deleteIntervention, mergeClientsLs,
@@ -1346,7 +1484,9 @@ const ACTIONS = {
   // Sauvegarde
   adminExport, adminBackups,
   // Correction manuelle (admin)
-  adminCorrigerIntervention
+  adminCorrigerIntervention,
+  // Quartiers — liste partagée, écriture réservée à l'admin
+  adminAddQuartier, adminRenameQuartier, adminDeleteQuartier
 };
 
 // Point d'entrée unique, appelé par chaque adaptateur d'hébergement.

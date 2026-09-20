@@ -499,7 +499,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
   <div class="role-tagline" data-i18n="login.tagline">Consistance des Travaux — Connexion</div>
   <div class="setup-box" style="max-width:360px;">
     <label data-i18n="login.matricule.label">Matricule</label>
-    <input type="text" id="login-matricule" placeholder="Tapez votre matricule ici…" data-i18n-ph="login.matricule.ph" inputmode="numeric" pattern="[0-9]*" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
+    <input type="text" id="login-matricule" placeholder="Tapez votre matricule ici…" data-i18n-ph="login.matricule.ph" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" style="margin-bottom:14px;" oninput="filterDigits(this,6)" onkeydown="if(event.key==='Enter')document.getElementById('login-pin').focus()">
     <label data-i18n="login.pin.label">Code PIN</label>
     <input type="password" id="login-pin" placeholder="••••" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()" id="btn-login" data-i18n-html="login.btn">Se connecter</button>
@@ -572,12 +572,19 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="common.customerId.label">Customer ID</label><input id="f1c" placeholder="Ex: CUST-00123"></div>
             <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f1n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
+          <!-- « + Ajouter un numéro » et son champ vivent DANS la cellule du
+               téléphone, pas après la rangée. `.form-row` est une grille à deux
+               colonnes qui se replie à une seule sous 560px : placés après, ils
+               se retrouvaient sur téléphone sous la Localité, loin du numéro
+               auquel ils se rapportent. À l'intérieur, ils suivent le téléphone
+               dans les deux dispositions. Même motif dans les sept blocs. -->
           <div class="form-row">
-            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f1t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f1t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f1')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f1sec-row"><input id="f1sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
             <div><label data-i18n="common.ville.label">Ville</label><select id="f1v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f1')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f1sec-row"><input id="f1sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full">
             <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
           </div>
@@ -589,13 +596,17 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="label.numFtth">N° FTTH</label><input id="f2u" placeholder="233444445" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f2v')" onblur="lookupClientLocal(this.value)"></div>
             <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f2n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone</label><input id="f2t" placeholder="694561304" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f2')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f2sec-row"><input id="f2sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row">
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f2t" placeholder="694561304" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f2')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f2sec-row"><input id="f2sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
+            <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div>
+          </div>
           <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f2v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
           <div class="form-row">
-            <div><label data-i18n="label.fdt">FDT</label><div class="inp-prefixed"><span class="inp-prefix">FDT-</span><input type="text" id="f2fdt" placeholder="X"></div></div>
-            <div><label data-i18n="label.fat">FAT</label><div class="inp-prefixed"><span class="inp-prefix">FAT-</span><input type="text" id="f2fat" placeholder="X"></div></div>
+            <div><div class="inp-prefixed"><span class="inp-prefix">FDT-</span><input type="text" id="f2fdt" placeholder="X"></div></div>
+            <div><div class="inp-prefixed"><span class="inp-prefix">FAT-</span><input type="text" id="f2fat" placeholder="X"></div></div>
           </div>
         </div>
 
@@ -605,9 +616,13 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="label.numFtth">N° FTTH</label><input id="f3u" placeholder="233442022" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f3v')" onblur="lookupClientLocal(this.value)"></div>
             <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f3n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone</label><input id="f3t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f3')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f3sec-row"><input id="f3sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row">
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f3t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f3')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f3sec-row"><input id="f3sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
+            <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div>
+          </div>
           <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f3v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
@@ -617,9 +632,13 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="label.numCuivre">N° Cuivre</label><input id="f4u" placeholder="233441164" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f4v')" onblur="lookupClientLocal(this.value)"></div>
             <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f4n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
-          <div class="form-row"><div><label data-i18n="common.tel.label">Téléphone</label><input id="f4t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div></div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f4')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f4sec-row"><input id="f4sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+          <div class="form-row">
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f4t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f4')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f4sec-row"><input id="f4sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
+            <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div>
+          </div>
           <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f4v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
@@ -661,11 +680,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="common.nomClientLs.label">Nom Client LS</label><input id="f5n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row">
-            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f5t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f5t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f5')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f5sec-row"><input id="f5sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
             <div><label data-i18n="common.ville.label">Ville</label><select id="f5v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f5')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f5sec-row"><input id="f5sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full"><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f5l" placeholder="Localité" data-i18n-ph="common.localite.ph"></div></div>
         </div>
 
@@ -675,11 +695,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="common.nomClientLs.label">Nom Client LS</label><input id="f6n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row">
-            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f6t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f6t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f6')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f6sec-row"><input id="f6sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
             <div><label data-i18n="common.ville.label">Ville</label><select id="f6v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f6')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f6sec-row"><input id="f6sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full"><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f6l" placeholder="Localité" data-i18n-ph="common.localite.ph"></div></div>
         </div>
 
@@ -689,7 +710,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="common.nomClientLs.label">Nom Client LS</label><input id="f7n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <div class="form-row">
-            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f7t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f7t" placeholder="621728190" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f7')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f7sec-row"><input id="f7sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
             <div><label data-i18n="label.pop">POP</label>
               <select id="f7p">
                 <option value="" data-i18n="select.pop.default">-- Sélectionner POP --</option>
@@ -698,8 +722,6 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
               </select>
             </div>
           </div>
-          <button type="button" class="btn-addnum" onclick="toggleSecNum('f7')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
-          <div class="secnum-row" id="f7sec-row"><input id="f7sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div class="form-row full">
             <div><label data-i18n="common.ville.label">Ville</label>
               <select id="f7v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
@@ -957,6 +979,16 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         </div>
         <div id="edition-cli-wrap" style="margin-top:12px;"></div>
       </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title" data-i18n-html="edition.quartiers">Quartiers</div>
+        <div class="ed-load-row">
+          <div class="ed-load-field"><label data-i18n="edition.qNouveau">Nouveau quartier</label><input id="ed-q-new" placeholder="Ex: NOUVEAU QUARTIER" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+          <button class="btn btn-primary btn-sm" onclick="ajouterQuartier()" data-i18n="edition.qAjouter">Ajouter</button>
+        </div>
+        <div id="edition-quartiers-wrap" style="margin-top:12px;"></div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:10px;" data-i18n="edition.qAide">Renommer un quartier corrige aussi toutes les interventions et fiches clients qui le portent. Un quartier encore utilisé ne peut pas être supprimé : renommez-le vers le bon.</div>
+      </div>
     </div>
 
   </div>
@@ -1153,6 +1185,12 @@ fr:{
   'edition.sub':'Corriger une donnée directement. Toute modification est enregistrée dans le journal d\'audit.',
   'edition.avertissement':ICO.warning+' Ces corrections s\'appliquent immédiatement à la base. Elles sont tracées (qui, quand, avant/après) et une suppression est un archivage — donc rattrapable.',
   'edition.chercherInv':ICO.wrench+' Corriger une intervention','edition.chercherClient':ICO.users+' Corriger une fiche client',
+  'edition.quartiers':ICO.pushpin+' Quartiers',
+  'edition.qNouveau':'Nouveau quartier','edition.qAjouter':'Ajouter','edition.qRenommer':'Renommer',
+  'edition.qConfirmRenom':'Renommer « {ancien} » en « {nouveau} » ? La correction s\'appliquera aussi à toutes les interventions et fiches clients qui le portent.',
+  'edition.qRenomme':'Renommé — {n} fiche(s) corrigée(s)',
+  'edition.qConfirmSuppr':'Retirer « {nom} » de la liste des quartiers ?',
+  'edition.qAide':'Renommer un quartier corrige aussi toutes les interventions et fiches clients qui le portent. Un quartier encore utilisé ne peut pas être supprimé : renommez-le vers le bon.',
   'edition.date':'Date de la fiche','edition.charger':ICO.folderOpen+' Charger','edition.enregistrer':'Enregistrer',
   'edition.dateEmission':"Date d'émission",'edition.dateRattachement':'Date de la fiche',
   'edition.datesAide':"Date d'émission = origine de l'intervention, c'est elle qui détermine la durée. Date de la fiche = jour sur lequel la ligne apparaît ; la changer déplace l'intervention vers un autre jour. Une intervention encore ouverte déplacée vers une date passée sera ramenée au jour courant par le report automatique : passez-la d'abord en Réalisé si vous voulez la figer. Toute correction est tracée dans le journal d'audit.",
@@ -1186,7 +1224,7 @@ fr:{
   'common.localite.ph':'Localité',
   'label.numFtth':'N° FTTH',
   'label.numCuivre':'N° Cuivre',
-  'label.fdt':'FDT','label.fat':'FAT','label.pop':'POP',
+  'label.pop':'POP','install.distanceTitle':'Distance FAT-client',
   'select.pop.default':'-- Sélectionner POP --',
   'label.gpsClient':'Coordonnées GPS du client',
   'btn.locate':'Localiser',
@@ -1439,6 +1477,12 @@ en:{
   'edition.sub':'Fix data directly. Every change is recorded in the audit log.',
   'edition.avertissement':ICO.warning+' These fixes apply to the database immediately. They are traced (who, when, before/after) and deletion is archiving — so it stays recoverable.',
   'edition.chercherInv':ICO.wrench+' Fix an intervention','edition.chercherClient':ICO.users+' Fix a client record',
+  'edition.quartiers':ICO.pushpin+' Neighbourhoods',
+  'edition.qNouveau':'New neighbourhood','edition.qAjouter':'Add','edition.qRenommer':'Rename',
+  'edition.qConfirmRenom':'Rename "{ancien}" to "{nouveau}"? The correction will also apply to every job and client record carrying it.',
+  'edition.qRenomme':'Renamed — {n} record(s) corrected',
+  'edition.qConfirmSuppr':'Remove "{nom}" from the neighbourhood list?',
+  'edition.qAide':'Renaming a neighbourhood also corrects every job and client record carrying it. A neighbourhood still in use cannot be deleted: rename it to the right one instead.',
   'edition.date':'Sheet date','edition.charger':ICO.folderOpen+' Load','edition.enregistrer':'Save',
   'edition.dateEmission':'Issued on','edition.dateRattachement':'Sheet date',
   'edition.datesAide':'Issued on = when the intervention started; it is what drives the duration. Sheet date = the day the row appears on; changing it moves the intervention to another day. An intervention that is still open and moved to a past date will be carried back to the current day by the automatic roll-forward: mark it Done first if you want it to stay put. Every correction is recorded in the audit log.',
@@ -1472,7 +1516,7 @@ en:{
   'common.localite.ph':'Location',
   'label.numFtth':'FTTH Number',
   'label.numCuivre':'Copper Number',
-  'label.fdt':'FDT','label.fat':'FAT','label.pop':'POP',
+  'label.pop':'POP','install.distanceTitle':'FAT-client distance',
   'select.pop.default':'-- Select POP --',
   'label.gpsClient':'Customer GPS coordinates',
   'btn.locate':'Locate',
@@ -1747,7 +1791,20 @@ const MONTHS={
 };
 const PREFIX_VILLE={'23344':'Bafoussam','23327':'Bandjoun'};
 const VILLE_REQUIRED=['etude_ftth','etude_ls','derang_ls','install_ls'];
-const QUARTIERS_BAFOUSSAM=[
+// Les quatre villes couvertes par le centre. La liste était recopiée en dur
+// dans neuf <select> du HTML ; tout écran ajouté depuis la génère à partir
+// d'ici, pour ne pas créer une dixième copie à tenir à jour.
+const VILLES=['Bafoussam','Bandjoun','Baham','Foumbot'];
+const optionsVilles=(choisie)=>VILLES.map(v=>
+  `<option${String(choisie||'').trim().toLowerCase()===v.toLowerCase()?' selected':''}>${v}</option>`).join('');
+
+// GRAINE DE SECOURS, pas la source de vérité. La liste vit en base depuis le
+// 2026-09-20 (table `quartiers`, voir db/quartiers.sql) pour que
+// l'administrateur puisse en ajouter et en corriger sans déploiement.
+// Ce tableau reste indispensable : detectQuartier() tourne HORS LIGNE, sur le
+// terrain, avant tout appel réseau. Sans repli, un technicien sans réseau
+// publierait des interventions sans quartier.
+const QUARTIERS_SECOURS=[
   "ENTREE DE LA VILLE","CARREFOUR LE MAIRE","MARCHE DES POULETS","QUARTIER ADMINISTRATIF",
   "TOTAL EN BAS","HOPITAL REGIONAL","SAPEUR POMPIER","BANDJOUN STATION","QUARTIER HAOUSSA",
   "ECOLE NORMALE","CAMPS SABLE","CASA","CAMI TOYOTA","NDIANDAM",
@@ -1755,7 +1812,29 @@ const QUARTIERS_BAFOUSSAM=[
   "DJEMOUN","NDIANSO","BANENGO","SOCADA","TAMDJA","KAMKOP","BALENG","EVECHE","COLACO",
   "BIPMOP","TOCKET","MAETUR","BINAM","DUBAI","AUBERGE","DJELENG","ACHA","KENA","BIAO","TPO","FAMLA",
   "AKWA","SENS INTERDIT","MADELON"
-].sort((a,b)=>b.length-a.length);
+];
+// Le tri par longueur DÉCROISSANTE n'est pas cosmétique : detectQuartier()
+// prend la première correspondance exacte, il faut donc essayer « MARCHE
+// BANDJOUN » avant « MARCHE A ». À réappliquer après chaque rechargement.
+const trierQuartiers=(l)=>[...l].sort((a,b)=>b.length-a.length);
+let QUARTIERS_BAFOUSSAM=trierQuartiers(QUARTIERS_SECOURS);
+
+// Hydratation immédiate depuis le dernier cache connu, puis rafraîchissement
+// réseau — même motif que le cache clients. L'appel sert aussi de premier
+// contact avec le serveur au démarrage, quel que soit l'onglet restauré.
+function hydraterQuartiersDepuisCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem('ceraf_quartiers')||'null');
+    if(Array.isArray(c)&&c.length)QUARTIERS_BAFOUSSAM=trierQuartiers(c);
+  }catch(e){}
+}
+async function chargerQuartiers(){
+  const res=await apiGet({action:'getQuartiers'});
+  if(!res.success||!Array.isArray(res.quartiers)||!res.quartiers.length)return false;
+  QUARTIERS_BAFOUSSAM=trierQuartiers(res.quartiers);
+  try{localStorage.setItem('ceraf_quartiers',JSON.stringify(res.quartiers));}catch(e){}
+  return true;
+}
 
 // Options de "nature de la panne" pour les Dérangements FTTH
 const PANNE_OPTIONS=['Appui cassé','Fibre coupée','Modem défectueux','Connexion instable','Jarretière coupée','Atténuation','Problème de voix','Alimentation défectueuse','Service OKAY'];
@@ -2210,6 +2289,10 @@ function startApp(r){
   // Hydratation instantanée du cache clients depuis localStorage (tous rôles) :
   // autofill, doublons et GPS terrain fonctionnent sans attendre le réseau.
   const hadClientsCache=hydrateClientsFromCache();
+  // Les quartiers alimentent detectQuartier() chez TOUS les rôles, pas
+  // seulement l'admin : le cache d'abord, le réseau ensuite.
+  hydraterQuartiersDepuisCache();
+  chargerQuartiers().catch(()=>{});
   if(r==='chef'){
     nav.innerHTML=`<button class="nav-tab active" data-page="chef" onclick="goPage('chef',this)">${ICO.hardhat} ${t('nav.chef')}</button>
       <button class="nav-tab" data-page="clients" onclick="goPage('clients',this)">${ICO.users} ${t('nav.clients')}</button>
@@ -2740,6 +2823,18 @@ function levenshtein(a,b){
   return dp[m][n];
 }
 
+// Le quartier DÉCOULE de la localité : on le repropose à chaque frappe, sans
+// jamais écraser une valeur que l'utilisateur vient de corriger à la main.
+// `detectQuartier` tolère les fautes de frappe mais se trompe parfois — d'où
+// le champ qui reste modifiable, et le drapeau `dataset.manuel` posé dès que
+// quelqu'un y touche.
+function quartierDepuisLocalite(idLoc,idQuartier){
+  const loc=document.getElementById(idLoc), q=document.getElementById(idQuartier);
+  if(!loc||!q)return;
+  if(q.dataset.manuel==='1')return;
+  const trouve=detectQuartier(loc.value||'');
+  if(trouve)q.value=trouve;
+}
 function detectQuartier(loc){
   if(!loc)return'';
   const n=normTxt(loc);
@@ -2794,9 +2889,11 @@ function suggererQuartiers(loc,max=3){
   return scores.slice(0,max).filter(s=>s.dist<=4).map(s=>s.q);
 }
 
-// Ne garde que les chiffres, limité à 9
-function filterDigits(el){
-  el.value=el.value.replace(/\D/g,'').slice(0,9);
+// Ne garde que les chiffres. 9 par défaut (numéros de ligne et de téléphone),
+// 6 pour un matricule — `maxlength` seul ne suffit pas : il laisse passer les
+// lettres, et un collage peut le contourner sur certains navigateurs.
+function filterDigits(el,max=9){
+  el.value=el.value.replace(/\D/g,'').slice(0,max);
   el.classList.remove('input-error');
 }
 
@@ -3808,6 +3905,7 @@ function invRowHTML(inv,idx){
 
   const isEtudeFtth=inv.type===TL.etude_ftth;
   const isDerangFtth=inv.type===TL.derang_ftth;
+  const isInstallFtth=inv.type===TL.install_ftth;
 
   // `remarqueEditable` et non `inv.remarque` : voir le commentaire de la
   // fonction — FDT/FAT sont déjà affichés au-dessus, les répéter ici n'a pas de
@@ -3832,6 +3930,17 @@ function invRowHTML(inv,idx){
           <option value="DEFAVORABLE" ${e.conclusion==='DEFAVORABLE'?'selected':''}>${t('conclusion.defavorable')}</option>
         </select>
         <input type="text" id="note-${inv.id}" class="remark-inp" placeholder="${t('ph.smallRemark')}" value="${esc(e.note)}" onblur="updStructured('${inv.id}')">
+      </div>`;
+  } else if(isInstallFtth){
+    // Seule branche qui LAISSE la remarque libre en place (rightRemarqueHTML
+    // n'est pas vidé) : le technicien a toujours besoin d'y écrire, la distance
+    // vient en plus. Valeur lue sur la fiche client, où elle est rangée — la
+    // vue v_interventions ne la porte pas.
+    const distCli=(cacheClient&&cacheClient.distanceFatClient!=null)?cacheClient.distanceFatClient:'';
+    structuredHTML=`
+      <div class="etude-fields" style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">${t('install.distanceTitle')}</div>
+        <div class="inp-prefixed"><span class="inp-prefix">Distance =</span><input type="text" id="dist-${inv.id}" class="remark-inp" placeholder="X" inputmode="numeric" value="${esc(distCli)}" onblur="updStructured('${inv.id}')"><span class="inp-prefix">m</span></div>
       </div>`;
   } else if(isDerangFtth){
     const p=parsePanneInfo(inv.remarque);
@@ -3893,6 +4002,14 @@ function readStructuredFields(invId,inv){
       conclusion:(document.getElementById('conclu-'+invId)||{value:''}).value,
       note:(document.getElementById('note-'+invId)||{value:''}).value,
       contact:parseEtudeInfo(inv.remarque).contact
+    };
+  }
+  if(type===TL.install_ftth){
+    // Pas de remarque recomposée ici : l'installation garde sa remarque libre,
+    // la distance part dans son propre champ de la requête.
+    return {
+      kind:'install',
+      distance:(document.getElementById('dist-'+invId)||{value:''}).value
     };
   }
   if(type===TL.derang_ftth){
@@ -4114,7 +4231,11 @@ async function updStructured(invId){
   if(!invRef)return;
   const statut=row?(row.querySelector('select[onchange^="updStatut("]')||{value:invRef.statut}).value:invRef.statut;
   const structured=readStructuredFields(invId,invRef);
-  const remarque=composeStructuredRemarque(structured);
+  // L'installation est le seul type à champs structurés qui NE recompose PAS
+  // sa remarque : la recomposer écraserait le texte libre que le technicien
+  // vient d'écrire juste à côté.
+  const estInstall=structured&&structured.kind==='install';
+  const remarque=estInstall?(invRef.remarque||''):composeStructuredRemarque(structured);
   const panne=structured&&structured.kind==='panne'?structured.panne:undefined;
   invRef.remarque=remarque;
   if(panne!==undefined)invRef.panne=panne;
@@ -4127,6 +4248,15 @@ async function updStructured(invId){
   if(structured&&structured.kind==='etude'){
     payload.fdt=structured.fdt;payload.fat=structured.fat;payload.distance=structured.distance;
     payload.conclusion=structured.conclusion;payload.note=structured.note;
+  }
+  // La distance d'une installation se range sur la FICHE CLIENT (propriété de
+  // la ligne, pas de la visite) — le backend s'en charge depuis ce champ.
+  if(estInstall){
+    payload.distanceFatClient=structured.distance;
+    // Le cache local suit, sinon la valeur repart à vide au prochain rendu
+    // tant que getClients n'a pas été rappelé.
+    const cle=String(invRef.num||'').replace(/\s/g,'').toLowerCase();
+    if(cle&&clientsCache[cle])clientsCache[cle].distanceFatClient=structured.distance;
   }
 
   if(estHorsLigne()){
@@ -4688,6 +4818,13 @@ function ouvrirSelecteurDate(id){
 function initEdition(){
   const d=document.getElementById('ed-date');
   if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);
+  // L'onglet charge la fiche du jour de lui-même, comme Terrain, Historique,
+  // Utilisateurs et Audit. Il était le SEUL à n'émettre aucune requête en
+  // arrivant : depuis que l'application rouvre le dernier onglet utilisé, un
+  // administrateur qui atterrissait ici ne parlait jamais au serveur et le
+  // témoin de synchronisation restait au gris neutre.
+  chargerEditionJour();
+  chargerQuartiersUI();
 }
 
 async function chargerEditionJour(){
@@ -4777,6 +4914,56 @@ async function archiverIntervention(id){
   else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
 
+// ── Quartiers (admin) ─────────────────────────────────────────────────────
+async function chargerQuartiersUI(){
+  const el=document.getElementById('edition-quartiers-wrap');
+  if(!el)return;
+  const res=await apiGet({action:'getQuartiers'});
+  if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
+  const liste=res.quartiers||[];
+  QUARTIERS_BAFOUSSAM=trierQuartiers(liste);
+  try{localStorage.setItem('ceraf_quartiers',JSON.stringify(liste));}catch(e){}
+  el.innerHTML=`<div style="font-size:.74rem;color:var(--muted);margin-bottom:8px;">${liste.length} quartier(s)</div>`
+    +liste.map(q=>`
+      <div class="ed-load-row" style="margin-bottom:8px;" data-q="${escJsAttr(q)}">
+        <div class="ed-load-field"><input class="ed-q-nom" value="${esc(q)}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+        <button class="btn btn-green btn-sm" onclick="renommerQuartier('${escJsAttr(q)}',this)">${esc(t('edition.qRenommer'))}</button>
+        <button class="btn btn-danger btn-sm" onclick="supprimerQuartier('${escJsAttr(q)}')">${ICO.trash}</button>
+      </div>`).join('');
+}
+
+async function ajouterQuartier(){
+  const champ=document.getElementById('ed-q-new');
+  const nom=String((champ||{}).value||'').trim();
+  if(!nom){showToast(t('edition.qNouveau'));return;}
+  const res=await apiPost({action:'adminAddQuartier',nom});
+  if(!res.success){showToast(t('err.prefix')+(res.error||t('err.generic')));return;}
+  champ.value='';
+  showToast(t('toast.saved'));
+  chargerQuartiersUI();
+}
+
+async function renommerQuartier(ancien,btn){
+  // Le nouveau nom se lit dans le champ de CETTE rangée, pas par identifiant :
+  // la liste est régénérée à chaque rafraîchissement.
+  const rangee=btn&&btn.closest('.ed-load-row');
+  const nouveau=String(((rangee&&rangee.querySelector('.ed-q-nom'))||{}).value||'').trim();
+  if(!nouveau||nouveau.toUpperCase()===ancien.toUpperCase())return;
+  if(!confirm(t('edition.qConfirmRenom',{ancien,nouveau})))return;
+  const res=await apiPost({action:'adminRenameQuartier',ancien,nouveau});
+  if(!res.success){showToast(t('err.prefix')+(res.error||t('err.generic')));chargerQuartiersUI();return;}
+  showToast(t('edition.qRenomme',{n:res.interventions+res.clients+res.clientsLs}));
+  chargerQuartiersUI();
+}
+
+async function supprimerQuartier(nom){
+  if(!confirm(t('edition.qConfirmSuppr',{nom})))return;
+  const res=await apiPost({action:'adminDeleteQuartier',nom});
+  if(!res.success){showToast(t('err.prefix')+(res.error||t('err.generic')));return;}
+  showToast(t('edition.archive'));
+  chargerQuartiersUI();
+}
+
 async function chargerEditionClient(){
   const el=document.getElementById('edition-cli-wrap');
   const num=String((document.getElementById('ed-cli-num')||{}).value||'').trim();
@@ -4792,13 +4979,15 @@ async function chargerEditionClient(){
   // colonnes : le nombre de colonnes suit la largeur réelle, et un champ ne
   // peut jamais être plus large que la carte qui le contient.
   el.innerHTML=`<div class="ed-grid">
-      ${ch('edc-nom',t('common.name.label'),c.nom)}
+      <div><label>${esc(t('common.name.label'))}</label><input id="edc-nom" value="${esc(c.nom||'')}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
       <div><label>Service</label><select id="edc-service">
         <option value="FTTH"${svc==='FTTH'?' selected':''}>FTTH</option>
         <option value="CUIVRE"${svc==='CUIVRE'?' selected':''}>Cuivre</option></select></div>
       ${ch('edc-tel','Téléphone',c.tel)}${ch('edc-telsec','Tél. secondaire',c.telSec)}
-      ${ch('edc-ville','Ville',c.ville)}${ch('edc-quartier','Quartier',c.quartier)}
-      ${ch('edc-loc','Localité',c.loc)}${ch('edc-gps','GPS',c.gps)}
+      <div><label>Ville</label><select id="edc-ville">
+        <option value="">-- Sélectionner --</option>${optionsVilles(c.ville)}</select></div>
+      <div><label>Quartier</label><input id="edc-quartier" value="${esc(c.quartier||'')}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();this.dataset.manuel='1'"></div>
+      <div><label>Localité</label><input id="edc-loc" value="${esc(c.loc||'')}" oninput="quartierDepuisLocalite('edc-loc','edc-quartier')"></div>${ch('edc-gps','GPS',c.gps)}
       ${ch('edc-fdt','FDT',c.fdt)}${ch('edc-fat','FAT',c.fat)}
       ${ch('edc-distfat','Distance FAT-client (m)',c.distanceFatClient)}
     </div>
@@ -5019,23 +5208,29 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-16-fiches-clients';
+const MAJ_ID='2026-09-20-quartiers-saisie';
 const NOTES_MAJ=[
+  { pour:['technicien'],
+    fr:'Sur une installation FTTH, vous pouvez maintenant noter la distance entre le FAT et le client au moment où vous la réalisez. Elle se range sur la fiche du client, à côté du FDT et du FAT.',
+    en:'On an FTTH installation you can now record the distance between the FAT and the client while carrying it out. It is stored on the client record, next to the FDT and FAT.' },
+  { pour:['chef'],
+    fr:'Au moment d’ajouter une intervention, « + Ajouter un numéro » est désormais juste sous le téléphone, au lieu d’être renvoyé sous la localité sur téléphone.',
+    en:'When adding a job, "+ Add a number" now sits right under the phone field, instead of being pushed below the locality on phones.' },
+  { pour:['chef'],
+    fr:'Sur une installation FTTH, les cases FDT et FAT n’affichent plus deux fois leur nom.',
+    en:'On an FTTH installation, the FDT and FAT boxes no longer show their name twice.' },
   { pour:['admin'],
-    fr:'Corriger le NOM d’un client le corrige partout : sur toutes ses interventions, y compris celles déjà terminées. Un nom mal écrit n’a jamais été le bon, il n’y a pas de raison de le garder quelque part.',
-    en:'Correcting a client NAME corrects it everywhere: on all of their jobs, including finished ones. A misspelled name was never right, so there is no reason to keep it anywhere.' },
+    fr:'Vous pouvez désormais gérer la liste des quartiers depuis l’onglet Édition : en ajouter, en corriger un, en retirer. Corriger un quartier corrige du même coup toutes les interventions et fiches clients qui le portent. Un quartier encore utilisé ne peut pas être retiré — renommez-le vers le bon.',
+    en:'You can now manage the neighbourhood list from the Edit tab: add one, correct one, remove one. Correcting a neighbourhood also corrects every job and client record carrying it. A neighbourhood still in use cannot be removed — rename it to the right one instead.' },
   { pour:['admin'],
-    fr:'Corriger la VILLE ou le QUARTIER ne touche que les interventions pas encore terminées. Celles qui sont marquées Réalisé gardent ce que le technicien a constaté sur place ce jour-là.',
-    en:'Correcting the TOWN or NEIGHBOURHOOD only affects jobs that are not finished yet. Jobs marked Completed keep what the technician recorded on site that day.' },
+    fr:'En corrigeant une fiche client : le nom passe en majuscules à la frappe, la ville se choisit dans une liste, et le quartier se propose tout seul à partir de la localité — il reste corrigeable à la main.',
+    en:'When correcting a client record: the name goes uppercase as you type, the town is picked from a list, and the neighbourhood is suggested from the locality — still editable by hand.' },
   { pour:['admin'],
-    fr:'Dans l’onglet Édition, l’icône de calendrier est passée au-dessus du champ de date pour lui laisser toute la largeur.',
-    en:'In the Edit tab, the calendar icon moved above the date field to leave it the full width.' },
-  { pour:['admin'],
-    fr:'Le formulaire « Ajouter un client » n’efface plus le FDT, le FAT ni la distance quand on enregistre un numéro qui existe déjà. Ces champs ne sont pas affichés sur cet écran : ils restent tels quels. Pour les modifier, passer par Édition.',
-    en:'The "Add a client" form no longer wipes the FDT, FAT or distance when saving a number that already exists. Those fields are not shown on that screen: they are left as they are. Use the Edit tab to change them.' },
+    fr:'L’onglet Édition affiche la fiche du jour dès son ouverture, sans avoir à cliquer sur Charger. C’est aussi ce qui remet le voyant de synchronisation en haut de page dans le bon état.',
+    en:'The Edit tab shows the day’s sheet as soon as you open it, without clicking Load. This also puts the sync indicator at the top of the page back into the right state.' },
   { pour:['tous'],
-    fr:'Sur téléphone, la page ne peut plus être tirée de gauche à droite.',
-    en:'On phones, the page can no longer be dragged left and right.' }
+    fr:'À la connexion, le matricule n’accepte plus que 6 chiffres — ni lettre, ni septième chiffre.',
+    en:'On the login screen, the staff number now accepts only 6 digits — no letters, no seventh digit.' }
 ];
 
 // Une SEULE fenêtre pour toute la mise à jour. Il y en avait deux — le panneau
