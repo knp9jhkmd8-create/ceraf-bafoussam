@@ -1,6 +1,6 @@
 # CERAF Bafoussam — Rapport descriptif de l'application
 
-*Mis à jour le 2026-09-20 (liste des quartiers en base, distance à l'installation, témoin de synchro).
+*Mis à jour le 2026-09-20 (liste des quartiers en base + recherche à la frappe, distance à l'installation, témoin de synchro).
 Mis à jour le 2026-09-15 (règle d'appartenance au mois, retrait du dédoublonnage).
 Réécrit le 2026-08-07 à partir d'une lecture du code réellement en production :
 `api/core.mjs`, `db/schema.sql`, `db/report-nocturne.sql`, `cloudflare/`, `index.html`, `sw.js`.
@@ -341,6 +341,11 @@ possible par `audit_log`.
   (reproduit sur une branche Neon avant d'écrire le garde-fou).
   Renommer vers un nom **déjà dans la liste** est le cas normal d'une fusion de deux
   orthographes : l'ancienne entrée est alors supprimée au lieu d'être renommée.
+  - **L'écran d'administration n'affiche jamais la liste entière** : une cinquantaine de
+    rangées éditables noyait le reste de l'onglet. Un champ unique fait les deux métiers —
+    il filtre les quartiers existants à la frappe (correspondances par préfixe d'abord,
+    8 au maximum) et ne propose « Ajouter » que si **rien ne correspond exactement**, ce qui
+    empêche au passage de recréer un quartier déjà présent.
 - **Supprimer un quartier encore utilisé est refusé**, avec le compte exact par table. Effacer
   en silence le quartier de fiches existantes leur ferait perdre une information relevée sur le
   terrain ; pour s'en débarrasser, on le **renomme** vers le bon.

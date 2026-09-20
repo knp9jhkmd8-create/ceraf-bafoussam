@@ -983,8 +983,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
       <div class="card" style="margin-top:14px;">
         <div class="card-title" data-i18n-html="edition.quartiers">Quartiers</div>
         <div class="ed-load-row">
-          <div class="ed-load-field"><label data-i18n="edition.qNouveau">Nouveau quartier</label><input id="ed-q-new" placeholder="Ex: NOUVEAU QUARTIER" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-          <button class="btn btn-primary btn-sm" onclick="ajouterQuartier()" data-i18n="edition.qAjouter">Ajouter</button>
+          <div class="ed-load-field"><input id="ed-q-search" placeholder="Rechercher ou ajouter un quartier" data-i18n-ph="edition.qChercher.ph" style="text-transform:uppercase" autocomplete="off" oninput="this.value=this.value.toUpperCase();rendreQuartiersUI()"></div>
         </div>
         <div id="edition-quartiers-wrap" style="margin-top:12px;"></div>
         <div style="font-size:.74rem;color:var(--muted);margin-top:10px;" data-i18n="edition.qAide">Renommer un quartier corrige aussi toutes les interventions et fiches clients qui le portent. Un quartier encore utilisé ne peut pas être supprimé : renommez-le vers le bon.</div>
@@ -1187,6 +1186,10 @@ fr:{
   'edition.chercherInv':ICO.wrench+' Corriger une intervention','edition.chercherClient':ICO.users+' Corriger une fiche client',
   'edition.quartiers':ICO.pushpin+' Quartiers',
   'edition.qNouveau':'Nouveau quartier','edition.qAjouter':'Ajouter','edition.qRenommer':'Renommer',
+  'edition.qChercher.ph':'Rechercher ou ajouter un quartier',
+  'edition.qCompte':'{n} quartiers enregistrés — saisissez pour en retrouver un',
+  'edition.qAjouterNom':'Ajouter « {nom} »',
+  'edition.qPlus':'+ {n} autre(s) — précisez votre saisie',
   'edition.qConfirmRenom':'Renommer « {ancien} » en « {nouveau} » ? La correction s\'appliquera aussi à toutes les interventions et fiches clients qui le portent.',
   'edition.qRenomme':'Renommé — {n} fiche(s) corrigée(s)',
   'edition.qConfirmSuppr':'Retirer « {nom} » de la liste des quartiers ?',
@@ -1479,6 +1482,10 @@ en:{
   'edition.chercherInv':ICO.wrench+' Fix an intervention','edition.chercherClient':ICO.users+' Fix a client record',
   'edition.quartiers':ICO.pushpin+' Neighbourhoods',
   'edition.qNouveau':'New neighbourhood','edition.qAjouter':'Add','edition.qRenommer':'Rename',
+  'edition.qChercher.ph':'Search or add a neighbourhood',
+  'edition.qCompte':'{n} neighbourhoods on file — type to find one',
+  'edition.qAjouterNom':'Add "{nom}"',
+  'edition.qPlus':'+{n} more — refine your search',
   'edition.qConfirmRenom':'Rename "{ancien}" to "{nouveau}"? The correction will also apply to every job and client record carrying it.',
   'edition.qRenomme':'Renamed — {n} record(s) corrected',
   'edition.qConfirmSuppr':'Remove "{nom}" from the neighbourhood list?',
@@ -4915,25 +4922,55 @@ async function archiverIntervention(id){
 }
 
 // ── Quartiers (admin) ─────────────────────────────────────────────────────
+// La cinquantaine de quartiers dépliée en rangées éditables noyait le reste de
+// l'onglet. Le champ de saisie fait donc les deux métiers : il filtre ce qui
+// existe déjà, et ne propose l'ajout que si rien ne correspond exactement —
+// c'est aussi ce qui empêche de recréer un quartier déjà présent.
+let quartiersAdmin=[];
+const MAX_Q_AFFICHES=8;
+
 async function chargerQuartiersUI(){
   const el=document.getElementById('edition-quartiers-wrap');
   if(!el)return;
   const res=await apiGet({action:'getQuartiers'});
   if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
-  const liste=res.quartiers||[];
-  QUARTIERS_BAFOUSSAM=trierQuartiers(liste);
-  try{localStorage.setItem('ceraf_quartiers',JSON.stringify(liste));}catch(e){}
-  el.innerHTML=`<div style="font-size:.74rem;color:var(--muted);margin-bottom:8px;">${liste.length} quartier(s)</div>`
-    +liste.map(q=>`
+  quartiersAdmin=res.quartiers||[];
+  QUARTIERS_BAFOUSSAM=trierQuartiers(quartiersAdmin);
+  try{localStorage.setItem('ceraf_quartiers',JSON.stringify(quartiersAdmin));}catch(e){}
+  rendreQuartiersUI();
+}
+
+function rendreQuartiersUI(){
+  const el=document.getElementById('edition-quartiers-wrap');
+  const champ=document.getElementById('ed-q-search');
+  if(!el||!champ)return;
+  const saisie=String(champ.value||'').trim();
+  if(!saisie){
+    el.innerHTML=`<div style="font-size:.74rem;color:var(--muted);">${esc(t('edition.qCompte',{n:quartiersAdmin.length}))}</div>`;
+    return;
+  }
+  const n=normTxt(saisie);
+  // Ce qui COMMENCE par la saisie passe devant : c'est ce qu'on cherchait en tapant.
+  const corresp=quartiersAdmin.filter(q=>normTxt(q).includes(n)).sort((a,b)=>{
+    const da=normTxt(a).startsWith(n)?0:1, db=normTxt(b).startsWith(n)?0:1;
+    return da!==db?da-db:a.localeCompare(b);
+  });
+  const visibles=corresp.slice(0,MAX_Q_AFFICHES);
+  let html=visibles.map(q=>`
       <div class="ed-load-row" style="margin-bottom:8px;" data-q="${escJsAttr(q)}">
         <div class="ed-load-field"><input class="ed-q-nom" value="${esc(q)}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
         <button class="btn btn-green btn-sm" onclick="renommerQuartier('${escJsAttr(q)}',this)">${esc(t('edition.qRenommer'))}</button>
         <button class="btn btn-danger btn-sm" onclick="supprimerQuartier('${escJsAttr(q)}')">${ICO.trash}</button>
       </div>`).join('');
+  if(corresp.length>visibles.length)
+    html+=`<div style="font-size:.74rem;color:var(--muted);margin-bottom:8px;">${esc(t('edition.qPlus',{n:corresp.length-visibles.length}))}</div>`;
+  if(!quartiersAdmin.some(q=>normTxt(q)===n))
+    html+=`<button class="btn btn-primary btn-sm" onclick="ajouterQuartier()">${esc(t('edition.qAjouterNom',{nom:saisie}))}</button>`;
+  el.innerHTML=html;
 }
 
 async function ajouterQuartier(){
-  const champ=document.getElementById('ed-q-new');
+  const champ=document.getElementById('ed-q-search');
   const nom=String((champ||{}).value||'').trim();
   if(!nom){showToast(t('edition.qNouveau'));return;}
   const res=await apiPost({action:'adminAddQuartier',nom});
@@ -4953,6 +4990,8 @@ async function renommerQuartier(ancien,btn){
   const res=await apiPost({action:'adminRenameQuartier',ancien,nouveau});
   if(!res.success){showToast(t('err.prefix')+(res.error||t('err.generic')));chargerQuartiersUI();return;}
   showToast(t('edition.qRenomme',{n:res.interventions+res.clients+res.clientsLs}));
+  const champ=document.getElementById('ed-q-search');
+  if(champ)champ.value=nouveau.toUpperCase();
   chargerQuartiersUI();
 }
 
@@ -4961,6 +5000,10 @@ async function supprimerQuartier(nom){
   const res=await apiPost({action:'adminDeleteQuartier',nom});
   if(!res.success){showToast(t('err.prefix')+(res.error||t('err.generic')));return;}
   showToast(t('edition.archive'));
+  // Laisser la saisie en place rouvrirait un « Ajouter « X » » sur le quartier
+  // qu'on vient justement de retirer : on repart d'un champ vide.
+  const champ=document.getElementById('ed-q-search');
+  if(champ)champ.value='';
   chargerQuartiersUI();
 }
 
@@ -5208,7 +5251,7 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-20-quartiers-saisie';
+const MAJ_ID='2026-09-20-quartiers-recherche';
 const NOTES_MAJ=[
   { pour:['technicien'],
     fr:'Sur une installation FTTH, vous pouvez maintenant noter la distance entre le FAT et le client au moment où vous la réalisez. Elle se range sur la fiche du client, à côté du FDT et du FAT.',
@@ -5220,8 +5263,8 @@ const NOTES_MAJ=[
     fr:'Sur une installation FTTH, les cases FDT et FAT n’affichent plus deux fois leur nom.',
     en:'On an FTTH installation, the FDT and FAT boxes no longer show their name twice.' },
   { pour:['admin'],
-    fr:'Vous pouvez désormais gérer la liste des quartiers depuis l’onglet Édition : en ajouter, en corriger un, en retirer. Corriger un quartier corrige du même coup toutes les interventions et fiches clients qui le portent. Un quartier encore utilisé ne peut pas être retiré — renommez-le vers le bon.',
-    en:'You can now manage the neighbourhood list from the Edit tab: add one, correct one, remove one. Correcting a neighbourhood also corrects every job and client record carrying it. A neighbourhood still in use cannot be removed — rename it to the right one instead.' },
+    fr:'La liste des quartiers se gère depuis l’onglet Édition, sans plus s’étaler à l’écran : tapez les premières lettres et l’application vous montre ceux qui existent déjà. Si aucun ne correspond, elle vous propose d’ajouter celui que vous venez de taper. Corriger un quartier corrige du même coup toutes les interventions et fiches clients qui le portent. Un quartier encore utilisé ne peut pas être retiré — renommez-le vers le bon.',
+    en:'The neighbourhood list is managed from the Edit tab and no longer fills the screen: type the first few letters and the app shows the ones already on file. If none matches, it offers to add what you just typed. Correcting a neighbourhood also corrects every job and client record carrying it. A neighbourhood still in use cannot be removed — rename it to the right one instead.' },
   { pour:['admin'],
     fr:'En corrigeant une fiche client : le nom passe en majuscules à la frappe, la ville se choisit dans une liste, et le quartier se propose tout seul à partir de la localité — il reste corrigeable à la main.',
     en:'When correcting a client record: the name goes uppercase as you type, the town is picked from a list, and the neighbourhood is suggested from the locality — still editable by hand.' },
