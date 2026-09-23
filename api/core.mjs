@@ -302,7 +302,7 @@ const ligneInv = (r) => {
   return {
   id: r.id, cid: r.consistance_id, date: r.date, type: r.type,
   num: r.numero_ligne || '', nom: r.nom_client || '', statut: r.statut,
-  panne: r.panne || '', remarque: r.remarque || '',
+  panne: r.panne || '', remarque: r.remarque || '', motifRenvoi: r.motif_renvoi || '',
   reporteDepuis: r.reporte_depuis || '', ville: r.ville || '', quartier: r.quartier || '',
   duree: r.duree, gps: r.gps || '',
   // Le contact vient de la fiche client, joint par la vue v_interventions.
@@ -350,7 +350,7 @@ async function getClients() {
     sql(`SELECT nom, telephone, tel_secondaire, localite, ville, quartier, pop, gps, derniere_maj
            FROM clients_ls WHERE supprime_le IS NULL ORDER BY nom`),
     sql(`SELECT numero_ligne, nom_client, date, statut, type FROM v_interventions
-          WHERE statut <> 'Réalisé' ORDER BY date`)
+          WHERE NOT statut_clos(statut) ORDER BY date`)
   ]);
   const mapC = r => ({ num: r.numero, nom: r.nom, tel: r.telephone || '', telSec: r.tel_secondaire || '',
     loc: r.localite || '', ville: r.ville || '', quartier: r.quartier || '', gps: r.gps || '',
@@ -394,7 +394,8 @@ async function getAll(d) {
   // `date` est alors figée au jour de réalisation, et c'est bien le mois voulu.
   // Sinon on retombe sur l'origine, COALESCE(reporte_depuis, date), qui est
   // posée au premier report et ne bouge plus jamais.
-  const MOIS_STAT = `CASE WHEN statut = 'Réalisé' THEN date ELSE COALESCE(reporte_depuis, date) END`;
+  // « Renvoyé à l'agence » est clos au même titre : sa date est figée aussi.
+  const MOIS_STAT = `CASE WHEN statut_clos(statut) THEN date ELSE COALESCE(reporte_depuis, date) END`;
 
   const inv = await sql(
     `SELECT *, ${MOIS_STAT} AS date_stat
@@ -454,7 +455,9 @@ async function getAll(d) {
   parFiche.forEach(f => {
     f.nb = f.interventions.length;
     f.realisees = f.interventions.filter(i => i.statut === 'Réalisé').length;
-    f.instances = f.nb - f.realisees;
+    // Un renvoi à l'agence n'est ni réalisé ni en instance : compté à part.
+    f.renvoyees = f.interventions.filter(i => i.statut === STATUT_RENVOI).length;
+    f.instances = f.nb - f.realisees - f.renvoyees;
   });
 
   // Mois réellement présents en base : sans ça le sélecteur de mois du
@@ -783,23 +786,33 @@ export async function sauvegarderNocturne() {
 async function updateStatus(d, ctx, session) {
   const id = String(d.invId || '').trim();
   if (!id) return { success: false, error: 'Intervention introuvable' };
-  const avant = await un('SELECT statut, remarque, panne, numero_ligne FROM interventions WHERE id = $1 AND supprime_le IS NULL', [id]);
+  const avant = await un('SELECT statut, remarque, panne, numero_ligne, motif_renvoi FROM interventions WHERE id = $1 AND supprime_le IS NULL', [id]);
   if (!avant) return { success: false, error: 'Intervention introuvable' };
 
-  const statuts = ['En attente', 'Injoignable', 'Problème', 'Réalisé'];
+  const statuts = ['En attente', 'Injoignable', 'Problème', 'Réalisé', STATUT_RENVOI];
   const statut = statuts.includes(String(d.statut)) ? String(d.statut) : null;
   if (!statut) return { success: false, error: 'Statut inconnu' };
+
+  // Le motif est OBLIGATOIRE pour un renvoi. Absent de la requête, on garde
+  // celui déjà en base : une simple édition de remarque sur une intervention
+  // déjà renvoyée ne le renvoie pas. Quitter ce statut efface le motif.
+  const motif = String(d.motifRenvoi || '').trim();
+  if (statut === STATUT_RENVOI && !motif && !avant.motif_renvoi) {
+    return { success: false, error: 'Motif du renvoi à l\'agence obligatoire' };
+  }
 
   await sql(
     `UPDATE interventions
         SET statut = $1::statut_t,
             remarque = COALESCE($2, remarque),
             panne = COALESCE($3, panne),
+            motif_renvoi = CASE WHEN $1 = $6 THEN COALESCE(NULLIF($7, ''), motif_renvoi) ELSE NULL END,
             statut_par = $4,
             mis_a_jour_le = now()
       WHERE id = $5`,
     [statut, d.remarque === undefined ? null : String(d.remarque),
-     d.panne === undefined ? null : String(d.panne), session.matricule, id]);
+     d.panne === undefined ? null : String(d.panne), session.matricule, id,
+     STATUT_RENVOI, motif]);
 
   // Champs structurés d'étude FTTH (saisie Terrain) : seule cette vue les
   // envoie, en plus de la remarque composée ci-dessus. Écrits À CÔTÉ, jamais
@@ -837,9 +850,15 @@ async function updateStatus(d, ctx, session) {
   ctx.entite = 'intervention'; ctx.entiteId = id;
   ctx.avant = avant;
   ctx.apres = { statut, remarque: d.remarque, panne: d.panne,
+                ...(statut === STATUT_RENVOI ? { motifRenvoi: motif || avant.motif_renvoi } : {}),
                 ...(ctx.apresDistance === undefined ? {} : { distanceFatClient: ctx.apresDistance }) };
   return { success: true };
 }
+
+// Statut clos qui n'est pas une réalisation : fiche renvoyée à l'agence
+// commerciale (client déménagé avant l'installation, refus…). Voir
+// db/renvoi-agence.sql pour la base (statut_clos(), report nocturne, durée).
+const STATUT_RENVOI = "Renvoyé à l'agence";
 
 const sansAccents = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -1091,15 +1110,15 @@ async function saveClient(d, ctx) {
   const majInv = await sql(
     `UPDATE interventions
         SET nom_client    = COALESCE(NULLIF($2, ''), nom_client),
-            ville         = CASE WHEN statut <> 'Réalisé'
+            ville         = CASE WHEN NOT statut_clos(statut)
                                  THEN COALESCE(NULLIF($3, ''), ville)    ELSE ville    END,
-            quartier      = CASE WHEN statut <> 'Réalisé'
+            quartier      = CASE WHEN NOT statut_clos(statut)
                                  THEN COALESCE(NULLIF($4, ''), quartier) ELSE quartier END,
             mis_a_jour_le = now()
       WHERE numero_ligne = $1
         AND supprime_le IS NULL
         AND (nom_client IS DISTINCT FROM COALESCE(NULLIF($2,''), nom_client)
-          OR (statut <> 'Réalisé'
+          OR (NOT statut_clos(statut)
               AND (ville    IS DISTINCT FROM COALESCE(NULLIF($3,''), ville)
                 OR quartier IS DISTINCT FROM COALESCE(NULLIF($4,''), quartier))))
       RETURNING id`,

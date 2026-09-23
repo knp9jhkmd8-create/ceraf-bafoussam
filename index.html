@@ -337,6 +337,10 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .b-unreachable{background:var(--purple-lt);color:var(--purple);border:1px solid #c4b5fd;}
 .b-issue{background:var(--red-lt);color:var(--red);border:1px solid #fca5a5;}
 .b-transfere{background:#e2e8f0;color:#64748b;border:1px solid #cbd5e1;}
+/* Renvoyé à l'agence : ni réussite ni échec — teinte neutre, à part des quatre autres. */
+.b-renvoye,.tag-renvoi{background:#e2e8f0;color:#475569;border:1px solid #cbd5e1;}
+/* Nom du client : texte normal, en majuscules — seul le numéro de ligne reste en gras. */
+.inv-nom{font-weight:400;text-transform:uppercase;}
 .duree-badge{display:inline-flex;align-items:center;gap:4px;background:#fefce8;color:#854d0e;border:1px solid #fde68a;border-radius:999px;padding:2px 9px;font-size:.7rem;font-weight:700;}
 
 .status-sel,.field-sel{background:var(--surface);border:1.5px solid var(--border2);border-radius:9px;color:var(--text);padding:5px 8px;font-size:.77rem;cursor:pointer;outline:none;font-family:var(--font-system);transition:background .2s var(--ease),border-color .2s var(--ease);}
@@ -349,6 +353,7 @@ select.sel-pending,select.sel-pending:focus{background:var(--yellow-lt);color:va
 select.sel-ok,select.sel-ok:focus{background:var(--green-lt);color:var(--green);border-color:#86efac;font-weight:700;}
 select.sel-unreachable,select.sel-unreachable:focus{background:var(--purple-lt);color:var(--purple);border-color:#c4b5fd;font-weight:700;}
 select.sel-issue,select.sel-issue:focus{background:var(--red-lt);color:var(--red);border-color:#fca5a5;font-weight:700;}
+select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;border-color:#cbd5e1;font-weight:700;}
 .remark-inp{width:100%;margin-top:7px;background:var(--surface);border:1.5px solid var(--border2);border-radius:9px;color:var(--text);padding:6px 10px;font-size:16px;font-family:var(--font-system);outline:none;transition:border-color .2s var(--ease);}
 .remark-inp:focus{border-color:var(--blue-mid);}
 /* Champ à libellé fixe (FDT-, FAT-, Distance =) : le libellé reste visible
@@ -1253,6 +1258,8 @@ fr:{
   'type.resiliation':'Résiliation','type.reprise_ftth':'Reprise fact. FTTH',
   'label.numFiche':'N° de fiche','label.natureReprise':'Nature de la reprise',
   'reprise.transfert':'Transfert de ligne','reprise.ont':"Remplacement de l'ONT",'reprise.autre':'Autre',
+  'renvoi.title':"Renvoyer à l'agence",'renvoi.body':"Pourquoi cette intervention retourne-t-elle à l'agence commerciale ?",
+  'renvoi.tag':'Motif : {motif}','stat.renvoyes':"{n} renvoyée(s) à l'agence",
   'valid.ficheRequired':'Le numéro de fiche est obligatoire','valid.natureRequired':'Sélectionnez la nature de la reprise',
   'label.numLigne':'N° de ligne','label.reseau':'Réseau',
   'common.customerId.label':'Customer ID',
@@ -1552,6 +1559,8 @@ en:{
   'type.resiliation':'Cancellation','type.reprise_ftth':'FTTH Billing Resume',
   'label.numFiche':'Form number','label.natureReprise':'Type of resumption',
   'reprise.transfert':'Line transfer','reprise.ont':'ONT replacement','reprise.autre':'Other',
+  'renvoi.title':'Return to agency','renvoi.body':'Why is this job going back to the sales agency?',
+  'renvoi.tag':'Reason: {motif}','stat.renvoyes':'{n} returned to agency',
   'valid.ficheRequired':'The form number is required','valid.natureRequired':'Select the type of resumption',
   'label.numLigne':'Line number','label.reseau':'Network',
   'common.customerId.label':'Customer ID',
@@ -1780,8 +1789,8 @@ function applyStaticI18n(){
 // Traduction de statuts/types pour l'AFFICHAGE uniquement — les valeurs
 // exactes envoyées au backend (Statut, Type/typeLabel) ne changent jamais.
 const SL={
-  fr:{pending:'En attente',ok:'Réalisé',unreachable:'Injoignable',issue:'Problème',transfere:'Transféré'},
-  en:{pending:'Pending',ok:'Completed',unreachable:'Unreachable',issue:'Issue',transfere:'Transferred'}
+  fr:{pending:'En attente',ok:'Réalisé',unreachable:'Injoignable',issue:'Problème',transfere:'Transféré',renvoye:"Renvoyé à l'agence"},
+  en:{pending:'Pending',ok:'Completed',unreachable:'Unreachable',issue:'Issue',transfere:'Transferred',renvoye:'Returned to agency'}
 };
 const ROLE_LBL={fr:{chef:'Chef',technicien:'Technicien',admin:'Admin'},en:{chef:'Supervisor',technicien:'Technician',admin:'Admin'}};
 const TYPE_LABEL_EN={
@@ -1825,17 +1834,25 @@ const TI={
 // interne ci-dessus — sans cet alias, TI[gt] ne matchait jamais et chaque
 // intervention retombait sur l'icône générique ICO.clipboard en vue Terrain.
 Object.keys(TI).forEach(k=>{ if(TL[k]) TI[TL[k]]=TI[k]; });
-const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',issue:'b-issue',transfere:'b-transfere'};
+const SC={pending:'b-pending',ok:'b-ok',unreachable:'b-unreachable',issue:'b-issue',transfere:'b-transfere',renvoye:'b-renvoye'};
 // Teinte d'une liste déroulante de statut. Appelée au rendu (classe posée dans
 // le HTML) ET à chaque changement, sinon la couleur resterait celle du statut
 // précédent jusqu'au prochain rechargement de la vue.
-const CLASSES_SEL=['sel-pending','sel-ok','sel-unreachable','sel-issue'];
+const CLASSES_SEL=['sel-pending','sel-ok','sel-unreachable','sel-issue','sel-renvoye'];
 function colorerSelStatut(sel){
   if(!sel)return;
   CLASSES_SEL.forEach(c=>sel.classList.remove(c));
   sel.classList.add('sel-'+(SM[sel.value]||'pending'));
 }
-const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','Problème':'issue','Transféré':'transfere'};
+const SM={'En attente':'pending','Réalisé':'ok','Injoignable':'unreachable','Problème':'issue','Transféré':'transfere',"Renvoyé à l'agence":'renvoye'};
+// Statut CLOS qui n'est pas une réalisation : la fiche retourne à l'agence
+// commerciale (client déménagé avant l'installation, refus…). Le report de nuit
+// ne la déplace plus, sa durée s'arrête, et elle est comptée à part dans les
+// statistiques. Le motif est obligatoire (colonne motif_renvoi en base).
+const STATUT_RENVOI="Renvoyé à l'agence";
+const MOTIFS_RENVOI=['Client a déménagé','Refus du client','Adresse introuvable','Autre'];
+const MOTIF_RENVOI_EN={'Client a déménagé':'Client has moved','Refus du client':'Client refused','Adresse introuvable':'Address not found','Autre':'Other'};
+const trMotifRenvoi=m=>LANG==='en'?(MOTIF_RENVOI_EN[m]||m):m;
 const MONTHS={
   fr:['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
   en:['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -3146,6 +3163,26 @@ function addInvWithQuartier(f,quartier){
 }
 
 // Modale de confirmation quand aucun quartier n'est reconnu dans la localité saisie
+// Choix du motif d'un renvoi à l'agence. Résout le motif, ou '' si annulé.
+// Pas de prompt() natif : il gèle la page (et l'automatisation du navigateur).
+function demanderMotifRenvoi(){
+  return new Promise(resolve=>{
+    const el=document.getElementById('quartier-modal-content');
+    el.innerHTML=`
+      <div class="modal-title">${esc(t('renvoi.title'))}</div>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px;">${esc(t('renvoi.body'))}</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${MOTIFS_RENVOI.map((m,i)=>`<button class="btn btn-outline btn-sm" onclick="window._resolveMotifRenvoi(${i})">${esc(trMotifRenvoi(m))}</button>`).join('')}
+        <button class="btn btn-ghost btn-sm" onclick="window._resolveMotifRenvoi(-1)">${t('btn.cancel')}</button>
+      </div>`;
+    document.getElementById('modal-quartier').classList.add('active');
+    window._resolveMotifRenvoi=(i)=>{
+      document.getElementById('modal-quartier').classList.remove('active');
+      resolve(i>=0?MOTIFS_RENVOI[i]:'');
+    };
+  });
+}
+
 // Modale de confirmation en cas de doublon détecté (même numéro de ligne déjà actif)
 function confirmDoublon(num,dateExistante,statutExistant){
   return new Promise(resolve=>{
@@ -3254,7 +3291,7 @@ function buildLabel(inv){
   if(fiche)p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${esc(t('label.numFiche'))} ${esc(fiche)}</span>`);
   if(inv.customerId&&inv.customerId!=='null'&&inv.customerId!=='')p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${esc(inv.customerId)}</span>`);
   if(inv.num)p.push(`<strong>${esc(inv.num)}</strong>`);
-  if(inv.nom)p.push(esc(inv.nom));
+  if(inv.nom)p.push(`<span class="inv-nom">${esc(inv.nom)}</span>`);
   // Affichage téléphone — tel et telSec séparés ou tel contenant déjà "/"
   if(inv.tel){
     let telSec='';
@@ -3274,6 +3311,7 @@ function buildTags(inv){
   let h='';
   const nature=natureDe(inv);
   if(nature)h+=`<span class="tag tag-nature">${esc(trNature(nature))}</span>`;
+  if(inv.statut===STATUT_RENVOI&&inv.motifRenvoi)h+=`<span class="tag tag-renvoi">${esc(t('renvoi.tag',{motif:trMotifRenvoi(inv.motifRenvoi)}))}</span>`;
   if(inv.ville&&inv.ville!=='null'&&inv.ville!=='')h+=`<span class="tag tag-ville">${ICO.pin} ${esc(inv.ville)}</span>`;
   if(inv.quartier&&inv.quartier!=='null'&&inv.quartier!=='')h+=`<span class="tag tag-quartier">${esc(inv.quartier)}</span>`;
   if(inv.gps&&inv.gps!=='null'&&inv.gps!==''){
@@ -3731,7 +3769,7 @@ function renderTerrain(data){
 
   const actives=interventions.filter(i=>!i.estTransfere);
   // Pour les compteurs quartier et type : ignorer les Réalisés
-  const nonRealises=actives.filter(i=>(SM[i.statut]||'pending')!=='ok');
+  const nonRealises=actives.filter(i=>!['ok','renvoye'].includes(SM[i.statut]||'pending'));
 
   // Compteurs croisés : chaque filtre compte en ignorant son propre filtre
   // mais en appliquant les deux autres filtres actifs
@@ -3782,13 +3820,13 @@ function renderTerrain(data){
     const sansQPills=renderSansQuartierPills(qCSansQ,terrainQuartierFilter,qk=>`setTerrainFilter('q','${escJsAttr(qk)}')`);
 
     // Filtre par statut
-    const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
+    const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue],['renvoye',SL[LANG].renvoye]];
     const totalS=Object.values(sC).reduce((a,b)=>a+b,0);
     const allSBtn=`<span class="qpill${terrainStatutFilter===''?' qpill-active':' qpill-clickable'}" style="background:${terrainStatutFilter===''?'var(--blue-mid)':'var(--blue-lt)'};color:${terrainStatutFilter===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="setTerrainFilter('s','')">${t('common.all')} <b>${totalS}</b></span>`;
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=terrainStatutFilter===sk;
-      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--purple)','issue':'var(--red)'};
+      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--purple)','issue':'var(--red)','renvoye':'#64748b'};
       const col=colors[sk];
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="setTerrainFilter('s','${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
@@ -4058,6 +4096,7 @@ function invRowHTML(inv,idx){
         <option value="Réalisé"     ${inv.statut==='Réalisé'    ?'selected':''}>${SL[LANG].ok}</option>
         <option value="Injoignable" ${inv.statut==='Injoignable'?'selected':''}>${SL[LANG].unreachable}</option>
         <option value="Problème"    ${inv.statut==='Problème'   ?'selected':''}>${SL[LANG].issue}</option>
+        <option value="${STATUT_RENVOI}" ${inv.statut===STATUT_RENVOI?'selected':''}>${SL[LANG].renvoye}</option>
       </select>
       ${rightRemarqueHTML}
     </div>
@@ -4224,6 +4263,17 @@ async function updStatut(invId,statut){
   const invRef=terrainData?terrainData.interventions.find(i=>i.id===invId):null;
   const structured=invRef?readStructuredFields(invId,invRef):null;
 
+  let motifRenvoi;
+  if(statut===STATUT_RENVOI){
+    motifRenvoi=await demanderMotifRenvoi();
+    if(!motifRenvoi){
+      // Annulé : la liste revient au statut précédent, rien n'est envoyé.
+      const sel=row?row.querySelector('select[onchange^="updStatut("]'):null;
+      if(sel){sel.value=invRef?invRef.statut:'En attente';colorerSelStatut(sel);}
+      return;
+    }
+  }
+
   // Champs obligatoires avant de conclure "Réalisé" :
   // Conclusion FAVORABLE/DÉFAVORABLE pour une Étude FTTH,
   // nature de la panne déterminée pour un Dérangement FTTH.
@@ -4252,20 +4302,20 @@ async function updStatut(invId,statut){
   const badge=row?row.querySelector('.badge'):null;
   if(badge){badge.className='badge '+SC[sk];badge.textContent=SL[LANG][sk];}
   if(row)colorerSelStatut(row.querySelector('.status-sel'));
-  if(invRef){invRef.statut=statut;invRef.remarque=remarque;if(panne!==undefined)invRef.panne=panne;}
+  if(invRef){invRef.statut=statut;invRef.remarque=remarque;if(panne!==undefined)invRef.panne=panne;invRef.motifRenvoi=statut===STATUT_RENVOI?motifRenvoi:'';}
 
   // On TENTE TOUJOURS l'envoi, sauf hors ligne CONFIRMÉ par la sonde. Avant,
   // un simple `!navigator.onLine` (faux sur bascule WiFi↔4G ou sortie de
   // veille) suffisait à détourner la mise à jour vers la file — le technicien
   // croyait avoir enregistré, rien ne partait.
   if(estHorsLigne()){
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne,motifRenvoi});
     saveTerrainCache();
     showToast(t('toast.statusOfflineSaved'));
     return;
   }
 
-  const res=await apiPost({action:'updateStatus',invId,statut,remarque,panne});
+  const res=await apiPost({action:'updateStatus',invId,statut,remarque,panne,motifRenvoi});
   if(res.success){
     showToast(t('toast.statusUpdated'));
     saveTerrainCache();
@@ -4273,7 +4323,7 @@ async function updStatut(invId,statut){
     // Transitoire (réseau ou serveur) : l'écriture n'a pas eu lieu, on rejouera.
     // updateStatus est idempotent (valeurs absolues repérées par invId), le
     // rejeu est donc sûr même si l'écriture était en fait passée.
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne});
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,panne,motifRenvoi});
     saveTerrainCache();
     showToast(t('toast.savedLocally'));
   } else {
@@ -4285,18 +4335,19 @@ async function updStatut(invId,statut){
 
 async function updRemarque(invId,remarque){
   const row=document.getElementById('row-'+invId);
-  if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv)remarque=avecSegmentsFixes(inv.remarque,remarque);}
+  let motifRenvoi;
+  if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv){remarque=avecSegmentsFixes(inv.remarque,remarque);motifRenvoi=inv.motifRenvoi||undefined;}}
   const statut=row?(row.querySelector('select[onchange^="updStatut("]')||{value:'En attente'}).value:'En attente';
   if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv)inv.remarque=remarque;}
 
   if(estHorsLigne()){
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque});
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,motifRenvoi});
     saveTerrainCache();
     return;
   }
-  const res=await apiPost({action:'updateStatus',invId,statut,remarque});
+  const res=await apiPost({action:'updateStatus',invId,statut,remarque,motifRenvoi});
   if(!res.success&&(res.networkError||res.serverError)){
-    offlineEnqueue({action:'updateStatus',invId,statut,remarque});saveTerrainCache();
+    offlineEnqueue({action:'updateStatus',invId,statut,remarque,motifRenvoi});saveTerrainCache();
   }
 }
 
@@ -4310,6 +4361,7 @@ async function updStructured(invId){
   const invRef=terrainData?terrainData.interventions.find(i=>i.id===invId):null;
   if(!invRef)return;
   const statut=row?(row.querySelector('select[onchange^="updStatut("]')||{value:invRef.statut}).value:invRef.statut;
+  const motifRenvoi=invRef.motifRenvoi||undefined; // voir updRemarque
   const structured=readStructuredFields(invId,invRef);
   // L'installation est le seul type à champs structurés qui NE recompose PAS
   // sa remarque : la recomposer écraserait le texte libre que le technicien
@@ -4320,7 +4372,7 @@ async function updStructured(invId){
   invRef.remarque=remarque;
   if(panne!==undefined)invRef.panne=panne;
 
-  const payload={action:'updateStatus',invId,statut,remarque,panne};
+  const payload={action:'updateStatus',invId,statut,remarque,panne,motifRenvoi};
   // Champs bruts en plus de la remarque composée : etudes_ftth les stocke à
   // part, indépendamment de ce qui arrive au texte de la remarque (voir
   // updateStatus côté backend). Uniquement pour l'étude, jamais le
@@ -4487,8 +4539,11 @@ function renderHistoForMonth(){
   const total=allInvs.length;
   const realiseesList=allInvs.filter(i=>(SM[i.statut]||'pending')==='ok');
   const ok=realiseesList.length;
-  const instances=total-ok;
-  const taux=total>0?Math.round(ok*100/total):0;
+  // Les renvois à l'agence sortent du calcul : ni réussite ni échec de l'équipe.
+  const renvoyes=allInvs.filter(i=>SM[i.statut]==='renvoye').length;
+  const instances=total-ok-renvoyes;
+  const baseTaux=total-renvoyes;
+  const taux=baseTaux>0?Math.round(ok*100/baseTaux):0;
   const tauxColor=taux>=80?'var(--green)':taux>=50?'var(--yellow)':'var(--red)';
   // Durée moyenne du mois : la VRAIE durée de chaque intervention, en jours
   // ouvrés depuis son ouverture réelle (`duree`, calculée en base par
@@ -4512,7 +4567,7 @@ function renderHistoForMonth(){
         <div class="hs-hero-lbl">${t('stat.taux')}</div>
         <div class="hs-hero-val" style="color:${tauxColor}">${taux}%</div>
         <div class="hs-bar"><span style="width:${taux}%;background:${tauxColor}"></span></div>
-        <div class="hs-hero-sub">${t('stat.heroSub',{ok,total})}</div>
+        <div class="hs-hero-sub">${t('stat.heroSub',{ok,total:baseTaux})}${renvoyes?' · '+t('stat.renvoyes',{n:renvoyes}):''}</div>
       </div>
       <div class="hs-grid">
         <div class="hs-cell"><div class="hs-val">${total}</div><div class="hs-lbl">${t('stat.interventions')}</div></div>
@@ -4559,12 +4614,12 @@ function renderHistoForMonth(){
     const sansQPills=renderSansQuartierPills(qCSansQ,activeQ,qk=>`filterHistoByQuartier('${escJsAttr(qk)}')`);
 
     // Filtre statut
-    const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue]];
+    const STATUT_LABELS=[['pending',SL[LANG].pending],['ok',SL[LANG].ok],['unreachable',SL[LANG].unreachable],['issue',SL[LANG].issue],['renvoye',SL[LANG].renvoye]];
     const allSBtn=`<span class="qpill${activeS===''?' qpill-active':' qpill-clickable'}" style="background:${activeS===''?'var(--blue-mid)':'var(--blue-lt)'};color:${activeS===''?'#fff':'var(--blue-mid)'};border-color:var(--blue-mid)" onclick="filterHistoByStatut('')">${t('common.all')} <b>${totalS}</b></span>`;
     const sBtns=STATUT_LABELS.map(([sk,lbl])=>{
       const cnt=sC[sk]||0; if(!cnt)return'';
       const active=activeS===sk;
-      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--purple)','issue':'var(--red)'};
+      const colors={'pending':'var(--yellow)','ok':'var(--green)','unreachable':'var(--purple)','issue':'var(--red)','renvoye':'#64748b'};
       const col=colors[sk];
       return`<span class="qpill${active?' qpill-active':' qpill-clickable'}" style="${active?`background:${col};color:#fff;border-color:${col}`:`color:${col};border-color:${col};background:#fff`}" onclick="filterHistoByStatut('${sk}')">${lbl} <b>${cnt}</b></span>`;
     }).join('');
@@ -4617,7 +4672,7 @@ function renderHistoForMonth(){
     h+=`<div class="section-block"><div class="section-title">${TI[type]||ICO.clipboard} ${esc(trType(type))}</div>`;
     byType[type].forEach(inv=>{
       const sk=SM[inv.statut]||'pending';
-      const estResolu=sk==='ok'||sk==='issue';
+      const estResolu=sk==='ok'||sk==='issue'||sk==='renvoye';
       const dureeTxt=inv.duree>0?`<span class="duree-badge">${ICO.history} ${formatDuree(inv.duree)}</span>`:'';
       const dateTxt=estResolu
         ?t('histo.resolvedOn',{date:formatDateDisplay(inv.date)})
@@ -4916,7 +4971,7 @@ async function chargerEditionJour(){
   if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
   const inv=res.interventions||[];
   if(!inv.length){el.innerHTML=`<div class="empty"><p>${esc(t('edition.aucuneInv'))}</p></div>`;return;}
-  const STATUTS=['En attente','Injoignable','Problème','Réalisé'];
+  const STATUTS=['En attente','Injoignable','Problème','Réalisé',STATUT_RENVOI];
   const j=v=>String(v||'').slice(0,10);
   // Une FICHE par intervention plutôt qu'un tableau : à sept colonnes dont
   // quatre champs de saisie, le tableau sortait de l'écran sur téléphone et
@@ -4966,8 +5021,11 @@ async function chargerEditionJour(){
 async function enregistrerEditionInv(id){
   const row=document.getElementById('ed-row-'+id);
   if(!row)return;
-  const res=await apiPost({action:'updateStatus',invId:id,
-    statut:row.querySelector('.ed-statut').value,
+  const statutChoisi=row.querySelector('.ed-statut').value;
+  let motifRenvoi;
+  if(statutChoisi===STATUT_RENVOI){motifRenvoi=await demanderMotifRenvoi();if(!motifRenvoi)return;}
+  const res=await apiPost({action:'updateStatus',invId:id,motifRenvoi,
+    statut:statutChoisi,
     remarque:row.querySelector('.ed-remarque').value});
   if(!res.success){showToast(t('err.prefix')+(res.error||t('err.generic')));return;}
 
@@ -5334,8 +5392,14 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-reprise-facturation';
+const MAJ_ID='2026-09-24-renvoi-agence';
 const NOTES_MAJ=[
+  { pour:['tous'],
+    fr:'Nouveau statut « Renvoyé à l’agence » : quand une intervention ne peut pas se faire et que la fiche retourne à l’agence commerciale (client qui a déménagé, refus du client, adresse introuvable…). On choisit le motif au moment de changer le statut. L’intervention est alors terminée : elle n’est plus reportée au lendemain, et elle ne compte ni comme réalisée ni comme en retard dans les statistiques.',
+    en:'New status "Returned to agency": when a job cannot be done and the form goes back to the sales agency (client has moved, client refused, address not found…). You pick the reason when changing the status. The job is then closed: it is no longer carried over to the next day, and it counts neither as completed nor as outstanding in the statistics.' },
+  { pour:['tous'],
+    fr:'Le nom du client s’affiche désormais en majuscules et en texte normal, sans gras ; seul le numéro de ligne reste en gras.',
+    en:'The client name is now shown in capitals and plain text, not bold; only the line number stays bold.' },
   { pour:['chef','admin'],
     fr:'Nouveau type d’intervention : « Reprise en facturation FTTH », pour un client déjà abonné — remplacement de l’ONT, transfert de ligne après un déménagement, ou autre. On y saisit le numéro de la fiche, le numéro FTTH du client, son nom, ses numéros de téléphone et la nature de la reprise.',
     en:'New job type: "FTTH Billing Resume", for an existing subscriber — ONT replacement, line transfer after a move, or other. You enter the form number, the client’s FTTH number, name, phone numbers and the type of resumption.' },
