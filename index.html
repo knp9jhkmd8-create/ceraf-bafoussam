@@ -328,6 +328,7 @@ input.input-error{border-color:var(--red)!important;background:#fef2f2!important
 .tag{font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:999px;}
 .tag-ville{background:var(--blue-lt);color:var(--blue-mid);border:1px solid var(--blue-glow);}
 .tag-quartier{background:var(--teal-lt);color:var(--teal);border:1px solid #a5f3fc;}
+.tag-nature{background:var(--purple-lt);color:var(--purple);border:1px solid var(--border2);}
 .tag-gps{background:var(--green-lt);color:var(--green);border:1px solid #86efac;text-decoration:none;}
 
 .badge{padding:3px 10px;border-radius:999px;font-size:.71rem;font-weight:700;white-space:nowrap;}
@@ -557,6 +558,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           <div class="type-card selected" data-type="etude_ftth"    onclick="selType(this)"><div class="tc-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="3.6" r="1.6"/><path d="M8 5.2v2.3"/><path d="M8 7.5 4.4 11.1"/><path d="M8 7.5l3.6 3.6"/><circle cx="3.5" cy="12.2" r="1.2"/><circle cx="12.5" cy="12.2" r="1.2"/><circle cx="17" cy="17" r="3.3"/><path d="M19.4 19.4 21.7 21.7"/></svg></div><div class="tc-lbl" data-i18n="type.etude_ftth">Étude FTTH</div></div>
           <div class="type-card"          data-type="install_ftth"  onclick="selType(this)"><div class="tc-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="3.6" r="1.6"/><path d="M8 5.2v2.3"/><path d="M8 7.5 4.4 11.1"/><path d="M8 7.5l3.6 3.6"/><circle cx="3.5" cy="12.2" r="1.2"/><circle cx="12.5" cy="12.2" r="1.2"/><path d="M17.5 13.4v4.9"/><path d="M15.1 15.9l2.4 2.4 2.4-2.4"/><path d="M13.6 20.9h7.8"/></svg></div><div class="tc-lbl" data-i18n="type.install_ftth">Installation FTTH</div></div>
           <div class="type-card"          data-type="derang_ftth"   onclick="selType(this)"><div class="tc-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="3.6" r="1.6"/><path d="M8 5.2v2.3"/><path d="M8 7.5 4.4 11.1"/><path d="M8 7.5l3.6 3.6"/><circle cx="3.5" cy="12.2" r="1.2"/><circle cx="12.5" cy="12.2" r="1.2"/><path d="M17.4 13.6l4.1 7.4h-8.2z"/><path d="M17.4 16.4v1.9"/><path d="M17.4 19.9h.02"/></svg></div><div class="tc-lbl" data-i18n="type.derang_ftth">Dérang. FTTH</div></div>
+          <div class="type-card"          data-type="reprise_ftth"  onclick="selType(this)"><div class="tc-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="3.6" r="1.6"/><path d="M8 5.2v2.3"/><path d="M8 7.5 4.4 11.1"/><path d="M8 7.5l3.6 3.6"/><circle cx="3.5" cy="12.2" r="1.2"/><circle cx="12.5" cy="12.2" r="1.2"/><path d="M13.4 17a3.6 3.6 0 0 1 3.6-3.6 3.9 3.9 0 0 1 2.7 1.1l.9.9"/><path d="M20.6 13.4v2h-2"/><path d="M20.6 17a3.6 3.6 0 0 1-3.6 3.6 3.9 3.9 0 0 1-2.7-1.1l-.9-.9"/><path d="M15.4 18.6h-2v2"/></svg></div><div class="tc-lbl" data-i18n="type.reprise_ftth">Reprise fact. FTTH</div></div>
           <div class="type-card"          data-type="derang_cuivre" onclick="selType(this)"><div class="tc-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5c2.75 0 2.75 5.5 5.5 5.5s2.75-5.5 5.5-5.5"/><path d="M2.5 11c2.75 0 2.75-5.5 5.5-5.5s2.75 5.5 5.5 5.5"/><path d="M17.4 13.6l4.1 7.4h-8.2z"/><path d="M17.4 16.4v1.9"/><path d="M17.4 19.9h.02"/></svg></div><div class="tc-lbl" data-i18n="type.derang_cuivre">Dérang. Cuivre</div></div>
           <div class="type-card"          data-type="resiliation" onclick="selType(this)"><div class="tc-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="3.6" cy="6.6" r="1.4"/><circle cx="14.4" cy="6.6" r="1.4"/><path d="M5 6.6h7.4"/><path d="M14.6 14.6 20.4 20.4"/><path d="M20.4 14.6 14.6 20.4"/></svg></div><div class="tc-lbl" data-i18n="type.resiliation">Résiliation</div></div>
           <div class="type-card"          data-type="etude_ls"      onclick="selType(this)"><div class="tc-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.2" y="4.6" width="4" height="4" rx="1.1"/><rect x="10.8" y="4.6" width="4" height="4" rx="1.1"/><path d="M6.2 6.6h4.6"/><circle cx="17" cy="17" r="3.3"/><path d="M19.4 19.4 21.7 21.7"/></svg></div><div class="tc-lbl" data-i18n="type.etude_ls">Étude LS</div></div>
@@ -569,7 +571,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <!-- ÉTUDE FTTH -->
         <div id="fields-etude_ftth">
           <div class="form-row">
-            <div><label data-i18n="common.customerId.label">Customer ID</label><input id="f1c" placeholder="Ex: CUST-00123"></div>
+            <div><label data-i18n="label.numFiche">N° de fiche</label><input id="f1c" placeholder="Ex: 112 ou 263/2" oninput="filtrerNumFiche(this)"></div>
             <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f1n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
           </div>
           <!-- « + Ajouter un numéro » et son champ vivent DANS la cellule du
@@ -640,6 +642,40 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div>
           </div>
           <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f4v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+        </div>
+
+        <!-- REPRISE EN FACTURATION FTTH -->
+        <!-- Client DÉJÀ abonné : remplacement de l'ONT, transfert de ligne
+             (déménagement)… La ligne FTTH est donc obligatoire et sert de clé
+             à la fiche client, comme pour un dérangement. N° de fiche et nature
+             n'ont pas de colonne : ils voyagent dans la remarque (segments
+             « Fiche: » / « Nature: »), protégés des éditions de la remarque
+             libre — voir SEGMENTS_FIXES. Localité et ville restent saisissables :
+             sur un transfert de ligne, c'est la NOUVELLE adresse. -->
+        <div id="fields-reprise_ftth" class="hidden">
+          <div class="form-row">
+            <div><label data-i18n="label.numFiche">N° de fiche</label><input id="f9f" placeholder="Ex: 112 ou 263/2" oninput="filtrerNumFiche(this)"></div>
+            <div><label data-i18n="label.natureReprise">Nature de la reprise</label>
+              <select id="f9nat">
+                <option value="" data-i18n="common.select.default">-- Sélectionner --</option>
+                <option value="Transfert de ligne" data-i18n="reprise.transfert">Transfert de ligne</option>
+                <option value="Remplacement de l'ONT" data-i18n="reprise.ont">Remplacement de l'ONT</option>
+                <option value="Autre" data-i18n="reprise.autre">Autre</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div><label data-i18n="label.numFtth">N° FTTH</label><input id="f9u" placeholder="233442022" maxlength="9" inputmode="numeric" oninput="filterDigits(this);onNumInput(this.value,'f9v')" onblur="lookupClientLocal(this.value)"></div>
+            <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f9n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+          </div>
+          <div class="form-row">
+            <div><label data-i18n="common.tel.label">Téléphone</label><input id="f9t" placeholder="678451495" maxlength="9" inputmode="numeric" oninput="filterDigits(this)">
+              <button type="button" class="btn-addnum" onclick="toggleSecNum('f9')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
+              <div class="secnum-row" id="f9sec-row"><input id="f9sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+            </div>
+            <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f9l" placeholder="MARCHE A"></div>
+          </div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f9v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
         </div>
 
         <!-- RÉSILIATION -->
@@ -1107,6 +1143,7 @@ const ICO={
   etudeLs:_ico('<rect x="2.2" y="4.6" width="4" height="4" rx="1.1"/><rect x="10.8" y="4.6" width="4" height="4" rx="1.1"/><path d="M6.2 6.6h4.6"/><circle cx="17" cy="17" r="3.3"/><path d="M19.4 19.4 21.7 21.7"/>',1.5),
   installLs:_ico('<rect x="2.2" y="4.6" width="4" height="4" rx="1.1"/><rect x="10.8" y="4.6" width="4" height="4" rx="1.1"/><path d="M6.2 6.6h4.6"/><path d="M17.5 13.4v4.9"/><path d="M15.1 15.9l2.4 2.4 2.4-2.4"/><path d="M13.6 20.9h7.8"/>',1.5),
   derangLs:_ico('<rect x="2.2" y="4.6" width="4" height="4" rx="1.1"/><rect x="10.8" y="4.6" width="4" height="4" rx="1.1"/><path d="M6.2 6.6h4.6"/><path d="M17.4 13.6l4.1 7.4h-8.2z"/><path d="M17.4 16.4v1.9"/><path d="M17.4 19.9h.02"/>',1.5),
+  repriseFtth:_ico('<circle cx="8" cy="3.6" r="1.6"/><path d="M8 5.2v2.3"/><path d="M8 7.5 4.4 11.1"/><path d="M8 7.5l3.6 3.6"/><circle cx="3.5" cy="12.2" r="1.2"/><circle cx="12.5" cy="12.2" r="1.2"/><path d="M13.4 17a3.6 3.6 0 0 1 3.6-3.6 3.9 3.9 0 0 1 2.7 1.1l.9.9"/><path d="M20.6 13.4v2h-2"/><path d="M20.6 17a3.6 3.6 0 0 1-3.6 3.6 3.9 3.9 0 0 1-2.7-1.1l-.9-.9"/><path d="M15.4 18.6h-2v2"/>',1.5),
   resiliation:_ico('<circle cx="3.6" cy="6.6" r="1.4"/><circle cx="14.4" cy="6.6" r="1.4"/><path d="M5 6.6h7.4"/><path d="M14.6 14.6 20.4 20.4"/><path d="M20.4 14.6 14.6 20.4"/>',1.5),
   roleChef:_ico('<path d="M5.6 3.8 8 1.6l2.4 2.2"/><circle cx="8" cy="8.5" r="3"/><path d="M2.5 19.5c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2"/><circle cx="17.5" cy="10" r="2.2"/><path d="M14.2 19.5c0-2 1.5-3.5 3.3-3.5s3.3 1.5 3.3 3.5"/>',1.5),
   roleTechnicien:_ico('<path d="M4.5 7.5a4.5 4.5 0 0 1 9 0"/><path d="M3 7.5h12"/><path d="M6.3 7.5v1.2a2.7 2.7 0 0 0 5.4 0V7.5"/><path d="M2.8 20.2c0-3.2 2.7-5.5 6-5.5 2.2 0 4.1 1 5.2 2.6"/><circle cx="19" cy="4" r="1.5"/><path d="M19 5.5v1.9"/><path d="M19 7.4 17 9.9"/><path d="M19 7.4l2 2.5"/>',1.5),
@@ -1213,7 +1250,10 @@ fr:{
   'chef.addInv.title':ICO.plus+' Ajouter une intervention',
   'type.etude_ftth':'Étude FTTH','type.install_ftth':'Installation FTTH','type.derang_ftth':'Dérang. FTTH',
   'type.derang_cuivre':'Dérang. Cuivre','type.etude_ls':'Étude LS','type.derang_ls':'Dérang. LS','type.install_ls':'Install. LS',
-  'type.resiliation':'Résiliation',
+  'type.resiliation':'Résiliation','type.reprise_ftth':'Reprise fact. FTTH',
+  'label.numFiche':'N° de fiche','label.natureReprise':'Nature de la reprise',
+  'reprise.transfert':'Transfert de ligne','reprise.ont':"Remplacement de l'ONT",'reprise.autre':'Autre',
+  'valid.ficheRequired':'Le numéro de fiche est obligatoire','valid.natureRequired':'Sélectionnez la nature de la reprise',
   'label.numLigne':'N° de ligne','label.reseau':'Réseau',
   'common.customerId.label':'Customer ID',
   'common.nomClient.label':'Nom Client',
@@ -1384,7 +1424,7 @@ fr:{
   'err.loginNetwork':'Connexion impossible — vérifiez le réseau',
   'err.sessionExpired':'Session expirée — reconnectez-vous',
   'valid.numRequired':'Le numéro de ligne est obligatoire (9 chiffres exactement)',
-  'valid.nomOrCustomerId':'Renseignez au moins le nom ou le Customer ID',
+  'valid.nomOrCustomerId':'Renseignez au moins le nom ou le numéro de fiche',
   'valid.villeRequired':'Sélectionnez la ville',
   'valid.reseauRequired':'Sélectionnez le réseau (FTTH ou Cuivre)',
   'valid.9digits':'Le numéro doit contenir exactement 9 chiffres',
@@ -1509,7 +1549,10 @@ en:{
   'chef.addInv.title':ICO.plus+' Add an intervention',
   'type.etude_ftth':'FTTH Survey','type.install_ftth':'FTTH Installation','type.derang_ftth':'FTTH Fault',
   'type.derang_cuivre':'Copper Fault','type.etude_ls':'LS Survey','type.derang_ls':'LS Fault','type.install_ls':'LS Installation',
-  'type.resiliation':'Cancellation',
+  'type.resiliation':'Cancellation','type.reprise_ftth':'FTTH Billing Resume',
+  'label.numFiche':'Form number','label.natureReprise':'Type of resumption',
+  'reprise.transfert':'Line transfer','reprise.ont':'ONT replacement','reprise.autre':'Other',
+  'valid.ficheRequired':'The form number is required','valid.natureRequired':'Select the type of resumption',
   'label.numLigne':'Line number','label.reseau':'Network',
   'common.customerId.label':'Customer ID',
   'common.nomClient.label':'Customer Name',
@@ -1680,7 +1723,7 @@ en:{
   'err.loginNetwork':'Login failed — check your network',
   'err.sessionExpired':'Session expired — please log in again',
   'valid.numRequired':'The line number is required (exactly 9 digits)',
-  'valid.nomOrCustomerId':'Enter at least the name or the Customer ID',
+  'valid.nomOrCustomerId':'Enter at least the name or the form number',
   'valid.villeRequired':'Select the city',
   'valid.reseauRequired':'Select the network (FTTH or Copper)',
   'valid.9digits':'The number must contain exactly 9 digits',
@@ -1744,6 +1787,7 @@ const ROLE_LBL={fr:{chef:'Chef',technicien:'Technicien',admin:'Admin'},en:{chef:
 const TYPE_LABEL_EN={
   'Études FTTH':'FTTH Surveys','Installations FTTH':'FTTH Installations','Dérangements FTTH':'FTTH Faults',
   'Dérangements Cuivre':'Copper Faults','Étude LS':'LS Survey','Dérangements LS':'LS Faults','Installation LS':'LS Installation',
+  'Reprises en facturation FTTH':'FTTH Billing Resumes',
   'Résiliations FTTH':'FTTH Cancellations','Résiliations Cuivre':'Copper Cancellations','Résiliations LS':'LS Cancellations'
 };
 const PANNE_LABEL_EN={
@@ -1770,12 +1814,12 @@ function formatDuree(n){
 const TL={
   etude_ftth:'Études FTTH', install_ftth:'Installations FTTH', derang_ftth:'Dérangements FTTH',
   derang_cuivre:'Dérangements Cuivre', etude_ls:'Étude LS', derang_ls:'Dérangements LS',
-  install_ls:'Installation LS', resiliation_ftth:'Résiliations FTTH', resiliation_cuivre:'Résiliations Cuivre', resiliation_ls:'Résiliations LS'
+  install_ls:'Installation LS', reprise_ftth:'Reprises en facturation FTTH', resiliation_ftth:'Résiliations FTTH', resiliation_cuivre:'Résiliations Cuivre', resiliation_ls:'Résiliations LS'
 };
 const TI={
   etude_ftth:ICO.etudeFtth, install_ftth:ICO.installFtth, derang_ftth:ICO.derangFtth,
   derang_cuivre:ICO.derangCuivre, etude_ls:ICO.etudeLs, derang_ls:ICO.derangLs, install_ls:ICO.installLs,
-  resiliation_ftth:ICO.resiliation, resiliation_cuivre:ICO.resiliation, resiliation_ls:ICO.resiliation
+  reprise_ftth:ICO.repriseFtth, resiliation_ftth:ICO.resiliation, resiliation_cuivre:ICO.resiliation, resiliation_ls:ICO.resiliation
 };
 // `interventions.type` stocké en base est le LIBELLÉ (TL[clé]), pas la clé
 // interne ci-dessus — sans cet alias, TI[gt] ne matchait jamais et chaque
@@ -2767,6 +2811,7 @@ function getFieldIds(){
   if(cType==='install_ftth')  return{num:'f2u',nom:'f2n',tel:'f2t',loc:'f2l',vil:'f2v',sec:'f2sec'};
   if(cType==='derang_ftth')   return{num:'f3u',nom:'f3n',tel:'f3t',loc:'f3l',vil:'f3v',sec:'f3sec'};
   if(cType==='derang_cuivre') return{num:'f4u',nom:'f4n',tel:'f4t',loc:'f4l',vil:'f4v',sec:'f4sec'};
+  if(cType==='reprise_ftth')  return{num:'f9u',nom:'f9n',tel:'f9t',loc:'f9l',vil:'f9v',sec:'f9sec'};
   if(cType==='resiliation')   return{num:'f8u',nom:'f8n'};
   if(cType==='etude_ls')      return{nom:'f5n',tel:'f5t',loc:'f5l',vil:'f5v',sec:'f5sec'};
   if(cType==='derang_ls')     return{nom:'f6n',tel:'f6t',loc:'f6l',vil:'f6v',sec:'f6sec'};
@@ -2929,6 +2974,7 @@ function gf(){
   if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),numSec:v('f2sec'),gps:'',fdt:v('f2fdt'),fat:v('f2fat')};
   if(cType==='derang_ftth')   return{num:v('f3u'),nom:vUp('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),numSec:v('f3sec'),gps:''};
   if(cType==='derang_cuivre') return{num:v('f4u'),nom:vUp('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),numSec:v('f4sec'),gps:''};
+  if(cType==='reprise_ftth')  return{num:v('f9u'),nom:vUp('f9n'),tel:v('f9t'),loc:v('f9l'),ville:v('f9v'),numSec:v('f9sec'),gps:'',fiche:v('f9f'),nature:v('f9nat')};
   if(cType==='resiliation'){
     // Service auto-détecté (FTTH/CUIVRE/LS) via detecterServiceResil() → f8svc.
     // FTTH/Cuivre : identité = numéro, tel/loc/ville repris en silence de la
@@ -2954,9 +3000,9 @@ function validateNumericFields(){
   const map={
     etude_ftth:['f1u','f1t'], install_ftth:['f2u','f2t'], derang_ftth:['f3u','f3t'],
     derang_cuivre:['f4u','f4t'], etude_ls:['f5u','f5t'], derang_ls:['f6u','f6t'],
-    install_ls:['f7u','f7t']
+    install_ls:['f7u','f7t'], reprise_ftth:['f9u','f9t']
   };
-  const secMap={etude_ftth:'f1sec',install_ftth:'f2sec',derang_ftth:'f3sec',derang_cuivre:'f4sec',etude_ls:'f5sec',derang_ls:'f6sec',install_ls:'f7sec'};
+  const secMap={etude_ftth:'f1sec',install_ftth:'f2sec',derang_ftth:'f3sec',derang_cuivre:'f4sec',etude_ls:'f5sec',derang_ls:'f6sec',install_ls:'f7sec',reprise_ftth:'f9sec'};
   const ids=map[cType]||[];
   let ok=true;
   let firstError=null;
@@ -2999,7 +3045,8 @@ function cf(){
    'f3u','f3n','f3t','f3l','f3v','f3sec','f4u','f4n','f4t','f4l','f4v','f4sec',
    'f5n','f5u','f5t','f5l','f5v','f5sec','f6n','f6u','f6t','f6l','f6v','f6sec',
    'f7n','f7u','f7t','f7p','f7v','f7sec','f7g','f7c','f7x',
-   'f8u','f8n','f8v','f8q','f8mot','f8svc']
+   'f8u','f8n','f8v','f8q','f8mot','f8svc',
+   'f9f','f9nat','f9u','f9n','f9t','f9l','f9v','f9sec']
   .forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('autofilled');el.classList.remove('input-error');}});
   document.querySelectorAll('.secnum-row').forEach(r=>r.classList.remove('visible'));
   const svcBadge=document.getElementById('f8svc-badge');
@@ -3011,9 +3058,13 @@ async function addInv(){
   const f=gf();
 
   // Numéro de ligne obligatoire UNIQUEMENT pour ces trois types
-  const NUM_OBLIGATOIRE=['install_ftth','derang_ftth','derang_cuivre'];
+  const NUM_OBLIGATOIRE=['install_ftth','derang_ftth','derang_cuivre','reprise_ftth'];
   if(NUM_OBLIGATOIRE.includes(cType)){
     if(!f.num||f.num.length!==9){showToast(t('valid.numRequired'));return;}
+  }
+  if(cType==='reprise_ftth'){
+    if(!f.fiche){showToast(t('valid.ficheRequired'));return;}
+    if(!f.nature){showToast(t('valid.natureRequired'));return;}
   }
 
   // Résiliation : service auto-détecté requis ; numéro requis si FTTH/Cuivre,
@@ -3182,8 +3233,25 @@ function lienTel(txt){
   });
 }
 
+// N° de fiche et nature d'une reprise en facturation : champs du formulaire
+// avant publication, segments de la remarque ensuite (pas de colonne dédiée).
+function segRemarque(r,cle){
+  if(!r||r==='null')return '';
+  const seg=String(r).split(' • ').find(s=>s.trim().startsWith(cle+': '));
+  return seg?seg.trim().slice(cle.length+2):'';
+}
+const ficheDe=inv=>inv.fiche||segRemarque(inv.remarque,'Fiche');
+const natureDe=inv=>inv.nature||segRemarque(inv.remarque,'Nature');
+function trNature(n){
+  const k={'Transfert de ligne':'reprise.transfert',"Remplacement de l'ONT":'reprise.ont','Autre':'reprise.autre'}[n];
+  return k?t(k):n;
+}
+// N° de fiche : chiffres et barre oblique seulement (« 112 », « 263/2 »).
+function filtrerNumFiche(el){const v=el.value.replace(/[^0-9/]/g,'');if(v!==el.value)el.value=v;}
 function buildLabel(inv){
   const p=[];
+  const fiche=ficheDe(inv);
+  if(fiche)p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${esc(t('label.numFiche'))} ${esc(fiche)}</span>`);
   if(inv.customerId&&inv.customerId!=='null'&&inv.customerId!=='')p.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 6px;font-size:.8em;font-weight:700">${esc(inv.customerId)}</span>`);
   if(inv.num)p.push(`<strong>${esc(inv.num)}</strong>`);
   if(inv.nom)p.push(esc(inv.nom));
@@ -3204,6 +3272,8 @@ function buildLabel(inv){
 }
 function buildTags(inv){
   let h='';
+  const nature=natureDe(inv);
+  if(nature)h+=`<span class="tag tag-nature">${esc(trNature(nature))}</span>`;
   if(inv.ville&&inv.ville!=='null'&&inv.ville!=='')h+=`<span class="tag tag-ville">${ICO.pin} ${esc(inv.ville)}</span>`;
   if(inv.quartier&&inv.quartier!=='null'&&inv.quartier!=='')h+=`<span class="tag tag-quartier">${esc(inv.quartier)}</span>`;
   if(inv.gps&&inv.gps!=='null'&&inv.gps!==''){
@@ -3247,10 +3317,11 @@ function editInv(id){
 
   // Remplir les champs selon le type
   const setIf=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!==undefined&&val!==null)el.value=val;};
-  if(inv.type==='etude_ftth'){setIf('f1u',inv.num);setIf('f1n',inv.nom);setIf('f1t',inv.tel);setIf('f1l',inv.loc);setIf('f1v',inv.ville);setIf('f1sec',inv.numSec);}
+  if(inv.type==='etude_ftth'){setIf('f1c',inv.customerId);setIf('f1u',inv.num);setIf('f1n',inv.nom);setIf('f1t',inv.tel);setIf('f1l',inv.loc);setIf('f1v',inv.ville);setIf('f1sec',inv.numSec);}
   if(inv.type==='install_ftth'){setIf('f2u',inv.num);setIf('f2n',inv.nom);setIf('f2t',inv.tel);setIf('f2l',inv.loc);setIf('f2v',inv.ville);setIf('f2sec',inv.numSec);setIf('f2fdt',inv.fdt);setIf('f2fat',inv.fat);}
   if(inv.type==='derang_ftth'){setIf('f3u',inv.num);setIf('f3n',inv.nom);setIf('f3t',inv.tel);setIf('f3l',inv.loc);setIf('f3v',inv.ville);setIf('f3sec',inv.numSec);}
   if(inv.type==='derang_cuivre'){setIf('f4u',inv.num);setIf('f4n',inv.nom);setIf('f4t',inv.tel);setIf('f4l',inv.loc);setIf('f4v',inv.ville);setIf('f4sec',inv.numSec);}
+  if(inv.type==='reprise_ftth'){setIf('f9f',inv.fiche);setIf('f9nat',inv.nature);setIf('f9u',inv.num);setIf('f9n',inv.nom);setIf('f9t',inv.tel);setIf('f9l',inv.loc);setIf('f9v',inv.ville);setIf('f9sec',inv.numSec);}
   if(isResiliation){
     setIf('f8u',inv.type==='resiliation_ls'?'':inv.num);setIf('f8n',inv.nom);
     if(inv.type==='resiliation_ls'){setIf('f8v',inv.ville);setIf('f8q',inv.quartier);}
@@ -3263,7 +3334,7 @@ function editInv(id){
   if(inv.type==='install_ls'){setIf('f7u',inv.num);setIf('f7n',inv.nom);setIf('f7t',inv.tel);setIf('f7p',inv.pop);setIf('f7v',inv.ville);setIf('f7sec',inv.numSec);setIf('f7g',inv.gps);setIf('f7c',inv.chambre);setIf('f7x',inv.extra);}
 
   // Afficher le champ secondaire si rempli
-  const prefixMap={etude_ftth:'f1',install_ftth:'f2',derang_ftth:'f3',derang_cuivre:'f4',etude_ls:'f5',derang_ls:'f6',install_ls:'f7'};
+  const prefixMap={etude_ftth:'f1',install_ftth:'f2',derang_ftth:'f3',derang_cuivre:'f4',etude_ls:'f5',derang_ls:'f6',install_ls:'f7',reprise_ftth:'f9'};
   const prefix=prefixMap[inv.type];
   if(prefix && inv.numSec){const row=document.getElementById(prefix+'sec-row');if(row)row.classList.add('visible');}
 
@@ -4172,7 +4243,8 @@ async function updStatut(invId,statut){
   // `#rem-<id>` et non `.remark-inp` : le premier `.remark-inp` de la ligne est
   // le champ GPS, dont la valeur partait donc dans la remarque à chaque
   // changement de statut (des remarques valaient « 5.49, 10.40 » en base).
-  const remarque=structured?composeStructuredRemarque(structured):(row?(document.getElementById('rem-'+invId)||{value:''}).value:'');
+  const remarque=structured?composeStructuredRemarque(structured)
+    :avecSegmentsFixes(invRef&&invRef.remarque,row?(document.getElementById('rem-'+invId)||{value:''}).value:'');
   const panne=structured&&structured.kind==='panne'?structured.panne:undefined; // undefined = non envoyé (JSON le retire)
 
   // Mise à jour visuelle immédiate (optimiste)
@@ -4213,6 +4285,7 @@ async function updStatut(invId,statut){
 
 async function updRemarque(invId,remarque){
   const row=document.getElementById('row-'+invId);
+  if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv)remarque=avecSegmentsFixes(inv.remarque,remarque);}
   const statut=row?(row.querySelector('select[onchange^="updStatut("]')||{value:'En attente'}).value:'En attente';
   if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv)inv.remarque=remarque;}
 
@@ -5206,7 +5279,17 @@ function formatDateDisplay(d){
 // de champs structurés (composeEtudeRemarque y stocke FDT/FAT VOLONTAIREMENT).
 function remarqueEditable(r){
   if(!r||r==='null') return '';
-  return String(r).split(' • ').filter(seg=>!/^(FDT|FAT):\s/.test(seg.trim())).join(' • ');
+  return String(r).split(' • ').filter(seg=>!/^(FDT|FAT):\s/.test(seg.trim())&&!SEGMENTS_FIXES.test(seg.trim())).join(' • ');
+}
+// Segments posés à la publication qu'aucune saisie terrain ne doit effacer :
+// N° de fiche et nature d'une reprise en facturation. Ils sont masqués du
+// champ « remarque » libre, il faut donc les remettre en tête à chaque
+// enregistrement de ce champ — sinon la première note tapée les écraserait.
+const SEGMENTS_FIXES=/^(Fiche|Nature):\s/;
+function avecSegmentsFixes(ancienne,saisie){
+  const fixes=(ancienne&&ancienne!=='null')?String(ancienne).split(' • ').map(s=>s.trim()).filter(s=>SEGMENTS_FIXES.test(s)):[];
+  const libre=String(saisie||'').split(' • ').map(s=>s.trim()).filter(s=>s&&!SEGMENTS_FIXES.test(s));
+  return fixes.concat(libre).join(' • ');
 }
 function displayRemarque(r){
   if(!r||r==='null')return'';
@@ -5216,7 +5299,7 @@ function displayRemarque(r){
   // FDT/FAT (désormais sur la fiche client, affichés en dédié sous le nom)
   // sont réextraits ailleurs — ne pas les répéter dans la remarque. Le filtre
   // FDT/FAT couvre aussi les remarques historiques qui les portaient encore.
-  s=s.split(' • ').filter(seg=>!/^(Tel|Tel2|Localité|FDT|FAT):\s/.test(seg.trim())).join(' • ');
+  s=s.split(' • ').filter(seg=>!/^(Tel|Tel2|Localité|FDT|FAT|Fiche|Nature):\s/.test(seg.trim())).join(' • ');
   if(!s.trim())return'';
   return s.replace(/[A-Za-z]{3}\s[A-Za-z]{3}\s\d{1,2}\s\d{4}\s\d{2}:\d{2}:\d{2}\sGMT[+-]\d{4}\s\([^)]*\)/g,m=>{
     const d=new Date(m);if(isNaN(d.getTime()))return m;
@@ -5251,29 +5334,17 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-20-quartiers-recherche';
+const MAJ_ID='2026-09-24-reprise-facturation';
 const NOTES_MAJ=[
+  { pour:['chef','admin'],
+    fr:'Nouveau type d’intervention : « Reprise en facturation FTTH », pour un client déjà abonné — remplacement de l’ONT, transfert de ligne après un déménagement, ou autre. On y saisit le numéro de la fiche, le numéro FTTH du client, son nom, ses numéros de téléphone et la nature de la reprise.',
+    en:'New job type: "FTTH Billing Resume", for an existing subscriber — ONT replacement, line transfer after a move, or other. You enter the form number, the client’s FTTH number, name, phone numbers and the type of resumption.' },
+  { pour:['chef','admin'],
+    fr:'Sur une étude FTTH, le champ « Customer ID » devient « N° de fiche » (par exemple 112 ou 263/2).',
+    en:'On an FTTH survey, the "Customer ID" field becomes "Form number" (for example 112 or 263/2).' },
   { pour:['technicien'],
-    fr:'Sur une installation FTTH, vous pouvez maintenant noter la distance entre le FAT et le client au moment où vous la réalisez. Elle se range sur la fiche du client, à côté du FDT et du FAT.',
-    en:'On an FTTH installation you can now record the distance between the FAT and the client while carrying it out. It is stored on the client record, next to the FDT and FAT.' },
-  { pour:['chef'],
-    fr:'Au moment d’ajouter une intervention, « + Ajouter un numéro » est désormais juste sous le téléphone, au lieu d’être renvoyé sous la localité sur téléphone.',
-    en:'When adding a job, "+ Add a number" now sits right under the phone field, instead of being pushed below the locality on phones.' },
-  { pour:['chef'],
-    fr:'Sur une installation FTTH, les cases FDT et FAT n’affichent plus deux fois leur nom.',
-    en:'On an FTTH installation, the FDT and FAT boxes no longer show their name twice.' },
-  { pour:['admin'],
-    fr:'La liste des quartiers se gère depuis l’onglet Édition, sans plus s’étaler à l’écran : tapez les premières lettres et l’application vous montre ceux qui existent déjà. Si aucun ne correspond, elle vous propose d’ajouter celui que vous venez de taper. Corriger un quartier corrige du même coup toutes les interventions et fiches clients qui le portent. Un quartier encore utilisé ne peut pas être retiré — renommez-le vers le bon.',
-    en:'The neighbourhood list is managed from the Edit tab and no longer fills the screen: type the first few letters and the app shows the ones already on file. If none matches, it offers to add what you just typed. Correcting a neighbourhood also corrects every job and client record carrying it. A neighbourhood still in use cannot be removed — rename it to the right one instead.' },
-  { pour:['admin'],
-    fr:'En corrigeant une fiche client : le nom passe en majuscules à la frappe, la ville se choisit dans une liste, et le quartier se propose tout seul à partir de la localité — il reste corrigeable à la main.',
-    en:'When correcting a client record: the name goes uppercase as you type, the town is picked from a list, and the neighbourhood is suggested from the locality — still editable by hand.' },
-  { pour:['admin'],
-    fr:'L’onglet Édition affiche la fiche du jour dès son ouverture, sans avoir à cliquer sur Charger. C’est aussi ce qui remet le voyant de synchronisation en haut de page dans le bon état.',
-    en:'The Edit tab shows the day’s sheet as soon as you open it, without clicking Load. This also puts the sync indicator at the top of the page back into the right state.' },
-  { pour:['tous'],
-    fr:'À la connexion, le matricule n’accepte plus que 6 chiffres — ni lettre, ni septième chiffre.',
-    en:'On the login screen, the staff number now accepts only 6 digits — no letters, no seventh digit.' }
+    fr:'Les reprises en facturation FTTH apparaissent sur le terrain avec leur numéro de fiche et leur nature (transfert de ligne, remplacement de l’ONT…).',
+    en:'FTTH billing resumes appear in the field view with their form number and type (line transfer, ONT replacement…).' }
 ];
 
 // Une SEULE fenêtre pour toute la mise à jour. Il y en avait deux — le panneau

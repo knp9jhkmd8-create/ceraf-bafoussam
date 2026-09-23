@@ -903,6 +903,11 @@ async function saveConsistance(d, ctx, session) {
     // FDT/FAT ne sont PLUS encodés ici : ils vivent sur la fiche client
     // (colonnes dédiées, upsert plus bas) et le frontend les affiche depuis
     // là — les y remettre les dupliquerait avec ce nouvel affichage dédié.
+    // Reprise en facturation FTTH : n° de fiche et nature n'ont pas de colonne.
+    // Le frontend les lit dans ces segments et les protège des éditions de la
+    // remarque libre (SEGMENTS_FIXES dans index.html).
+    if (inv.fiche)   parts.push('Fiche: ' + String(inv.fiche).trim());
+    if (inv.nature)  parts.push('Nature: ' + String(inv.nature).trim());
     if (inv.gps)     parts.push('GPS: ' + String(inv.gps).trim());
     if (inv.chambre) parts.push('Chambre: ' + String(inv.chambre).trim());
     if (inv.motif)   parts.push('Motif: ' + String(inv.motif).trim());
