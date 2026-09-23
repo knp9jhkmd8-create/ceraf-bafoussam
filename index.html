@@ -1258,6 +1258,7 @@ fr:{
   'type.resiliation':'Résiliation','type.reprise_ftth':'Reprise fact. FTTH',
   'label.numFiche':'N° de fiche','label.natureReprise':'Nature de la reprise',
   'reprise.transfert':'Transfert de ligne','reprise.ont':"Remplacement de l'ONT",'reprise.autre':'Autre',
+  'edition.choisirInv':'{n} intervention(s) — touchez un numéro pour ouvrir sa fiche',
   'renvoi.title':"Renvoyer à l'agence",'renvoi.body':"Pourquoi cette intervention retourne-t-elle à l'agence commerciale ?",
   'renvoi.tag':'Motif : {motif}','stat.renvoyes':"{n} renvoyée(s) à l'agence",
   'valid.ficheRequired':'Le numéro de fiche est obligatoire','valid.natureRequired':'Sélectionnez la nature de la reprise',
@@ -1559,6 +1560,7 @@ en:{
   'type.resiliation':'Cancellation','type.reprise_ftth':'FTTH Billing Resume',
   'label.numFiche':'Form number','label.natureReprise':'Type of resumption',
   'reprise.transfert':'Line transfer','reprise.ont':'ONT replacement','reprise.autre':'Other',
+  'edition.choisirInv':'{n} job(s) — tap a number to open its record',
   'renvoi.title':'Return to agency','renvoi.body':'Why is this job going back to the sales agency?',
   'renvoi.tag':'Reason: {motif}','stat.renvoyes':'{n} returned to agency',
   'valid.ficheRequired':'The form number is required','valid.natureRequired':'Select the type of resumption',
@@ -3927,8 +3929,19 @@ function onTerrainSearch(val){
   if(terrainData) renderTerrain(terrainData);
 }
 
+// Ordre croissant du numéro (ligne FTTH/Cuivre, ou n° de fiche d'une étude :
+// « 263/2 » après « 263 », d'où la comparaison numérique). Sans numéro (LS) :
+// après les autres, par nom. Partagé par le Terrain et l'onglet Édition.
+function parNumero(a,b){
+  const na=String(a.num||'').trim(), nb=String(b.num||'').trim();
+  if(na&&!nb)return -1;
+  if(nb&&!na)return 1;
+  if(na&&nb)return na.localeCompare(nb,undefined,{numeric:true});
+  return String(a.nom||'').localeCompare(String(b.nom||''));
+}
 function renderByType(interventions){
   const g={};interventions.forEach(i=>{if(!g[i.type])g[i.type]=[];g[i.type].push(i);});
+  Object.values(g).forEach(l=>l.sort(parNumero));
   let h='';
   Object.keys(g).forEach(gt=>{
     // Type mis en évidence comme les quartiers
@@ -4953,12 +4966,10 @@ function ouvrirSelecteurDate(id){
 function initEdition(){
   const d=document.getElementById('ed-date');
   if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);
-  // L'onglet charge la fiche du jour de lui-même, comme Terrain, Historique,
-  // Utilisateurs et Audit. Il était le SEUL à n'émettre aucune requête en
-  // arrivant : depuis que l'application rouvre le dernier onglet utilisé, un
-  // administrateur qui atterrissait ici ne parlait jamais au serveur et le
-  // témoin de synchronisation restait au gris neutre.
-  chargerEditionJour();
+  // La fiche du jour ne se charge PLUS d'elle-même (demande du 24/09) : on
+  // attend « Charger ». Le témoin de synchronisation, qui avait motivé ce
+  // chargement le 20/09, reste à jour grâce à la requête des quartiers
+  // ci-dessous — l'onglet parle toujours au serveur en arrivant.
   chargerQuartiersUI();
 }
 
@@ -4971,18 +4982,48 @@ async function chargerEditionJour(){
   if(!res.success){el.innerHTML=`<div class="empty"><p>${esc(res.error||'')}</p></div>`;return;}
   const inv=res.interventions||[];
   if(!inv.length){el.innerHTML=`<div class="empty"><p>${esc(t('edition.aucuneInv'))}</p></div>`;return;}
+  // Rendu COMPACT : une pastille par intervention, numéros en ordre croissant
+  // (comme les quartiers regroupés par ville) ; la fiche ne s'ouvre qu'au
+  // clic. Déplier les trente fiches d'une journée noyait l'écran pour n'en
+  // corriger qu'une.
+  edInvs=inv.slice().sort(parNumero);
+  edDate=date;
+  if(edOuverte&&!edInvs.some(i=>i.id===edOuverte))edOuverte='';
+  rendreEditionPastilles();
+}
+
+let edInvs=[],edDate='',edOuverte='';
+function rendreEditionPastilles(){
+  const el=document.getElementById('edition-inv-wrap');
+  if(!el)return;
+  const pastilles=edInvs.map(i=>{
+    const actif=i.id===edOuverte;
+    const col=({ok:'var(--green)',unreachable:'var(--purple)',issue:'var(--red)',renvoye:'#64748b'})[SM[i.statut]]||'var(--yellow)';
+    return `<span class="qpill${actif?' qpill-active':' qpill-clickable'}" onclick="ouvrirEditionInv('${escJsAttr(i.id)}')" title="${esc(i.nom||'')}"><span style="width:7px;height:7px;border-radius:50%;background:${actif?'#fff':col};flex:none;"></span>${esc(i.num||i.nom||'—')}</span>`;
+  }).join('');
+  const ouverte=edInvs.find(i=>i.id===edOuverte);
+  el.innerHTML=`<div style="font-size:.74rem;color:var(--muted);margin-bottom:8px;">${esc(t('edition.choisirInv',{n:edInvs.length}))}</div>
+    <div style="display:flex;flex-wrap:wrap;">${pastilles}</div>
+    ${ouverte?'<div style="margin-top:8px;">'+carteEditionInv(ouverte,edDate)+'</div>':''}`;
+}
+function ouvrirEditionInv(id){
+  edOuverte=edOuverte===id?'':id;   // re-clic : referme
+  rendreEditionPastilles();
+}
+
+// Une FICHE par intervention plutôt qu'un tableau : à sept colonnes dont
+// quatre champs de saisie, le tableau sortait de l'écran sur téléphone et
+// obligeait à faire défiler horizontalement pour atteindre le bouton
+// Enregistrer. Les champs s'empilent ici sur une grille qui se replie d'une
+// seule colonne quand la place manque, sans média-query à maintenir.
+function carteEditionInv(i,date){
   const STATUTS=['En attente','Injoignable','Problème','Réalisé',STATUT_RENVOI];
   const j=v=>String(v||'').slice(0,10);
-  // Une FICHE par intervention plutôt qu'un tableau : à sept colonnes dont
-  // quatre champs de saisie, le tableau sortait de l'écran sur téléphone et
-  // obligeait à faire défiler horizontalement pour atteindre le bouton
-  // Enregistrer. Les champs s'empilent ici sur une grille qui se replie d'une
-  // seule colonne quand la place manque, sans média-query à maintenir.
-  el.innerHTML=inv.map(i=>`
+  return `
     <div id="ed-row-${escJsAttr(i.id)}" class="card" style="margin-bottom:10px;padding:12px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px;">
         <div style="min-width:0;">
-          <div style="font-weight:700;font-size:.86rem;word-break:break-word;">${esc(i.nom||'—')}</div>
+          <div class="inv-nom" style="font-size:.86rem;word-break:break-word;">${esc(i.nom||'—')}</div>
           <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">
             ${TI[i.type]||ICO.clipboard} ${esc(trType(i.type)||i.type||'')}${i.num?' · <strong>'+esc(i.num)+'</strong>':''}
           </div>
@@ -5014,8 +5055,8 @@ async function chargerEditionJour(){
 
       <button class="btn btn-green btn-sm" style="margin-top:10px;width:100%;"
               onclick="enregistrerEditionInv('${escJsAttr(i.id)}')">${esc(t('edition.enregistrer'))}</button>
-    </div>`).join('')
-    +`<div style="font-size:.74rem;color:var(--muted);margin-top:4px;">${esc(t('edition.datesAide'))}</div>`;
+      <div style="font-size:.74rem;color:var(--muted);margin-top:8px;">${esc(t('edition.datesAide'))}</div>
+    </div>`;
 }
 
 async function enregistrerEditionInv(id){
@@ -5392,8 +5433,14 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-renvoi-agence';
+const MAJ_ID='2026-09-24-edition-compacte';
 const NOTES_MAJ=[
+  { pour:['admin'],
+    fr:'Onglet Édition : la fiche du jour ne se charge plus toute seule, appuyez sur « Charger ». Les interventions s’affichent alors sous forme de numéros, rangés du plus petit au plus grand ; touchez un numéro pour ouvrir sa fiche, touchez-le à nouveau pour la refermer.',
+    en:'Edit tab: the day’s sheet no longer loads by itself, press "Load". Jobs are then shown as numbers, from smallest to largest; tap a number to open its record, tap it again to close it.' },
+  { pour:['technicien'],
+    fr:'Sur la fiche du jour, les interventions de chaque type sont rangées par numéro de ligne, du plus petit au plus grand.',
+    en:'On the day’s sheet, the jobs of each type are sorted by line number, from smallest to largest.' },
   { pour:['tous'],
     fr:'Nouveau statut « Renvoyé à l’agence » : quand une intervention ne peut pas se faire et que la fiche retourne à l’agence commerciale (client qui a déménagé, refus du client, adresse introuvable…). On choisit le motif au moment de changer le statut. L’intervention est alors terminée : elle n’est plus reportée au lendemain, et elle ne compte ni comme réalisée ni comme en retard dans les statistiques.',
     en:'New status "Returned to agency": when a job cannot be done and the form goes back to the sales agency (client has moved, client refused, address not found…). You pick the reason when changing the status. The job is then closed: it is no longer carried over to the next day, and it counts neither as completed nor as outstanding in the statistics.' },
