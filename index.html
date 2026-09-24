@@ -590,7 +590,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
               <button type="button" class="btn-addnum" onclick="toggleSecNum('f1')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
               <div class="secnum-row" id="f1sec-row"><input id="f1sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
             </div>
-            <div><label data-i18n="common.ville.label">Ville</label><select id="f1v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+            <div><label data-i18n="common.ville.label">Ville</label><select id="f1v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div>
           </div>
           <div class="form-row full">
             <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f1l" placeholder="Ex: Après Ancien Acha bleu barrier"></div>
@@ -610,7 +610,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             </div>
             <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f2l" placeholder="DJEMOUN près supermarket"></div>
           </div>
-          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f2v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f2v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div></div>
           <div class="form-row">
             <div><div class="inp-prefixed"><span class="inp-prefix">FDT-</span><input type="text" id="f2fdt" placeholder="X"></div></div>
             <div><div class="inp-prefixed"><span class="inp-prefix">FAT-</span><input type="text" id="f2fat" placeholder="X"></div></div>
@@ -630,7 +630,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             </div>
             <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f3l" placeholder="MARCHE A"></div>
           </div>
-          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f3v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f3v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div></div>
         </div>
 
         <!-- DÉRANGEMENT CUIVRE -->
@@ -646,7 +646,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             </div>
             <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f4l" placeholder="KAMPOP"></div>
           </div>
-          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f4v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f4v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div></div>
         </div>
 
         <!-- REPRISE EN FACTURATION FTTH -->
@@ -680,7 +680,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             </div>
             <div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f9l" placeholder="MARCHE A"></div>
           </div>
-          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f9v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div></div>
+          <div class="form-row full"><div><label data-i18n="common.villeAuto.label">Ville (auto-détectée)</label><select id="f9v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div></div>
         </div>
 
         <!-- RÉSILIATION -->
@@ -690,7 +690,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><label data-i18n="common.nomClient.label">Nom Client</label><input id="f8n" placeholder="Ex: Ewen" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();detecterServiceResil()"></div>
           </div>
           <div class="form-row">
-            <div><label>Ville <span style="color:var(--muted);font-weight:400;">(si LS)</span></label><select id="f8v" onchange="detecterServiceResil()"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+            <div><label>Ville <span style="color:var(--muted);font-weight:400;">(si LS)</span></label><select id="f8v" onchange="detecterServiceResil()"><option value="">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div>
             <div><label>Quartier <span style="color:var(--muted);font-weight:400;">(si LS)</span></label><input id="f8q" placeholder="Quartier" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();detecterServiceResil()"></div>
           </div>
           <div class="form-row full">
@@ -725,7 +725,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
               <button type="button" class="btn-addnum" onclick="toggleSecNum('f5')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
               <div class="secnum-row" id="f5sec-row"><input id="f5sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
             </div>
-            <div><label data-i18n="common.ville.label">Ville</label><select id="f5v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+            <div><label data-i18n="common.ville.label">Ville</label><select id="f5v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div>
           </div>
           <div class="form-row full"><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f5l" placeholder="Localité" data-i18n-ph="common.localite.ph"></div></div>
         </div>
@@ -740,7 +740,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
               <button type="button" class="btn-addnum" onclick="toggleSecNum('f6')" data-i18n="common.addNum.btn">+ Ajouter un numéro</button>
               <div class="secnum-row" id="f6sec-row"><input id="f6sec" placeholder="Numéro secondaire" data-i18n-ph="common.numSec.ph" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
             </div>
-            <div><label data-i18n="common.ville.label">Ville</label><select id="f6v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select></div>
+            <div><label data-i18n="common.ville.label">Ville</label><select id="f6v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select></div>
           </div>
           <div class="form-row full"><div><label data-i18n="common.locQuartier.label">Localité / Quartier</label><input id="f6l" placeholder="Localité" data-i18n-ph="common.localite.ph"></div></div>
         </div>
@@ -765,7 +765,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
           </div>
           <div class="form-row full">
             <div><label data-i18n="common.ville.label">Ville</label>
-              <select id="f7v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
+              <select id="f7v"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select>
             </div>
           </div>
           <div class="form-row full">
@@ -908,7 +908,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
         <div class="form-row">
           <div><label data-i18n="common.numSec.ph">Numéro secondaire</label><input id="adm-cli-tel2" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
           <div><label data-i18n="common.ville.label">Ville</label>
-            <select id="adm-cli-ville"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option></select>
+            <select id="adm-cli-ville"><option value="" data-i18n="common.select.default">-- Sélectionner --</option><option>Bafoussam</option><option>Bandjoun</option><option>Baham</option><option>Foumbot</option><option>Bayangam</option></select>
           </div>
         </div>
         <div class="form-row">
@@ -1864,7 +1864,7 @@ const VILLE_REQUIRED=['etude_ftth','etude_ls','derang_ls','install_ls'];
 // Les quatre villes couvertes par le centre. La liste était recopiée en dur
 // dans neuf <select> du HTML ; tout écran ajouté depuis la génère à partir
 // d'ici, pour ne pas créer une dixième copie à tenir à jour.
-const VILLES=['Bafoussam','Bandjoun','Baham','Foumbot'];
+const VILLES=['Bafoussam','Bandjoun','Baham','Foumbot','Bayangam'];
 const optionsVilles=(choisie)=>VILLES.map(v=>
   `<option${String(choisie||'').trim().toLowerCase()===v.toLowerCase()?' selected':''}>${v}</option>`).join('');
 
@@ -5433,8 +5433,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-edition-compacte';
+const MAJ_ID='2026-09-24-bayangam';
 const NOTES_MAJ=[
+  { pour:['tous'],
+    fr:'Bayangam fait désormais partie des villes proposées, partout où l’on choisit une ville.',
+    en:'Bayangam is now one of the towns offered wherever you pick a town.' },
   { pour:['admin'],
     fr:'Onglet Édition : la fiche du jour ne se charge plus toute seule, appuyez sur « Charger ». Les interventions s’affichent alors sous forme de numéros, rangés du plus petit au plus grand ; touchez un numéro pour ouvrir sa fiche, touchez-le à nouveau pour la refermer.',
     en:'Edit tab: the day’s sheet no longer loads by itself, press "Load". Jobs are then shown as numbers, from smallest to largest; tap a number to open its record, tap it again to close it.' },
