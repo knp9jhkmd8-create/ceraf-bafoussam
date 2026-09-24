@@ -3983,12 +3983,16 @@ function invRowHTML(inv,idx){
   // porte pas encore (ex. cache local pas encore rafraîchi).
   if(cacheClient&&cacheClient.fdt&&!inv.fdt) inv={...inv,fdt:cacheClient.fdt};
   if(cacheClient&&cacheClient.fat&&!inv.fat) inv={...inv,fat:cacheClient.fat};
-  // Toujours affichée sous le nom du client, y compris vide (placeholder
+  // Affichée sous le nom du client, y compris vide (placeholder
   // "FDT- • FAT-") : l'équipe voulait ces repères visibles sans avoir à
-  // ouvrir la fiche client.
+  // ouvrir la fiche client. FTTH SEULEMENT (24/09) : FDT et FAT sont des
+  // équipements du réseau fibre, ils n'ont aucun sens sur une ligne Cuivre ou LS.
+  // Le type stocké est le libellé (« Dérangements FTTH », « Reprises en
+  // facturation FTTH »…), d'où le test sur le mot.
+  const estFtth=/ftth/i.test(String(inv.type||''));
   const fdtTxt=(inv.fdt&&inv.fdt!=='null')?inv.fdt:'FDT-';
   const fatTxt=(inv.fat&&inv.fat!=='null')?inv.fat:'FAT-';
-  const fdtFatHTML=`<div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${esc(fdtTxt)} • ${esc(fatTxt)}</div>`;
+  const fdtFatHTML=estFtth?`<div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${esc(fdtTxt)} • ${esc(fatTxt)}</div>`:'';
   const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
                 :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps:'';
   const hasGps=gpsValue!=='';
@@ -5200,7 +5204,7 @@ async function chargerEditionClient(){
   // peut jamais être plus large que la carte qui le contient.
   el.innerHTML=`<div class="ed-grid">
       <div><label>${esc(t('common.name.label'))}</label><input id="edc-nom" value="${esc(c.nom||'')}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-      <div><label>Service</label><select id="edc-service">
+      <div><label>Service</label><select id="edc-service" onchange="document.getElementById('edc-ftth').style.display=this.value==='FTTH'?'contents':'none'">
         <option value="FTTH"${svc==='FTTH'?' selected':''}>FTTH</option>
         <option value="CUIVRE"${svc==='CUIVRE'?' selected':''}>Cuivre</option></select></div>
       ${ch('edc-tel','Téléphone',c.tel)}${ch('edc-telsec','Tél. secondaire',c.telSec)}
@@ -5208,8 +5212,13 @@ async function chargerEditionClient(){
         <option value="">-- Sélectionner --</option>${optionsVilles(c.ville)}</select></div>
       <div><label>Quartier</label><input id="edc-quartier" value="${esc(c.quartier||'')}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();this.dataset.manuel='1'"></div>
       <div><label>Localité</label><input id="edc-loc" value="${esc(c.loc||'')}" oninput="quartierDepuisLocalite('edc-loc','edc-quartier')"></div>${ch('edc-gps','GPS',c.gps)}
+      <!-- FDT/FAT/distance : repères du réseau FIBRE, masqués pour un client
+           Cuivre. Masqués seulement : les valeurs restent envoyées telles
+           quelles, un changement de service ne les efface pas. -->
+      <div id="edc-ftth" style="display:${svc==='FTTH'?'contents':'none'}">
       ${ch('edc-fdt','FDT',c.fdt)}${ch('edc-fat','FAT',c.fat)}
       ${ch('edc-distfat','Distance FAT-client (m)',c.distanceFatClient)}
+      </div>
     </div>
     <div class="ed-actions">
       <button class="btn btn-green btn-sm" onclick="enregistrerEditionClient('${escJsAttr(num)}')">${esc(t('edition.enregistrer'))}</button>
@@ -5438,8 +5447,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-journal-admin';
+const MAJ_ID='2026-09-24-fdt-fat-ftth';
 const NOTES_MAJ=[
+  { pour:['tous'],
+    fr:'Les repères FDT et FAT ne s’affichent plus que sur les interventions FTTH. Les interventions Cuivre et LS ne les montrent plus.',
+    en:'The FDT and FAT markers now only appear on FTTH jobs. Copper and LS jobs no longer show them.' },
   { pour:['admin'],
     fr:'Journal : chaque correction faite par l’administrateur y montre désormais exactement ce qui a changé — par exemple « localité : Santa Maria → Santa Marie » — au lieu de présenter toute la fiche comme effacée. La révocation d’une session y est aussi inscrite.',
     en:'Log: every correction made by the administrator now shows exactly what changed — for example "locality: Santa Maria → Santa Marie" — instead of showing the whole record as erased. Revoking a session is now logged too.' },
