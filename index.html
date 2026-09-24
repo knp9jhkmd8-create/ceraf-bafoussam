@@ -3676,14 +3676,23 @@ async function saveGPS(invId,num,nomLs){
   const inp=document.getElementById('gps-'+invId);
   const gps=(inp.value||'').trim();
   if(!gps){showToast(t('valid.gpsRequired'));return;}
+  // Le GPS enregistré est reporté sur la ligne affichée ET dans le cache du
+  // terrain : sans ça, le prochain rendu (filtre, rafraîchissement) reprenait
+  // l'ancienne valeur et le GPS semblait ne pas avoir été enregistré.
+  const retenir=()=>{
+    if(terrainData){const inv=terrainData.interventions.find(i=>i.id===invId);if(inv)inv.gps=gps;}
+    saveTerrainCache();
+  };
   if(num&&num!=='null'&&num!==''){
     const res=await apiPost({action:'updateClientGPS',num,gps});
-    if(res.success){showToast(t('toast.gpsSaved'));const key=num.replace(/\s/g,'').toLowerCase();if(clientsCache[key])clientsCache[key].gps=gps;}
+    if(res.success){showToast(t('toast.gpsSaved'));const key=num.replace(/\s/g,'').toLowerCase();if(clientsCache[key])clientsCache[key].gps=gps;retenir();}
     else showToast(t('err.gpsError'));
   } else if(nomLs&&nomLs!=='null'&&nomLs!==''){
-    // Client LS : pas de numéro de ligne — la fiche Clients LS est retrouvée par nom
-    const res=await apiPost({action:'updateClientGPS',nomLs,gps});
-    if(res.success)showToast(t('toast.gpsSaved'));
+    // Client LS : pas de numéro de ligne. Le serveur retrouve la fiche par
+    // l'INTERVENTION (nom + ville + quartier, la clé de la base) ; `nomLs`
+    // reste envoyé pour un serveur plus ancien qui ne connaîtrait que lui.
+    const res=await apiPost({action:'updateClientGPS',invId,nomLs,gps});
+    if(res.success){showToast(t('toast.gpsSaved'));retenir();}
     else showToast(t('err.gpsError'));
   } else {
     showToast(t('toast.gpsNotedLater'));
@@ -5447,8 +5456,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-fdt-fat-ftth';
+const MAJ_ID='2026-09-24-gps-ls';
 const NOTES_MAJ=[
+  { pour:['technicien','chef','admin'],
+    fr:'Les coordonnées GPS enregistrées sur une intervention LS restent maintenant affichées : elles étaient bien sauvegardées, mais l’application ne les relisait pas et elles semblaient perdues.',
+    en:'GPS coordinates saved on an LS job now stay displayed: they were being saved, but the app did not read them back, so they looked lost.' },
   { pour:['tous'],
     fr:'Les repères FDT et FAT ne s’affichent plus que sur les interventions FTTH. Les interventions Cuivre et LS ne les montrent plus.',
     en:'The FDT and FAT markers now only appear on FTTH jobs. Copper and LS jobs no longer show them.' },

@@ -1180,6 +1180,27 @@ async function updateClientGPS(d, ctx) {
     if (!r.length) return { success: false, error: 'Client introuvable' };
     ctx.entite = 'client'; ctx.entiteId = num;
     ctx.avant = { gps: avantGps ? avantGps.gps : null };
+  } else if (d.invId) {
+    // Client LS retrouvé PAR SON INTERVENTION, avec la clé que la base utilise
+    // pour l'identifier (nom + ville + quartier, colonne cle_normalisee). La
+    // recherche par nom seul, conservée plus bas pour les anciennes versions
+    // de l'app, écrivait le même GPS sur deux homonymes de villes différentes,
+    // et échouait quand l'intervention n'avait pas de fiche client LS.
+    // Fiche absente → créée ici : c'est l'upsert que saveConsistance fait déjà.
+    const inv = await un(
+      `SELECT nom_client, ville, quartier FROM interventions
+        WHERE id = $1 AND service = 'LS' AND supprime_le IS NULL`, [String(d.invId)]);
+    if (!inv || !String(inv.nom_client || '').trim()) return { success: false, error: 'Intervention LS introuvable' };
+    const cle = [inv.nom_client, inv.ville, inv.quartier].map(x => String(x || '').trim().toLowerCase()).join('|');
+    const avantLs = await un('SELECT gps FROM clients_ls WHERE cle_normalisee = $1 AND supprime_le IS NULL', [cle]);
+    await sql(
+      `INSERT INTO clients_ls (nom, ville, quartier, gps, derniere_maj)
+       VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (cle_normalisee) WHERE supprime_le IS NULL DO UPDATE SET
+         gps = EXCLUDED.gps, derniere_maj = now()`,
+      [String(inv.nom_client).trim(), inv.ville || '', inv.quartier || '', gps]);
+    ctx.entite = 'client_ls'; ctx.entiteId = String(inv.nom_client).trim();
+    ctx.avant = { gps: avantLs ? avantLs.gps : null };
   } else if (nomLs) {
     const r = await sql(
       `UPDATE clients_ls SET gps=$1, derniere_maj=now()
