@@ -615,6 +615,13 @@ footer{background:var(--surface);border-top:1px solid var(--border);text-align:c
             <div><div class="inp-prefixed"><span class="inp-prefix">FDT-</span><input type="text" id="f2fdt" placeholder="X"></div></div>
             <div><div class="inp-prefixed"><span class="inp-prefix">FAT-</span><input type="text" id="f2fat" placeholder="X"></div></div>
           </div>
+          <!-- Splitter (S1-S2) et port (P1-P8) : facultatifs, souvent connus
+               seulement sur place — le technicien peut aussi les saisir depuis
+               sa fiche du jour. -->
+          <div class="form-row">
+            <div><label data-i18n="label.splitter">Splitter</label><select id="f2spl"><option value="">—</option><option value="1">S1</option><option value="2">S2</option></select></div>
+            <div><label data-i18n="label.port">Port</label><select id="f2port"><option value="">—</option><option value="1">P1</option><option value="2">P2</option><option value="3">P3</option><option value="4">P4</option><option value="5">P5</option><option value="6">P6</option><option value="7">P7</option><option value="8">P8</option></select></div>
+          </div>
         </div>
 
         <!-- DÉRANGEMENT FTTH -->
@@ -1259,6 +1266,7 @@ fr:{
   'label.numFiche':'N° de fiche','label.natureReprise':'Nature de la reprise',
   'reprise.transfert':'Transfert de ligne','reprise.ont':"Remplacement de l'ONT",'reprise.autre':'Autre',
   'edition.choisirInv':'{n} intervention(s) — touchez un numéro pour ouvrir sa fiche',
+  'label.splitter':'Splitter','label.port':'Port','clients.th.sp':'Splitter/Port',
   'renvoi.title':"Renvoyer à l'agence",'renvoi.body':"Pourquoi cette intervention retourne-t-elle à l'agence commerciale ?",
   'renvoi.tag':'Motif : {motif}','stat.renvoyes':"{n} renvoyée(s) à l'agence",
   'valid.ficheRequired':'Le numéro de fiche est obligatoire','valid.natureRequired':'Sélectionnez la nature de la reprise',
@@ -1561,6 +1569,7 @@ en:{
   'label.numFiche':'Form number','label.natureReprise':'Type of resumption',
   'reprise.transfert':'Line transfer','reprise.ont':'ONT replacement','reprise.autre':'Other',
   'edition.choisirInv':'{n} job(s) — tap a number to open its record',
+  'label.splitter':'Splitter','label.port':'Port','clients.th.sp':'Splitter/Port',
   'renvoi.title':'Return to agency','renvoi.body':'Why is this job going back to the sales agency?',
   'renvoi.tag':'Reason: {motif}','stat.renvoyes':'{n} returned to agency',
   'valid.ficheRequired':'The form number is required','valid.natureRequired':'Select the type of resumption',
@@ -2990,7 +2999,7 @@ function gf(){
   const v=id=>(document.getElementById(id)||{value:''}).value.trim();
   const vUp=id=>v(id).toUpperCase();
   if(cType==='etude_ftth')    return{customerId:v('f1c'),num:'',nom:vUp('f1n'),tel:v('f1t'),loc:v('f1l'),ville:v('f1v'),numSec:v('f1sec'),gps:''};
-  if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),numSec:v('f2sec'),gps:'',fdt:v('f2fdt'),fat:v('f2fat')};
+  if(cType==='install_ftth')  return{num:v('f2u'),nom:vUp('f2n'),tel:v('f2t'),loc:v('f2l'),ville:v('f2v'),numSec:v('f2sec'),gps:'',fdt:v('f2fdt'),fat:v('f2fat'),splitter:v('f2spl'),port:v('f2port')};
   if(cType==='derang_ftth')   return{num:v('f3u'),nom:vUp('f3n'),tel:v('f3t'),loc:v('f3l'),ville:v('f3v'),numSec:v('f3sec'),gps:''};
   if(cType==='derang_cuivre') return{num:v('f4u'),nom:vUp('f4n'),tel:v('f4t'),loc:v('f4l'),ville:v('f4v'),numSec:v('f4sec'),gps:''};
   if(cType==='reprise_ftth')  return{num:v('f9u'),nom:vUp('f9n'),tel:v('f9t'),loc:v('f9l'),ville:v('f9v'),numSec:v('f9sec'),gps:'',fiche:v('f9f'),nature:v('f9nat')};
@@ -3060,7 +3069,7 @@ function validateNumericFields(){
 }
 
 function cf(){
-  ['f1c','f1u','f1n','f1t','f1l','f1v','f1sec','f2u','f2n','f2t','f2l','f2v','f2sec','f2fdt','f2fat',
+  ['f1c','f1u','f1n','f1t','f1l','f1v','f1sec','f2u','f2n','f2t','f2l','f2v','f2sec','f2fdt','f2fat','f2spl','f2port',
    'f3u','f3n','f3t','f3l','f3v','f3sec','f4u','f4n','f4t','f4l','f4v','f4sec',
    'f5n','f5u','f5t','f5l','f5v','f5sec','f6n','f6u','f6t','f6l','f6v','f6sec',
    'f7n','f7u','f7t','f7p','f7v','f7sec','f7g','f7c','f7x',
@@ -3287,6 +3296,17 @@ function trNature(n){
 }
 // N° de fiche : chiffres et barre oblique seulement (« 112 », « 263/2 »).
 function filtrerNumFiche(el){const v=el.value.replace(/[^0-9/]/g,'');if(v!==el.value)el.value=v;}
+// Splitter / port d'un client FTTH → « S2/P4 » (ou la seule moitié connue).
+// Stockés en base comme de simples entiers (1-2, 1-8) : le libellé est construit
+// ici, pour qu'on puisse en changer la présentation sans toucher aux données.
+function libelleSP(spl,port){
+  const s=(spl&&spl!=='null')?'S'+spl:'', p=(port&&port!=='null')?'P'+port:'';
+  return s&&p?s+'/'+p:(s||p);
+}
+// Listes de choix partagées par le formulaire, le terrain et la correction admin.
+function optionsSplitter(v){return ['','1','2'].map(x=>`<option value="${x}"${String(v||'')===x?' selected':''}>${x?'S'+x:'—'}</option>`).join('');}
+function optionsPort(v){return ['','1','2','3','4','5','6','7','8'].map(x=>`<option value="${x}"${String(v||'')===x?' selected':''}>${x?'P'+x:'—'}</option>`).join('');}
+
 function buildLabel(inv){
   const p=[];
   const fiche=ficheDe(inv);
@@ -3358,7 +3378,7 @@ function editInv(id){
   // Remplir les champs selon le type
   const setIf=(fid,val)=>{const el=document.getElementById(fid);if(el&&val!==undefined&&val!==null)el.value=val;};
   if(inv.type==='etude_ftth'){setIf('f1c',inv.customerId);setIf('f1u',inv.num);setIf('f1n',inv.nom);setIf('f1t',inv.tel);setIf('f1l',inv.loc);setIf('f1v',inv.ville);setIf('f1sec',inv.numSec);}
-  if(inv.type==='install_ftth'){setIf('f2u',inv.num);setIf('f2n',inv.nom);setIf('f2t',inv.tel);setIf('f2l',inv.loc);setIf('f2v',inv.ville);setIf('f2sec',inv.numSec);setIf('f2fdt',inv.fdt);setIf('f2fat',inv.fat);}
+  if(inv.type==='install_ftth'){setIf('f2u',inv.num);setIf('f2n',inv.nom);setIf('f2t',inv.tel);setIf('f2l',inv.loc);setIf('f2v',inv.ville);setIf('f2sec',inv.numSec);setIf('f2fdt',inv.fdt);setIf('f2fat',inv.fat);setIf('f2spl',inv.splitter);setIf('f2port',inv.port);}
   if(inv.type==='derang_ftth'){setIf('f3u',inv.num);setIf('f3n',inv.nom);setIf('f3t',inv.tel);setIf('f3l',inv.loc);setIf('f3v',inv.ville);setIf('f3sec',inv.numSec);}
   if(inv.type==='derang_cuivre'){setIf('f4u',inv.num);setIf('f4n',inv.nom);setIf('f4t',inv.tel);setIf('f4l',inv.loc);setIf('f4v',inv.ville);setIf('f4sec',inv.numSec);}
   if(inv.type==='reprise_ftth'){setIf('f9f',inv.fiche);setIf('f9nat',inv.nature);setIf('f9u',inv.num);setIf('f9n',inv.nom);setIf('f9t',inv.tel);setIf('f9l',inv.loc);setIf('f9v',inv.ville);setIf('f9sec',inv.numSec);}
@@ -3468,7 +3488,7 @@ function renderClientsTable(list,wrapId){
   const showHist=role==='chef';
   const showFdtFat=clientsView==='ftth';
   let h=`<table class="clients-table"><thead><tr>
-    <th>${t('clients.th.num')}</th><th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.gps')}</th>${showFdtFat?`<th>${t('clients.th.fdt')}</th><th>${t('clients.th.fat')}</th>`:''}${showHist?`<th></th>`:''}
+    <th>${t('clients.th.num')}</th><th>${t('clients.th.nom')}</th><th>${t('clients.th.tel')}</th><th>${t('clients.th.tel2')}</th><th>${t('clients.th.loc')}</th><th>${t('clients.th.ville')}</th><th>${t('clients.th.quartier')}</th><th>${t('clients.th.gps')}</th>${showFdtFat?`<th>${t('clients.th.fdt')}</th><th>${t('clients.th.fat')}</th><th>${t('clients.th.sp')}</th>`:''}${showHist?`<th></th>`:''}
   </tr></thead><tbody>`;
   list.forEach(c=>{
     // GPS valide = contient des chiffres et une virgule (coordonnées)
@@ -3485,7 +3505,7 @@ function renderClientsTable(list,wrapId){
       <td>${esc(c.loc)||'—'}</td><td>${esc(c.ville)||'—'}</td>
       <td>${c.quartier?`<span class="tag tag-quartier">${esc(c.quartier)}</span>`:'—'}</td>
       <td>${gpsH}</td>
-      ${showFdtFat?`<td>${esc(c.fdt)||'—'}</td><td>${esc(c.fat)||'—'}</td>`:''}
+      ${showFdtFat?`<td>${esc(c.fdt)||'—'}</td><td>${esc(c.fat)||'—'}</td><td>${esc(libelleSP(c.splitter,c.port))||'—'}</td>`:''}
       ${showHist?`<td><button class="btn btn-ghost btn-sm" style="font-size:.72rem;" title="${t('clients.histBtn')}" onclick="showClientHistory('${escJsAttr(c.num)}','${escJsAttr(c.nom||'')}')">${ICO.scroll}</button></td>`:''}
     </tr>`;
   });
@@ -4001,7 +4021,12 @@ function invRowHTML(inv,idx){
   const estFtth=/ftth/i.test(String(inv.type||''));
   const fdtTxt=(inv.fdt&&inv.fdt!=='null')?inv.fdt:'FDT-';
   const fatTxt=(inv.fat&&inv.fat!=='null')?inv.fat:'FAT-';
-  const fdtFatHTML=estFtth?`<div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${esc(fdtTxt)} • ${esc(fatTxt)}</div>`:'';
+  // Splitter/port ajoutés à la même ligne, seulement s'ils sont connus :
+  // contrairement à FDT/FAT, pas de gabarit vide qui chargerait chaque fiche.
+  const spl=inv.splitter||(cacheClient&&cacheClient.splitter)||'';
+  const prt=inv.port||(cacheClient&&cacheClient.port)||'';
+  const spTxt=libelleSP(spl,prt);
+  const fdtFatHTML=estFtth?`<div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${esc(fdtTxt)} • ${esc(fatTxt)}${spTxt?' • '+esc(spTxt):''}</div>`:'';
   const gpsValue=(inv.gps&&inv.gps!=='null'&&inv.gps!=='')?inv.gps
                 :(cacheClient&&cacheClient.gps&&cacheClient.gps!=='null'&&cacheClient.gps!=='')?cacheClient.gps:'';
   const hasGps=gpsValue!=='';
@@ -4083,6 +4108,10 @@ function invRowHTML(inv,idx){
       <div class="etude-fields" style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);margin-bottom:6px;">${t('install.distanceTitle')}</div>
         <div class="inp-prefixed"><span class="inp-prefix">Distance =</span><input type="text" id="dist-${inv.id}" class="remark-inp" placeholder="X" inputmode="numeric" value="${esc(distCli)}" onblur="updStructured('${inv.id}')"><span class="inp-prefix">m</span></div>
+        <div class="form-row" style="gap:6px;margin-top:7px;">
+          <select id="spl-${inv.id}" class="field-sel" aria-label="${t('label.splitter')}" onchange="updStructured('${inv.id}')">${optionsSplitter(spl)}</select>
+          <select id="port-${inv.id}" class="field-sel" aria-label="${t('label.port')}" onchange="updStructured('${inv.id}')">${optionsPort(prt)}</select>
+        </div>
       </div>`;
   } else if(isDerangFtth){
     const p=parsePanneInfo(inv.remarque);
@@ -4152,7 +4181,9 @@ function readStructuredFields(invId,inv){
     // la distance part dans son propre champ de la requête.
     return {
       kind:'install',
-      distance:(document.getElementById('dist-'+invId)||{value:''}).value
+      distance:(document.getElementById('dist-'+invId)||{value:''}).value,
+      splitter:(document.getElementById('spl-'+invId)||{value:''}).value,
+      port:(document.getElementById('port-'+invId)||{value:''}).value
     };
   }
   if(type===TL.derang_ftth){
@@ -4319,7 +4350,13 @@ async function updStatut(invId,statut){
   // `#rem-<id>` et non `.remark-inp` : le premier `.remark-inp` de la ligne est
   // le champ GPS, dont la valeur partait donc dans la remarque à chaque
   // changement de statut (des remarques valaient « 5.49, 10.40 » en base).
-  const remarque=structured?composeStructuredRemarque(structured)
+  // L'installation a des champs structurés (distance, splitter, port) mais
+  // garde une remarque LIBRE : elle ne se recompose pas. La faire passer par
+  // composeStructuredRemarque(), qui ne connaît que l'étude et le dérangement,
+  // renvoyait une chaîne vide — chaque changement de statut effaçait ce que le
+  // technicien avait écrit (3 remarques perdues entre le 21 et le 24/09).
+  const estInstall=structured&&structured.kind==='install';
+  const remarque=(structured&&!estInstall)?composeStructuredRemarque(structured)
     :avecSegmentsFixes(invRef&&invRef.remarque,row?(document.getElementById('rem-'+invId)||{value:''}).value:'');
   const panne=structured&&structured.kind==='panne'?structured.panne:undefined; // undefined = non envoyé (JSON le retire)
 
@@ -4411,10 +4448,18 @@ async function updStructured(invId){
   // la ligne, pas de la visite) — le backend s'en charge depuis ce champ.
   if(estInstall){
     payload.distanceFatClient=structured.distance;
+    payload.splitter=structured.splitter;payload.port=structured.port;
     // Le cache local suit, sinon la valeur repart à vide au prochain rendu
     // tant que getClients n'a pas été rappelé.
     const cle=String(invRef.num||'').replace(/\s/g,'').toLowerCase();
-    if(cle&&clientsCache[cle])clientsCache[cle].distanceFatClient=structured.distance;
+    if(cle&&clientsCache[cle]){
+      clientsCache[cle].distanceFatClient=structured.distance;
+      clientsCache[cle].splitter=structured.splitter;clientsCache[cle].port=structured.port;
+    }
+    invRef.splitter=structured.splitter;invRef.port=structured.port;
+    // La ligne « FDT • FAT • S/P » affichée au-dessus doit suivre tout de suite.
+    const ligne=row?row.querySelector('.inv-info > div[style*="font-size:.7rem"]'):null;
+    if(ligne){const sp=libelleSP(structured.splitter,structured.port);ligne.textContent=ligne.textContent.split(' • ').slice(0,2).join(' • ')+(sp?' • '+sp:'');}
   }
 
   if(estHorsLigne()){
@@ -5227,6 +5272,8 @@ async function chargerEditionClient(){
       <div id="edc-ftth" style="display:${svc==='FTTH'?'contents':'none'}">
       ${ch('edc-fdt','FDT',c.fdt)}${ch('edc-fat','FAT',c.fat)}
       ${ch('edc-distfat','Distance FAT-client (m)',c.distanceFatClient)}
+      <div><label>${esc(t('label.splitter'))}</label><select id="edc-spl">${optionsSplitter(c.splitter)}</select></div>
+      <div><label>${esc(t('label.port'))}</label><select id="edc-port">${optionsPort(c.port)}</select></div>
       </div>
     </div>
     <div class="ed-actions">
@@ -5240,7 +5287,8 @@ async function enregistrerEditionClient(num){
   const res=await apiPost({action:'saveClient',num,
     nom:V('edc-nom'),service:V('edc-service'),tel:V('edc-tel'),telSec:V('edc-telsec'),
     ville:V('edc-ville'),quartier:V('edc-quartier'),loc:V('edc-loc'),gps:V('edc-gps'),
-    fdt:V('edc-fdt'),fat:V('edc-fat'),distanceFatClient:V('edc-distfat')});
+    fdt:V('edc-fdt'),fat:V('edc-fat'),distanceFatClient:V('edc-distfat'),
+    splitter:V('edc-spl'),port:V('edc-port')});
   if(res.success)showToast(t('toast.saved'));
   else showToast(t('err.prefix')+(res.error||t('err.generic')));
 }
@@ -5456,8 +5504,14 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-gps-ls';
+const MAJ_ID='2026-09-24-splitter-port';
 const NOTES_MAJ=[
+  { pour:['technicien','chef'],
+    fr:'Installation FTTH : on peut maintenant noter le splitter (S1 ou S2) et le port (P1 à P8) sur lesquels le client est branché — au moment d’ajouter l’installation, ou sur la fiche du jour au moment de la réaliser. Ce n’est pas obligatoire. L’information s’affiche à côté du FDT et du FAT, par exemple « S2/P4 ».',
+    en:'FTTH installation: you can now record the splitter (S1 or S2) and port (P1 to P8) the client is connected to — when adding the installation, or on the day’s sheet when carrying it out. It is optional. It is shown next to the FDT and FAT, for example "S2/P4".' },
+  { pour:['admin'],
+    fr:'Le splitter et le port d’un client FTTH se corrigent aussi depuis « Corriger une fiche client », et apparaissent dans une colonne de l’annuaire FTTH.',
+    en:'A FTTH client’s splitter and port can also be corrected from "Correct a client record", and appear in a column of the FTTH directory.' },
   { pour:['technicien','chef','admin'],
     fr:'Les coordonnées GPS enregistrées sur une intervention LS restent maintenant affichées : elles étaient bien sauvegardées, mais l’application ne les relisait pas et elles semblaient perdues.',
     en:'GPS coordinates saved on an LS job now stay displayed: they were being saved, but the app did not read them back, so they looked lost.' },

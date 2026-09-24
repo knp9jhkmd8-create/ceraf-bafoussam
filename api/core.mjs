@@ -321,6 +321,7 @@ const ligneInv = (r) => {
   // renvoyés jusqu'ici — le frontend les affichait donc en les reparsant
   // depuis la remarque, source qu'on vient justement d'arrêter d'alimenter.
   fdt: r.fdt || '', fat: r.fat || '',
+  splitter: r.splitter || '', port: r.port || '',
   publiePar: r.publie_par || '', statutPar: r.statut_par || ''
   };
 };
@@ -352,7 +353,7 @@ async function getByDate(d) {
 
 async function getClients() {
   const [ftth, cuivre, ls, actives] = await Promise.all([
-    sql(`SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, derniere_maj
+    sql(`SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, splitter, port, derniere_maj
            FROM clients WHERE service='FTTH' AND supprime_le IS NULL ORDER BY nom`),
     sql(`SELECT numero, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, derniere_maj
            FROM clients WHERE service='CUIVRE' AND supprime_le IS NULL ORDER BY nom`),
@@ -363,7 +364,8 @@ async function getClients() {
   ]);
   const mapC = r => ({ num: r.numero, nom: r.nom, tel: r.telephone || '', telSec: r.tel_secondaire || '',
     loc: r.localite || '', ville: r.ville || '', quartier: r.quartier || '', gps: r.gps || '',
-    fdt: r.fdt || '', fat: r.fat || '', distanceFatClient: r.distance_fat_client || '', maj: r.derniere_maj });
+    fdt: r.fdt || '', fat: r.fat || '', distanceFatClient: r.distance_fat_client || '',
+    splitter: r.splitter || '', port: r.port || '', maj: r.derniere_maj });
   const mapL = r => ({ nom: r.nom, tel: r.telephone || '', telSec: r.tel_secondaire || '',
     loc: r.localite || '', ville: r.ville || '', quartier: r.quartier || '', pop: r.pop || '',
     gps: r.gps || '', maj: r.derniere_maj });
@@ -856,6 +858,21 @@ async function updateStatus(d, ctx, session) {
     ctx.apresDistance = dist;
   }
 
+  // Splitter/port relevés par le technicien À L'INSTALLATION : sur la fiche
+  // client, comme la distance. Champ absent = inchangé ; vide = effacé.
+  if ((d.splitter !== undefined || d.port !== undefined) && avant.numero_ligne) {
+    await sql(
+      `UPDATE clients SET
+         splitter = CASE WHEN $3 THEN $1::smallint ELSE splitter END,
+         port     = CASE WHEN $4 THEN $2::smallint ELSE port END,
+         derniere_maj = now()
+       WHERE numero = $5 AND supprime_le IS NULL`,
+      [borne(d.splitter, 2), borne(d.port, 8), d.splitter !== undefined, d.port !== undefined,
+       avant.numero_ligne]);
+    ctx.apresSP = { ...(d.splitter !== undefined ? { splitter: borne(d.splitter, 2) } : {}),
+                    ...(d.port !== undefined ? { port: borne(d.port, 8) } : {}) };
+  }
+
   ctx.entite = 'intervention'; ctx.entiteId = id;
   // Mêmes clés des deux côtés, et seulement ce que la requête a réellement
   // envoyé : une remarque non transmise n'a pas été effacée, elle n'a pas bougé.
@@ -868,7 +885,8 @@ async function updateStatus(d, ctx, session) {
                 ...(d.panne === undefined ? {} : { panne: d.panne }),
                 ...(avant.motif_renvoi || statut === STATUT_RENVOI
                     ? { motifRenvoi: statut === STATUT_RENVOI ? (motif || avant.motif_renvoi) : null } : {}),
-                ...(ctx.apresDistance === undefined ? {} : { distanceFatClient: ctx.apresDistance }) };
+                ...(ctx.apresDistance === undefined ? {} : { distanceFatClient: ctx.apresDistance }),
+                ...(ctx.apresSP || {}) };
   return { success: true };
 }
 
@@ -876,6 +894,15 @@ async function updateStatus(d, ctx, session) {
 // commerciale (client déménagé avant l'installation, refus…). Voir
 // db/renvoi-agence.sql pour la base (statut_clos(), report nocturne, durée).
 const STATUT_RENVOI = "Renvoyé à l'agence";
+
+// Splitter (1-2) et port (1-8) d'un client FTTH, relevés à l'installation.
+// Toute autre valeur devient NULL : la base la refuserait (contraintes CHECK de
+// db/splitter-port.sql) et ferait échouer toute l'écriture pour un champ
+// facultatif. Accepte « 2 » comme « S2 »/« P4 ».
+const borne = (v, max) => {
+  const n = Number(String(v == null ? '' : v).replace(/^[SP]/i, '').trim());
+  return Number.isInteger(n) && n >= 1 && n <= max ? n : null;
+};
 
 const sansAccents = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -1018,8 +1045,8 @@ async function saveConsistance(d, ctx, session) {
       const fdtVal = formatRepereFtth('FDT', inv.fdt);
       const fatVal = formatRepereFtth('FAT', inv.fat);
       await sql(
-        `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, fdt, fat, derniere_maj)
-         VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$10,$11, now())
+        `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, fdt, fat, splitter, port, derniere_maj)
+         VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$10,$11,$12,$13, now())
          ON CONFLICT (numero) DO UPDATE SET
            service        = EXCLUDED.service,
            nom            = CASE WHEN $9 THEN EXCLUDED.nom       ELSE clients.nom END,
@@ -1032,11 +1059,13 @@ async function saveConsistance(d, ctx, session) {
            tel_secondaire = COALESCE(NULLIF(EXCLUDED.tel_secondaire, ''), clients.tel_secondaire),
            fdt            = COALESCE(NULLIF(EXCLUDED.fdt, ''), clients.fdt),
            fat            = COALESCE(NULLIF(EXCLUDED.fat, ''), clients.fat),
+           splitter       = COALESCE(EXCLUDED.splitter, clients.splitter),
+           port           = COALESCE(EXCLUDED.port, clients.port),
            supprime_le    = NULL,
            derniere_maj   = now()`,
         [numKey, service, String(inv.nom || '').toUpperCase(), inv.tel || null,
          inv.numSec || null, inv.loc || null, inv.ville || null, inv.quartier || null,
-         !!inv.updateClient, fdtVal, fatVal]);
+         !!inv.updateClient, fdtVal, fatVal, borne(inv.splitter, 2), borne(inv.port, 8)]);
     } else if (service === 'LS' && String(inv.nom || '').trim()) {
       // Clé métier LS = (nom, ville, quartier) normalisés, calculée par la base.
       await sql(
@@ -1082,9 +1111,12 @@ async function saveClient(d, ctx) {
   const distFat = (distFournie && d.distanceFatClient !== '' && !isNaN(Number(d.distanceFatClient)))
     ? Number(d.distanceFatClient) : null;
 
+  // Splitter/port : mêmes drapeaux « fourni » que la distance (entiers).
+  const splFourni = d.splitter !== undefined, portFourni = d.port !== undefined;
+
   await sql(
-    `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, derniere_maj)
-     VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now())
+    `INSERT INTO clients (numero, service, nom, telephone, tel_secondaire, localite, ville, quartier, gps, fdt, fat, distance_fat_client, splitter, port, derniere_maj)
+     VALUES ($1,$2::service_t,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$14,$15, now())
      ON CONFLICT (numero) DO UPDATE SET
        service=EXCLUDED.service, nom=EXCLUDED.nom,
        telephone      = COALESCE(EXCLUDED.telephone,      clients.telephone),
@@ -1097,12 +1129,15 @@ async function saveClient(d, ctx) {
        fat            = COALESCE(EXCLUDED.fat,            clients.fat),
        distance_fat_client = CASE WHEN $13 THEN EXCLUDED.distance_fat_client
                                   ELSE clients.distance_fat_client END,
+       splitter = CASE WHEN $16 THEN EXCLUDED.splitter ELSE clients.splitter END,
+       port     = CASE WHEN $17 THEN EXCLUDED.port     ELSE clients.port     END,
        supprime_le=NULL, derniere_maj=now()`,
     // `nom` reste toujours écrit : la colonne est NOT NULL, et les deux écrans
     // qui appellent cette action l'exigent déjà avant d'envoyer.
     [num, service, String(d.nom || '').toUpperCase(),
      fourni(d.tel), fourni(d.telSec), fourni(d.loc), fourni(d.ville), fourni(d.quartier),
-     d.gps || '', repere('FDT', d.fdt), repere('FAT', d.fat), distFat, distFournie]);
+     d.gps || '', repere('FDT', d.fdt), repere('FAT', d.fat), distFat, distFournie,
+     borne(d.splitter, 2), borne(d.port, 8), splFourni, portFourni]);
 
   // ── Propagation aux interventions EN COURS ───────────────────────────────
   // La ligne d'intervention garde sa PROPRE copie de nom/ville/quartier, figée
