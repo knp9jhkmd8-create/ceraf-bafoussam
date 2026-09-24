@@ -4915,9 +4915,14 @@ function renderJournalAudit(){
   const lot=auditLignes.slice(debut,debut+AUDIT_PAR_PAGE);
   // Le avant/après est le cœur de l'onglet : c'est précisément ce que le
   // Google Sheet ne conservait pas.
+  // Modification (avant ET après) : seules les clés de l'APRÈS comptent — ce
+  // sont celles que l'action a écrites. Prendre l'union affichait comme
+  // « effacé » tout champ que l'action n'avait simplement pas touché.
+  // Création : l'après seul. Suppression : l'avant seul.
+  const TECH=['derniere_maj','supprime_le','mis_a_jour_le','maj_le'];
   const diff=(a,b)=>{
     if(!a&&!b)return '';
-    const cles=[...new Set([...Object.keys(a||{}),...Object.keys(b||{})])];
+    const cles=(a&&b?Object.keys(b):Object.keys(a||b)).filter(k=>!TECH.includes(k));
     return cles.filter(k=>JSON.stringify((a||{})[k])!==JSON.stringify((b||{})[k]))
       .map(k=>`<div><b>${esc(k)}</b> : <span style="color:var(--red)">${esc(String((a||{})[k]??'—'))}</span> → <span style="color:var(--green)">${esc(String((b||{})[k]??'—'))}</span></div>`)
       .join('');
@@ -5433,8 +5438,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-bayangam';
+const MAJ_ID='2026-09-24-journal-admin';
 const NOTES_MAJ=[
+  { pour:['admin'],
+    fr:'Journal : chaque correction faite par l’administrateur y montre désormais exactement ce qui a changé — par exemple « localité : Santa Maria → Santa Marie » — au lieu de présenter toute la fiche comme effacée. La révocation d’une session y est aussi inscrite.',
+    en:'Log: every correction made by the administrator now shows exactly what changed — for example "locality: Santa Maria → Santa Marie" — instead of showing the whole record as erased. Revoking a session is now logged too.' },
   { pour:['tous'],
     fr:'Bayangam fait désormais partie des villes proposées, partout où l’on choisit une ville.',
     en:'Bayangam is now one of the towns offered wherever you pick a town.' },

@@ -154,8 +154,17 @@ const MUTATIONS = new Set(['login', 'logout', 'changePin', 'updateStatus', 'save
   'mergeClientsLs', 'adminAddUser', 'adminUpdateUser', 'adminDeleteUser', 'adminResetPin',
   // Techniquement une lecture, mais sortir TOUTE la base est précisément ce
   // qu'on veut pouvoir retracer.
-  'adminExport', 'adminCorrigerIntervention',
+  'adminExport', 'adminCorrigerIntervention', 'adminRevoquerSession',
   'adminAddQuartier', 'adminRenameQuartier', 'adminDeleteQuartier']);
+
+// Le journal compare avant/après CHAMP PAR CHAMP. Les horodatages techniques
+// changent à chaque écriture : les laisser ferait apparaître une « modification »
+// sur toutes les lignes et noierait la vraie.
+const pourJournal = (r) => {
+  if (!r) return r;
+  const { derniere_maj, supprime_le, mis_a_jour_le, maj_le, ...reste } = r;
+  return reste;
+};
 
 async function journaliser(ctx, resultat) {
   if (!MUTATIONS.has(ctx.action)) return;
@@ -848,9 +857,17 @@ async function updateStatus(d, ctx, session) {
   }
 
   ctx.entite = 'intervention'; ctx.entiteId = id;
-  ctx.avant = avant;
-  ctx.apres = { statut, remarque: d.remarque, panne: d.panne,
-                ...(statut === STATUT_RENVOI ? { motifRenvoi: motif || avant.motif_renvoi } : {}),
+  // Mêmes clés des deux côtés, et seulement ce que la requête a réellement
+  // envoyé : une remarque non transmise n'a pas été effacée, elle n'a pas bougé.
+  ctx.avant = { statut: avant.statut,
+                ...(d.remarque === undefined ? {} : { remarque: avant.remarque }),
+                ...(d.panne === undefined ? {} : { panne: avant.panne }),
+                ...(avant.motif_renvoi || statut === STATUT_RENVOI ? { motifRenvoi: avant.motif_renvoi } : {}) };
+  ctx.apres = { statut,
+                ...(d.remarque === undefined ? {} : { remarque: d.remarque }),
+                ...(d.panne === undefined ? {} : { panne: d.panne }),
+                ...(avant.motif_renvoi || statut === STATUT_RENVOI
+                    ? { motifRenvoi: statut === STATUT_RENVOI ? (motif || avant.motif_renvoi) : null } : {}),
                 ...(ctx.apresDistance === undefined ? {} : { distanceFatClient: ctx.apresDistance }) };
   return { success: true };
 }
@@ -1124,8 +1141,12 @@ async function saveClient(d, ctx) {
       RETURNING id`,
     [num, String(d.nom || '').toUpperCase(), String(d.ville || ''), String(d.quartier || '')]);
 
-  ctx.entite = 'client'; ctx.entiteId = num; ctx.avant = avant;
-  ctx.apres = { interventionsAlignees: majInv.length };
+  // L'état APRÈS n'était pas enregistré : le journal ne gardait que la fiche
+  // d'avant, et affichait chaque champ comme effacé au lieu de dire ce que
+  // l'administrateur avait corrigé.
+  const apres = await un('SELECT * FROM clients WHERE numero = $1', [num]);
+  ctx.entite = 'client'; ctx.entiteId = num; ctx.avant = pourJournal(avant);
+  ctx.apres = { ...pourJournal(apres), interventionsAlignees: majInv.length };
   return { success: true, action: avant ? 'maj' : 'created', interventionsAlignees: majInv.length };
 }
 
@@ -1144,6 +1165,8 @@ async function saveClientLs(d, ctx) {
        derniere_maj=now()`,
     [nom, d.tel || '', d.telSec || '', d.loc || '', d.ville || '', d.quartier || '', d.pop || '', d.gps || '']);
   ctx.entite = 'client_ls'; ctx.entiteId = nom;
+  ctx.apres = { nom, telephone: d.tel || '', tel_secondaire: d.telSec || '', localite: d.loc || '',
+                ville: d.ville || '', quartier: d.quartier || '', pop: d.pop || '', gps: d.gps || '' };
   return { success: true };
 }
 
@@ -1152,9 +1175,11 @@ async function updateClientGPS(d, ctx) {
   const num = String(d.num || '').trim();
   const nomLs = String(d.nomLs || '').trim();
   if (num) {
+    const avantGps = await un('SELECT gps FROM clients WHERE numero=$1', [num]);
     const r = await sql('UPDATE clients SET gps=$1, derniere_maj=now() WHERE numero=$2 RETURNING numero', [gps, num]);
     if (!r.length) return { success: false, error: 'Client introuvable' };
     ctx.entite = 'client'; ctx.entiteId = num;
+    ctx.avant = { gps: avantGps ? avantGps.gps : null };
   } else if (nomLs) {
     const r = await sql(
       `UPDATE clients_ls SET gps=$1, derniere_maj=now()
@@ -1283,7 +1308,8 @@ async function adminUpdateUser(d, ctx) {
   if (d.actif === false || d.actif === 'false') {
     await sql('UPDATE sessions SET revoquee_le=now() WHERE matricule=$1 AND revoquee_le IS NULL', [mat]);
   }
-  ctx.entite = 'utilisateur'; ctx.entiteId = mat; ctx.avant = avant;
+  const apres = await un('SELECT matricule, nom, roles, actif FROM utilisateurs WHERE matricule=$1', [mat]);
+  ctx.entite = 'utilisateur'; ctx.entiteId = mat; ctx.avant = avant; ctx.apres = apres;
   return { success: true };
 }
 
@@ -1337,6 +1363,7 @@ async function adminRevoquerSession(d, ctx) {
   const r = await sql('UPDATE sessions SET revoquee_le=now() WHERE id=$1 AND revoquee_le IS NULL RETURNING matricule', [id]);
   if (!r.length) return { success: false, error: 'Session introuvable ou déjà révoquée' };
   ctx.entite = 'session'; ctx.entiteId = String(id);
+  ctx.apres = { compte: r[0].matricule, revoquee: true };
   return { success: true, matricule: r[0].matricule };
 }
 
