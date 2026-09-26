@@ -88,7 +88,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-system);min-h
    d'état iOS/Android (heure, batterie). Son propre padding garantit que son
    contenu ne chevauche jamais cette zone, et min-height (au lieu de height fixe)
    laisse la barre grandir si le badge de rôle passe sur plusieurs lignes. */
-.topbar{background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);border-bottom:1px solid var(--border);padding:0 20px;padding-top:env(safe-area-inset-top,0px);min-height:calc(56px + env(safe-area-inset-top,0px));display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:100;}
+.topbar{background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);border-bottom:1px solid var(--border);padding:0 20px;padding-top:var(--haut-sur);min-height:calc(56px + var(--haut-sur));display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:100;}
 /* Sur un téléphone, les quatre blocs du bandeau (logo, rôle, état de synchro,
    déconnexion) réclament plus que la largeur de l'écran : le badge de rôle
    passait sur deux lignes et « Synchronisé » finissait SOUS le bouton
@@ -441,7 +441,7 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
      remonter sous l'heure et la Dynamic Island, zone qu'iOS floute : le titre
      devenait illisible. La zone réservée varie selon le modèle (~47px à
      encoche, ~59px à Dynamic Island) — d'où env() et non une valeur fixe. */
-  padding-top:max(20px, calc(env(safe-area-inset-top, 0px) + 12px));
+  padding-top:max(20px, calc(var(--haut-sur) + 8px));
   padding-bottom:max(20px, calc(env(safe-area-inset-bottom, 0px) + 12px));}
 .modal-overlay.active{display:flex;animation:modalOverlayIn .2s var(--ease);}
 .modal-overlay.active .modal-box{animation:modalBoxIn .25s var(--ease);}
@@ -480,11 +480,17 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
 .anim-in{animation:animIn .18s var(--ease);}
 @media(prefers-reduced-motion:reduce){.anim-in{animation:none;}}
 .hidden{display:none!important;}
-.offline-banner{position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;text-align:center;padding:4px 8px;padding-top:calc(4px + env(safe-area-inset-top,0px));font-size:.74rem;font-weight:700;letter-spacing:.02em;z-index:9999;display:none;}
+.offline-banner{position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;text-align:center;padding:4px 8px;padding-top:calc(4px + var(--haut-sur));font-size:.74rem;font-weight:700;letter-spacing:.02em;z-index:9999;display:none;}
 .offline-banner.visible{display:block;}
 /* Hors ligne : la bannière fine POUSSE l'entête vers le bas au lieu de la
    recouvrir (rien n'est masqué). --offline-h ≈ hauteur de la bannière. */
-:root{--offline-h:calc(24px + env(safe-area-inset-top,0px));}
+:root{--offline-h:calc(24px + var(--haut-sur));}
+/* Marge SOUS la barre d'état. iOS floute non seulement la zone réservée
+   (safe-area-inset-top) mais aussi une bande d'environ 28 points en dessous :
+   mesuré sur capture d'un iPhone à Dynamic Island, « CERAF » y était flou et
+   « Bafoussam », 20 points plus bas, net. min() ne donne cette marge QUE s'il y
+   a une zone réservée : 0 sur ordinateur, Android sans encoche, navigateur. */
+:root{--haut-sur:calc(env(safe-area-inset-top,0px) + min(28px, env(safe-area-inset-top,0px)));}
 body.offline #app{padding-top:var(--offline-h);}
 body.offline .topbar{top:var(--offline-h);}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
@@ -5523,11 +5529,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-27-dynamic-island';
+const MAJ_ID='2026-09-27-dynamic-island-2';
 const NOTES_MAJ=[
   { pour:['tous'],
-    fr:'Sur les iPhone avec Dynamic Island, les fenêtres (comme celle-ci) ne passent plus sous l’heure en haut de l’écran : leur titre n’est plus flou.',
-    en:'On iPhones with the Dynamic Island, windows (like this one) no longer slide under the clock at the top of the screen: their title is no longer blurred.' },
+    fr:'Sur les iPhone avec Dynamic Island, le haut de l’application (le nom CERAF Bafoussam, votre rôle, les boutons) et les fenêtres comme celle-ci descendent un peu : ils ne passent plus dans la zone floutée par l’iPhone sous l’heure.',
+    en:'On iPhones with the Dynamic Island, the top of the app (the CERAF Bafoussam name, your role, the buttons) and windows like this one now sit a little lower: they no longer fall in the area the iPhone blurs under the clock.' },
   { pour:['tous'],
     fr:'Quand la liste des nouveautés est longue, elle défile maintenant à l’intérieur de cette fenêtre, et le bouton « J’ai compris » reste toujours visible en bas.',
     en:'When the list of new features is long, it now scrolls inside this window, and the "Got it" button always stays visible at the bottom.' },
