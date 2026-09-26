@@ -441,7 +441,16 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
 @keyframes modalOverlayIn{from{opacity:0}to{opacity:1}}
 @keyframes modalBoxIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.modal-overlay.active,.modal-overlay.active .modal-box{animation:none;}}
-.modal-box{background:var(--surface);border-radius:22px;padding:28px 26px;max-width:420px;width:100%;box-shadow:var(--shadow-md);}
+.modal-box{background:var(--surface);border-radius:22px;padding:28px 26px;max-width:420px;width:100%;box-shadow:var(--shadow-md);
+  /* Jamais plus haute que l'écran (moins la marge de .modal-overlay) : une
+     fenêtre longue débordait, sans défilement, et son bouton devenait
+     inatteignable. dvh suit la barre d'adresse mobile ; vh en repli. */
+  max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;overscroll-behavior:contain;}
+/* « Quoi de neuf » : seul le TEXTE défile, les boutons restent visibles en bas
+   — sinon il faudrait tout lire jusqu'au bout pour trouver « J'ai compris ». */
+#modal-maj .modal-box{display:flex;flex-direction:column;overflow:hidden;}
+#maj-corps{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+#modal-maj .modal-title,#modal-maj .modal-box>div:last-child{flex:none;}
 .modal-title{font-family:var(--font-system);font-size:1.1rem;font-weight:700;letter-spacing:-.01em;color:var(--navy);margin-bottom:8px;}
 .modal-body{font-size:.84rem;color:var(--muted);margin-bottom:20px;line-height:1.6;}
 .modal-diff{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:16px;font-size:.8rem;}
@@ -5504,8 +5513,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-27-week-end';
+const MAJ_ID='2026-09-27-maj-defilante';
 const NOTES_MAJ=[
+  { pour:['tous'],
+    fr:'Quand la liste des nouveautés est longue, elle défile maintenant à l’intérieur de cette fenêtre, et le bouton « J’ai compris » reste toujours visible en bas.',
+    en:'When the list of new features is long, it now scrolls inside this window, and the "Got it" button always stays visible at the bottom.' },
   { pour:['tous'],
     fr:'Le samedi et le dimanche, la fiche du jour montre maintenant les interventions en cours : on peut les consulter et changer leur statut comme en semaine. Ce qui est réalisé le week-end reste daté du jour où il a été fait ; ce qui ne l’est pas revient automatiquement au lundi.',
     en:'On Saturdays and Sundays, the day’s sheet now shows the jobs in progress: you can view them and change their status as on weekdays. What is completed at the weekend stays dated the day it was done; the rest automatically goes back to Monday.' },
