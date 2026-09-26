@@ -107,17 +107,22 @@ if (chg.success) PIN_COURANT = NOUVEAU;
 const AUJOURDHUI = new Date(Date.now() + 3600e3).toISOString().slice(0, 10);
 const d = await appel({ action: 'getByDate', date: AUJOURDHUI, token: tok, actingRole: 'technicien' });
 verifier('getByDate repond', d.success === true, JSON.stringify(d).slice(0, 120));
-// Le week-end, il n'y a legitimement PAS de fiche : `reporter_interventions()`
-// ne cree jamais de consistance un samedi ou un dimanche, et reporte au lundi.
-// Asserter « fiche non vide » sans regarder le jour echoue a tort deux jours
-// sur sept -- exactement le genre de faux echec qui finit par masquer les vrais.
+// Le week-end, la fiche peut legitimement etre VIDE : l'arriere n'y est ramene
+// que s'il y en a (ramenerAuWeekEnd, depuis le 2026-09-27 -- avant, il n'y
+// avait jamais de fiche le week-end). Asserter « fiche non vide » sans regarder
+// le jour echouerait a tort -- le genre de faux echec qui masque les vrais.
+// ⚠️ Ce test lit la fiche du JOUR : un samedi/dimanche, il declenche donc le
+// rapatriement comme n'importe quel utilisateur. Sans consequence (tout repart
+// au lundi la nuit), mais c'est une ecriture.
 const jourSemaine = new Date(AUJOURDHUI + 'T12:00:00Z').getUTCDay();   // 0=dim, 6=sam
 const ouvre = jourSemaine >= 1 && jourSemaine <= 5;
 if (ouvre) {
   verifier('fiche du jour non vide', (d.interventions || []).length > 0, (d.interventions || []).length + '');
   verifier('durees calculees', (d.interventions || []).some(i => i.duree >= 0));
 } else {
-  console.log('  (week-end : pas de fiche du jour, comportement attendu)');
+  verifier('week-end : lignes ramenees au jour meme',
+    (d.interventions || []).every(i => String(i.date).slice(0, 10) === AUJOURDHUI),
+    (d.interventions || []).length + ' ligne(s)');
 }
 
 const g = await appel({ action: 'getClients', token: tok, actingRole: 'technicien' });

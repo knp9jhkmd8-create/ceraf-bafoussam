@@ -5504,8 +5504,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-24-splitter-port';
+const MAJ_ID='2026-09-27-week-end';
 const NOTES_MAJ=[
+  { pour:['tous'],
+    fr:'Le samedi et le dimanche, la fiche du jour montre maintenant les interventions en cours : on peut les consulter et changer leur statut comme en semaine. Ce qui est réalisé le week-end reste daté du jour où il a été fait ; ce qui ne l’est pas revient automatiquement au lundi.',
+    en:'On Saturdays and Sundays, the day’s sheet now shows the jobs in progress: you can view them and change their status as on weekdays. What is completed at the weekend stays dated the day it was done; the rest automatically goes back to Monday.' },
   { pour:['technicien','chef'],
     fr:'Installation FTTH : on peut maintenant noter le splitter (S1 ou S2) et le port (P1 à P8) sur lesquels le client est branché — au moment d’ajouter l’installation, ou sur la fiche du jour au moment de la réaliser. Ce n’est pas obligatoire. L’information s’affiche à côté du FDT et du FAT, par exemple « S2/P4 ».',
     en:'FTTH installation: you can now record the splitter (S1 or S2) and port (P1 to P8) the client is connected to — when adding the installation, or on the day’s sheet when carrying it out. It is optional. It is shown next to the FDT and FAT, for example "S2/P4".' },

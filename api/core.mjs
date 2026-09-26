@@ -326,6 +326,38 @@ const ligneInv = (r) => {
   };
 };
 
+// ── Travail le week-end ─────────────────────────────────────────────────────
+// Le report nocturne ne crée jamais de fiche un samedi ou un dimanche : il
+// envoie l'arriéré directement au lundi. Or l'équipe travaille certains
+// samedis (sans régularité) — la fiche du jour était alors vide, et rien ne
+// pouvait être mis à jour.
+//
+// Quand on ouvre la fiche d'un samedi ou d'un dimanche (le jour même), les
+// interventions EN COURS déjà REPORTÉES vers le prochain jour ouvré sont
+// ramenées à ce jour-là. Ce qui y est réalisé reste daté du jour réel du
+// travail ; ce qui reste ouvert repart au lundi à la nuit suivante, par le
+// report habituel — rien ne se perd si personne ne travaille finalement.
+//
+// `reporte_depuis IS NOT NULL` : seul l'ARRIÉRÉ est ramené. Une intervention
+// publiée à l'avance pour le lundi n'a jamais été reportée ; elle reste où
+// on l'a planifiée. L'origine (`reporte_depuis`) n'est pas touchée : la durée
+// continue de courir depuis la vraie ouverture du dossier.
+async function ramenerAuWeekEnd(jour) {
+  await sql(
+    `INSERT INTO consistances (id, date) VALUES ('C_' || to_char($1::date, 'YYYYMMDD'), $1::date)
+     ON CONFLICT (date) DO NOTHING`, [jour]);
+  await sql(
+    `UPDATE interventions i
+        SET date = $1::date, consistance_id = c.id, mis_a_jour_le = now()
+       FROM consistances c
+      WHERE c.date = $1::date
+        AND i.supprime_le IS NULL
+        AND NOT statut_clos(i.statut)
+        AND i.reporte_depuis IS NOT NULL
+        AND i.date > $1::date
+        AND i.date <= prochain_jour_ouvre($1::date)`, [jour]);
+}
+
 async function getByDate(d) {
   const date = String(d.date || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Date invalide' };
@@ -337,9 +369,16 @@ async function getByDate(d) {
   // l'appeler ici ne coûte qu'une requête indexée.
   // On ne le fait QUE pour la date du jour : consulter une date passée ne doit
   // évidemment pas déclencher un report.
-  if (date === new Date().toISOString().slice(0, 10)) {
+  // « Aujourd'hui » à l'heure du Cameroun, pas en UTC : entre minuit et 1 h,
+  // toISOString() donnait encore la veille et le filet ne se déclenchait pas.
+  const auj = await un(`SELECT date_locale()::text AS jour, extract(isodow FROM date_locale())::int AS dow`);
+  if (date === auj.jour) {
     try { await sql('SELECT reporter_interventions()'); }
     catch (e) { console.error('[report/filet]', e.message); }   // ne jamais casser la lecture
+    if (auj.dow >= 6) {
+      try { await ramenerAuWeekEnd(date); }
+      catch (e) { console.error('[week-end]', e.message); }
+    }
   }
 
   const c = await un('SELECT id, date FROM v_consistances WHERE date = $1::date', [date]);
