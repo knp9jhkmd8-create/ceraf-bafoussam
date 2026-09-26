@@ -435,7 +435,14 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
 .role-card:active{transform:scale(.98);}
 .hist-card:active{transform:scale(.98);}
 
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;
+  /* L'app s'affiche SOUS la barre d'état (viewport-fit=cover +
+     black-translucent). Une marge fixe de 20px laissait une fenêtre haute
+     remonter sous l'heure et la Dynamic Island, zone qu'iOS floute : le titre
+     devenait illisible. La zone réservée varie selon le modèle (~47px à
+     encoche, ~59px à Dynamic Island) — d'où env() et non une valeur fixe. */
+  padding-top:max(20px, calc(env(safe-area-inset-top, 0px) + 12px));
+  padding-bottom:max(20px, calc(env(safe-area-inset-bottom, 0px) + 12px));}
 .modal-overlay.active{display:flex;animation:modalOverlayIn .2s var(--ease);}
 .modal-overlay.active .modal-box{animation:modalBoxIn .25s var(--ease);}
 @keyframes modalOverlayIn{from{opacity:0}to{opacity:1}}
@@ -445,7 +452,10 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
   /* Jamais plus haute que l'écran (moins la marge de .modal-overlay) : une
      fenêtre longue débordait, sans défilement, et son bouton devenait
      inatteignable. dvh suit la barre d'adresse mobile ; vh en repli. */
-  max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;overscroll-behavior:contain;}
+  max-height:100%;overflow-y:auto;overscroll-behavior:contain;}
+/* max-height:100% = la hauteur utile de .modal-overlay, marges de sécurité
+   déjà déduites : une fenêtre longue s'arrête sous la Dynamic Island au lieu
+   de passer dessous. */
 /* « Quoi de neuf » : seul le TEXTE défile, les boutons restent visibles en bas
    — sinon il faudrait tout lire jusqu'au bout pour trouver « J'ai compris ». */
 #modal-maj .modal-box{display:flex;flex-direction:column;overflow:hidden;}
@@ -5513,8 +5523,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-27-maj-defilante';
+const MAJ_ID='2026-09-27-dynamic-island';
 const NOTES_MAJ=[
+  { pour:['tous'],
+    fr:'Sur les iPhone avec Dynamic Island, les fenêtres (comme celle-ci) ne passent plus sous l’heure en haut de l’écran : leur titre n’est plus flou.',
+    en:'On iPhones with the Dynamic Island, windows (like this one) no longer slide under the clock at the top of the screen: their title is no longer blurred.' },
   { pour:['tous'],
     fr:'Quand la liste des nouveautés est longue, elle défile maintenant à l’intérieur de cette fenêtre, et le bouton « J’ai compris » reste toujours visible en bas.',
     en:'When the list of new features is long, it now scrolls inside this window, and the "Got it" button always stays visible at the bottom.' },
