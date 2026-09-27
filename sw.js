@@ -9,7 +9,7 @@
 //    le cache ne sert plus que de secours hors-ligne.
 // ============================================================
 
-const CACHE_VERSION = 'ceraf-v56';
+const CACHE_VERSION = 'ceraf-v57';
 const CACHE_FILES   = ['./index.html', './manifest.json'];
 
 // ── INSTALLATION ────────────────────────────────────────────
