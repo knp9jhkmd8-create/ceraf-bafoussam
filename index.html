@@ -88,7 +88,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-system);min-h
    d'état iOS/Android (heure, batterie). Son propre padding garantit que son
    contenu ne chevauche jamais cette zone, et min-height (au lieu de height fixe)
    laisse la barre grandir si le badge de rôle passe sur plusieurs lignes. */
-.topbar{background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);border-bottom:1px solid var(--border);padding:0 20px;padding-top:var(--haut-sur);min-height:calc(56px + var(--haut-sur));display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:100;}
+/* Verre dépoli CONSERVÉ sur la ligne de l'en-tête, mais la bande sous la barre
+   d'état (hauteur --haut-sur) est PLEINE : le contenu qui défilait derrière y
+   apparaissait flouté, en haut de l'en-tête (demande du 27/09). Le dégradé à
+   arrêt net fait les deux sur un seul élément ; hors iPhone, --haut-sur vaut 0
+   et la barre est entièrement en verre, comme avant. */
+.topbar{background:linear-gradient(to bottom,var(--surface) 0,var(--surface) var(--haut-sur),rgba(255,255,255,.72) var(--haut-sur));backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);border-bottom:1px solid var(--border);padding:0 20px;padding-top:var(--haut-sur);min-height:calc(56px + var(--haut-sur));display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:100;}
 /* Sur un téléphone, les quatre blocs du bandeau (logo, rôle, état de synchro,
    déconnexion) réclament plus que la largeur de l'écran : le badge de rôle
    passait sur deux lignes et « Synchronisé » finissait SOUS le bouton
@@ -489,10 +494,10 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
    (safe-area-inset-top) mais aussi une bande d'environ 28 points en dessous :
    mesuré sur capture d'un iPhone à Dynamic Island, « CERAF » y était flou et
    « Bafoussam », 20 points plus bas, net. 28px d'abord, jugés trop grands par
-   l'utilisateur : 16px, le contenu de la barre étant centré dans ses 56px, ce
+   l'utilisateur, puis 16px, encore réduits à sa demande : 8px, le contenu de la barre étant centré dans ses 56px, ce
    qui ajoute encore quelques points. min() ne donne cette marge QUE s'il y a
    une zone réservée : 0 sur ordinateur, Android sans encoche, navigateur. */
-:root{--haut-sur:calc(env(safe-area-inset-top,0px) + min(16px, env(safe-area-inset-top,0px)));}
+:root{--haut-sur:calc(env(safe-area-inset-top,0px) + min(8px, env(safe-area-inset-top,0px)));}
 body.offline #app{padding-top:var(--offline-h);}
 body.offline .topbar{top:var(--offline-h);}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
@@ -5579,8 +5584,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-27-correction-complete';
+const MAJ_ID='2026-09-27-entete-net';
 const NOTES_MAJ=[
+  { pour:['tous'],
+    fr:'Sur iPhone, il n’y a plus de flou au-dessus du nom CERAF Bafoussam, et le bandeau du haut remonte un peu.',
+    en:'On iPhone, there is no more blur above the CERAF Bafoussam name, and the top bar sits a little higher.' },
   { pour:['admin'],
     fr:'Onglet Édition, « Corriger une intervention » : en plus du statut, des dates et de la remarque, on corrige maintenant le nom du client, ses deux numéros de téléphone, la ville, la localité et le quartier. Pour un client FTTH, Cuivre ou LS, la correction est faite sur sa fiche : toutes ses interventions en tiennent compte.',
     en:'Edit tab, "Correct a job": besides the status, dates and remark, you can now correct the client name, both phone numbers, the town, the locality and the neighbourhood. For an FTTH, Copper or LS client, the correction is made on their record: all of their jobs follow.' },
