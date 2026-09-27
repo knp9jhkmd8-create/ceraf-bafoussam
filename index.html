@@ -488,9 +488,11 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
 /* Marge SOUS la barre d'état. iOS floute non seulement la zone réservée
    (safe-area-inset-top) mais aussi une bande d'environ 28 points en dessous :
    mesuré sur capture d'un iPhone à Dynamic Island, « CERAF » y était flou et
-   « Bafoussam », 20 points plus bas, net. min() ne donne cette marge QUE s'il y
-   a une zone réservée : 0 sur ordinateur, Android sans encoche, navigateur. */
-:root{--haut-sur:calc(env(safe-area-inset-top,0px) + min(28px, env(safe-area-inset-top,0px)));}
+   « Bafoussam », 20 points plus bas, net. 28px d'abord, jugés trop grands par
+   l'utilisateur : 16px, le contenu de la barre étant centré dans ses 56px, ce
+   qui ajoute encore quelques points. min() ne donne cette marge QUE s'il y a
+   une zone réservée : 0 sur ordinateur, Android sans encoche, navigateur. */
+:root{--haut-sur:calc(env(safe-area-inset-top,0px) + min(16px, env(safe-area-inset-top,0px)));}
 body.offline #app{padding-top:var(--offline-h);}
 body.offline .topbar{top:var(--offline-h);}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
@@ -1292,6 +1294,8 @@ fr:{
   'reprise.transfert':'Transfert de ligne','reprise.ont':"Remplacement de l'ONT",'reprise.autre':'Autre',
   'edition.choisirInv':'{n} intervention(s) — touchez un numéro pour ouvrir sa fiche',
   'label.splitter':'Splitter','label.port':'Port','clients.th.sp':'Splitter/Port',
+  'edition.corrigeFiche':'Nom, téléphones, ville, quartier et localité sont corrigés sur la fiche du client : toutes ses interventions en tiennent compte.',
+  'valid.nomRequired':'Le nom du client est obligatoire',
   'renvoi.title':"Renvoyer à l'agence",'renvoi.body':"Pourquoi cette intervention retourne-t-elle à l'agence commerciale ?",
   'renvoi.tag':'Motif : {motif}','stat.renvoyes':"{n} renvoyée(s) à l'agence",
   'valid.ficheRequired':'Le numéro de fiche est obligatoire','valid.natureRequired':'Sélectionnez la nature de la reprise',
@@ -1595,6 +1599,8 @@ en:{
   'reprise.transfert':'Line transfer','reprise.ont':'ONT replacement','reprise.autre':'Other',
   'edition.choisirInv':'{n} job(s) — tap a number to open its record',
   'label.splitter':'Splitter','label.port':'Port','clients.th.sp':'Splitter/Port',
+  'edition.corrigeFiche':'Name, phones, town, neighbourhood and locality are corrected on the client record: all of their jobs follow.',
+  'valid.nomRequired':'The client name is required',
   'renvoi.title':'Return to agency','renvoi.body':'Why is this job going back to the sales agency?',
   'renvoi.tag':'Reason: {motif}','stat.renvoyes':'{n} returned to agency',
   'valid.ficheRequired':'The form number is required','valid.natureRequired':'Select the type of resumption',
@@ -5104,6 +5110,21 @@ function ouvrirEditionInv(id){
 // obligeait à faire défiler horizontalement pour atteindre le bouton
 // Enregistrer. Les champs s'empilent ici sur une grille qui se replie d'une
 // seule colonne quand la place manque, sans média-query à maintenir.
+// Segments de la remarque posés par l'application et non par la saisie libre :
+// n° de fiche et nature d'une reprise, contact d'une intervention sans fiche
+// client. Ils ont leurs propres champs (ou n'en ont pas à l'écran) — ils sont
+// donc masqués de la remarque éditable, puis remis tels quels à l'envoi.
+const SEGMENTS_APPLI=/^(Fiche|Nature|Tel|Tel2|Localité):\s/;
+function remarqueSaisissable(r){
+  if(!r||r==='null')return '';
+  return String(r).split(' • ').map(x=>x.trim()).filter(x=>x&&!SEGMENTS_APPLI.test(x)).join(' • ');
+}
+function remarqueAvecSegmentsAppli(origine,saisie){
+  const gardes=(origine&&origine!=='null')?String(origine).split(' • ').map(x=>x.trim()).filter(x=>SEGMENTS_APPLI.test(x)):[];
+  const libres=String(saisie||'').split(' • ').map(x=>x.trim()).filter(x=>x&&!SEGMENTS_APPLI.test(x));
+  return gardes.concat(libres).join(' • ');
+}
+
 function carteEditionInv(i,date){
   const STATUTS=['En attente','Injoignable','Problème','Réalisé',STATUT_RENVOI];
   const j=v=>String(v||'').slice(0,10);
@@ -5120,6 +5141,25 @@ function carteEditionInv(i,date){
                 onclick="archiverIntervention('${escJsAttr(i.id)}')"
                 title="${esc(t('btn.delete'))}">${ICO.trash}</button>
       </div>
+
+      <!-- Identité et coordonnées : corrigées là où elles vivent (fiche client
+           FTTH/Cuivre, fiche LS, ou remarque d'une étude) — voir
+           corrigerIdentite() côté serveur. -->
+      <div class="ed-grid" style="margin-bottom:8px;">
+        <div><label style="font-size:.72rem;">${esc(t('common.nomClient.label'))}</label>
+          <input class="edi-nom" value="${esc(i.nom||'')}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+        <div><label style="font-size:.72rem;">${esc(t('common.tel.label'))}</label>
+          <input class="edi-tel" value="${esc(i.tel||'')}" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+        <div><label style="font-size:.72rem;">${esc(t('common.numSec.ph'))}</label>
+          <input class="edi-telsec" value="${esc(i.telSec||'')}" maxlength="9" inputmode="numeric" oninput="filterDigits(this)"></div>
+        <div><label style="font-size:.72rem;">${esc(t('common.ville.label'))}</label>
+          <select class="edi-ville"><option value="">${esc(t('common.select.default'))}</option>${optionsVilles(i.ville)}</select></div>
+        <div><label style="font-size:.72rem;">Localité</label>
+          <input id="edi-loc-${esc(i.id)}" class="edi-loc" value="${esc(i.locFiche||i.loc||'')}" oninput="quartierDepuisLocalite('edi-loc-${escJsAttr(i.id)}','edi-q-${escJsAttr(i.id)}')"></div>
+        <div><label style="font-size:.72rem;">Quartier</label>
+          <input id="edi-q-${esc(i.id)}" class="edi-quartier" value="${esc(i.quartier||'')}" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();this.dataset.manuel='1'"></div>
+      </div>
+      ${i.num&&!/etude|étude/i.test(i.type||'')?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;">${esc(t('edition.corrigeFiche'))}</div>`:''}
 
       <div class="ed-grid">
         <div>
@@ -5138,7 +5178,7 @@ function carteEditionInv(i,date){
 
       <div style="margin-top:8px;">
         <label style="font-size:.72rem;">${esc(t('ph.remarque'))}</label>
-        <input class="ed-remarque" value="${esc(i.remarque||'')}">
+        <input class="ed-remarque" value="${esc(remarqueSaisissable(i.remarque))}">
       </div>
 
       <button class="btn btn-green btn-sm" style="margin-top:10px;width:100%;"
@@ -5153,9 +5193,17 @@ async function enregistrerEditionInv(id){
   const statutChoisi=row.querySelector('.ed-statut').value;
   let motifRenvoi;
   if(statutChoisi===STATUT_RENVOI){motifRenvoi=await demanderMotifRenvoi();if(!motifRenvoi)return;}
+  const inv=edInvs.find(x=>x.id===id)||{};
+  const V=cls=>(row.querySelector(cls)||{}).value;
+  const nom=String(V('.edi-nom')||'').trim();
+  if(!nom){showToast(t('valid.nomRequired'));return;}
+  for(const [cls,cle] of [['.edi-tel','valid.9digits'],['.edi-telsec','valid.9digitsSecondary']]){
+    const v=String(V(cls)||'').trim();
+    if(v&&v.length!==9){showToast(t(cle));return;}
+  }
   const res=await apiPost({action:'updateStatus',invId:id,motifRenvoi,
     statut:statutChoisi,
-    remarque:row.querySelector('.ed-remarque').value});
+    remarque:remarqueAvecSegmentsAppli(inv.remarque,row.querySelector('.ed-remarque').value)});
   if(!res.success){showToast(t('err.prefix')+(res.error||t('err.generic')));return;}
 
   // Les dates passent par une action séparée, réservée à l'admin : déplacer une
@@ -5165,7 +5213,9 @@ async function enregistrerEditionInv(id){
   const dateLigne=row.querySelector('.ed-date').value||'';
   if(!dateLigne){showToast(t('valid.dateRequired'));return;}
   const rd=await apiPost({action:'adminCorrigerIntervention',invId:id,
-    date:dateLigne,reporteDepuis:emission});
+    date:dateLigne,reporteDepuis:emission,
+    nom,tel:V('.edi-tel')||'',telSec:V('.edi-telsec')||'',
+    ville:V('.edi-ville')||'',quartier:V('.edi-quartier')||'',loc:V('.edi-loc')||''});
   if(!rd.success){showToast(t('err.prefix')+(rd.error||t('err.generic')));return;}
 
   showToast(t('toast.statusUpdated'));
@@ -5529,8 +5579,14 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-27-dynamic-island-2';
+const MAJ_ID='2026-09-27-correction-complete';
 const NOTES_MAJ=[
+  { pour:['admin'],
+    fr:'Onglet Édition, « Corriger une intervention » : en plus du statut, des dates et de la remarque, on corrige maintenant le nom du client, ses deux numéros de téléphone, la ville, la localité et le quartier. Pour un client FTTH, Cuivre ou LS, la correction est faite sur sa fiche : toutes ses interventions en tiennent compte.',
+    en:'Edit tab, "Correct a job": besides the status, dates and remark, you can now correct the client name, both phone numbers, the town, the locality and the neighbourhood. For an FTTH, Copper or LS client, the correction is made on their record: all of their jobs follow.' },
+  { pour:['tous'],
+    fr:'Sur les iPhone, l’espace ajouté au-dessus du bandeau du haut est réduit.',
+    en:'On iPhones, the space added above the top bar is reduced.' },
   { pour:['tous'],
     fr:'Sur les iPhone avec Dynamic Island, le haut de l’application (le nom CERAF Bafoussam, votre rôle, les boutons) et les fenêtres comme celle-ci descendent un peu : ils ne passent plus dans la zone floutée par l’iPhone sous l’heure.',
     en:'On iPhones with the Dynamic Island, the top of the app (the CERAF Bafoussam name, your role, the buttons) and windows like this one now sit a little lower: they no longer fall in the area the iPhone blurs under the clock.' },

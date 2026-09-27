@@ -322,6 +322,10 @@ const ligneInv = (r) => {
   // depuis la remarque, source qu'on vient justement d'arrêter d'alimenter.
   fdt: r.fdt || '', fat: r.fat || '',
   splitter: r.splitter || '', port: r.port || '',
+  // Localité de la fiche client (FTTH/Cuivre ou LS) : sert à l'écran de
+  // correction admin. `loc` ci-dessus ne lit que la remarque (interventions
+  // sans fiche), le terrain reste donc inchangé.
+  locFiche: r.localite_fiche || '',
   publiePar: r.publie_par || '', statutPar: r.statut_par || ''
   };
 };
@@ -656,11 +660,136 @@ async function mergeClientsLs(d, ctx) {
 // terrain, rejoué depuis la file hors ligne, et doit rester le chemin le plus
 // simple possible. Y greffer des dates l'exposerait à des rejeux qui
 // déplaceraient des interventions.
+// ── Correction de l'identité d'une intervention (admin) ─────────────────────
+// Nom, téléphones, ville, quartier, localité ne vivent pas au même endroit
+// selon l'intervention — les corriger « sur l'intervention » seule en aurait
+// laissé la moitié inchangée à l'écran :
+//   A. FTTH/Cuivre avec fiche client (par numéro) : la FICHE est corrigée, et
+//      propagée comme depuis « Corriger une fiche client » (nom sur toutes les
+//      interventions du client ; ville/quartier sur celles en cours) — plus
+//      celle-ci, même close, puisque c'est elle que l'admin corrige.
+//   B. LS : fiche clients_ls retrouvée par l'ANCIENNE clé nom|ville|quartier.
+//      La clé change avec le nom ou le lieu : toutes les interventions du
+//      client suivent, sinon elles perdraient leur fiche (GPS, téléphones).
+//      Refusé si la nouvelle clé appartient déjà à un autre client LS.
+//   C. Sans fiche (études, qui n'en créent jamais) : le contact vit dans les
+//      segments Tel/Tel2/Localité de la remarque, réécrits ici (et dans
+//      etudes_ftth, qui en garde une copie).
+// Champ absent de la requête = inchangé ; fourni vide = effacé (sauf le nom).
+async function corrigerIdentite(inv, d) {
+  const val = (k, actuel) => d[k] === undefined ? actuel : String(d[k]).trim();
+  const nom = val('nom', inv.nom_client).toUpperCase();
+  if (!nom) return { error: 'Le nom du client est obligatoire' };
+  const ville = val('ville', inv.ville || '');
+  const quartier = val('quartier', inv.quartier || '').toUpperCase();
+  const fourni = (k) => d[k] === undefined ? null : String(d[k]).trim();
+
+  const num = String(inv.numero_ligne || '').trim();
+  const estEtude = sansAccents(inv.type).toLowerCase().includes('etude');
+  const fiche = (num && !estEtude && inv.service !== 'LS')
+    ? await un('SELECT * FROM clients WHERE numero = $1 AND supprime_le IS NULL', [num]) : null;
+
+  const avant = { nom: inv.nom_client, ville: inv.ville, quartier: inv.quartier };
+  const apres = { nom, ville, quartier };
+  if (d.tel !== undefined) apres.tel = fourni('tel');
+  if (d.telSec !== undefined) apres.telSec = fourni('telSec');
+  if (d.loc !== undefined) apres.loc = fourni('loc');
+
+  if (fiche) {                                                     // ── A
+    Object.assign(avant, { tel: fiche.telephone, telSec: fiche.tel_secondaire, loc: fiche.localite });
+    await sql(
+      `UPDATE clients SET nom = $2,
+         telephone      = COALESCE($3, telephone),
+         tel_secondaire = COALESCE($4, tel_secondaire),
+         localite       = COALESCE($5, localite),
+         ville = $6, quartier = $7, derniere_maj = now()
+       WHERE numero = $1`,
+      [num, nom, fourni('tel'), fourni('telSec'), fourni('loc'), ville || null, quartier || null]);
+    await sql(
+      `UPDATE interventions
+          SET nom_client = $2,
+              ville    = CASE WHEN id = $5 OR NOT statut_clos(statut) THEN NULLIF($3, '') ELSE ville END,
+              quartier = CASE WHEN id = $5 OR NOT statut_clos(statut) THEN NULLIF($4, '') ELSE quartier END,
+              mis_a_jour_le = now()
+        WHERE numero_ligne = $1 AND supprime_le IS NULL`,
+      [num, nom, ville, quartier, inv.id]);
+    return { avant, apres };
+  }
+
+  if (inv.service === 'LS') {                                      // ── B
+    const cle = (n, v, q) => [n, v, q].map(x => String(x || '').trim().toLowerCase()).join('|');
+    const ancienne = cle(inv.nom_client, inv.ville, inv.quartier);
+    const nouvelle = cle(nom, ville, quartier);
+    const ficheLs = await un('SELECT * FROM clients_ls WHERE cle_normalisee = $1 AND supprime_le IS NULL', [ancienne]);
+    if (nouvelle !== ancienne) {
+      const pris = await un('SELECT nom FROM clients_ls WHERE cle_normalisee = $1 AND supprime_le IS NULL', [nouvelle]);
+      if (pris && ficheLs) {
+        return { error: `Un autre client LS « ${pris.nom} » existe déjà à ${ville || '—'} / ${quartier || '—'} — fusionnez-les depuis l'onglet Clients` };
+      }
+    }
+    if (ficheLs) {
+      Object.assign(avant, { tel: ficheLs.telephone, telSec: ficheLs.tel_secondaire, loc: ficheLs.localite });
+      await sql(
+        `UPDATE clients_ls SET nom = $2, ville = $3, quartier = $4,
+           telephone      = COALESCE($5, telephone),
+           tel_secondaire = COALESCE($6, tel_secondaire),
+           localite       = COALESCE($7, localite),
+           derniere_maj = now()
+         WHERE id = $1`,
+        [ficheLs.id, nom, ville, quartier, fourni('tel'), fourni('telSec'), fourni('loc')]);
+    } else {
+      await sql(
+        `INSERT INTO clients_ls (nom, ville, quartier, telephone, tel_secondaire, localite, derniere_maj)
+         VALUES ($1,$2,$3,$4,$5,$6, now())
+         ON CONFLICT (cle_normalisee) WHERE supprime_le IS NULL DO UPDATE SET
+           telephone      = COALESCE(NULLIF(EXCLUDED.telephone, ''), clients_ls.telephone),
+           tel_secondaire = COALESCE(NULLIF(EXCLUDED.tel_secondaire, ''), clients_ls.tel_secondaire),
+           localite       = COALESCE(NULLIF(EXCLUDED.localite, ''), clients_ls.localite),
+           derniere_maj = now()`,
+        [nom, ville, quartier, fourni('tel') || '', fourni('telSec') || '', fourni('loc') || '']);
+    }
+    // Toutes les interventions du client suivent la nouvelle clé.
+    await sql(
+      `UPDATE interventions SET nom_client = $2, ville = NULLIF($3, ''), quartier = NULLIF($4, ''),
+              mis_a_jour_le = now()
+        WHERE service = 'LS' AND supprime_le IS NULL
+          AND (id = $5 OR lower(trim(nom_client)) || '|' || lower(trim(coalesce(ville, ''))) || '|'
+                          || lower(trim(coalesce(quartier, ''))) = $1)`,
+      [ancienne, nom, ville, quartier, inv.id]);
+    return { avant, apres };
+  }
+
+  // ── C : pas de fiche — contact dans la remarque
+  const segs = String(inv.remarque || '').split(' • ').map(x => x.trim()).filter(Boolean);
+  const lire = (k) => { const g = segs.find(x => x.startsWith(k + ': ')); return g ? g.slice(k.length + 2) : ''; };
+  Object.assign(avant, { tel: lire('Tel'), telSec: lire('Tel2'), loc: lire('Localité') });
+  const garde = segs.filter(x => !/^(Tel|Tel2|Localité): /.test(x));
+  const tel = d.tel === undefined ? avant.tel : fourni('tel');
+  const telSec = d.telSec === undefined ? avant.telSec : fourni('telSec');
+  const loc = d.loc === undefined ? avant.loc : fourni('loc');
+  if (tel) garde.push('Tel: ' + tel);
+  if (telSec) garde.push('Tel2: ' + telSec);
+  if (loc) garde.push('Localité: ' + loc);
+  await sql(
+    `UPDATE interventions SET nom_client = $2, ville = NULLIF($3, ''), quartier = NULLIF($4, ''),
+            remarque = NULLIF($5, ''), mis_a_jour_le = now()
+      WHERE id = $1`,
+    [inv.id, nom, ville, quartier, garde.join(' • ')]);
+  if (estEtude) {
+    await sql(
+      `UPDATE etudes_ftth SET telephone = NULLIF($2, ''), tel_secondaire = NULLIF($3, ''),
+              localite = NULLIF($4, ''), maj_le = now()
+        WHERE intervention_id = $1`, [inv.id, tel || '', telSec || '', loc || '']);
+  }
+  return { avant, apres };
+}
+
 async function adminCorrigerIntervention(d, ctx, session) {
   const id = String(d.invId || '').trim();
   if (!id) return { success: false, error: 'Intervention introuvable' };
   const avant = await un(
-    `SELECT id, date, reporte_depuis, consistance_id, statut, nom_client
+    `SELECT id, date, reporte_depuis, consistance_id, statut, nom_client,
+            type, service, numero_ligne, ville, quartier, remarque
        FROM interventions WHERE id = $1 AND supprime_le IS NULL`, [id]);
   if (!avant) return { success: false, error: 'Intervention introuvable' };
 
@@ -708,11 +837,20 @@ async function adminCorrigerIntervention(d, ctx, session) {
       WHERE id = $5`,
     [dateVoulue, emission, cid, session.matricule, id]);
 
+  // Identité et coordonnées (nom, téléphones, ville, quartier, localité) :
+  // corrigées là où elles vivent réellement — voir corrigerIdentite().
+  let identite = null;
+  if (['nom', 'tel', 'telSec', 'ville', 'quartier', 'loc'].some(k => d[k] !== undefined)) {
+    identite = await corrigerIdentite(avant, d);
+    if (identite.error) return { success: false, error: identite.error };
+  }
+
   // Les agrégats des deux fiches concernées sont comptés à la lecture
   // (v_consistances) : rien à recalculer.
   ctx.entite = 'intervention'; ctx.entiteId = id;
-  ctx.avant = { date: iso(avant.date), reporteDepuis: iso(avant.reporte_depuis), nom: avant.nom_client };
-  ctx.apres = { date: dateVoulue, reporteDepuis: emission };
+  ctx.avant = { date: iso(avant.date), reporteDepuis: iso(avant.reporte_depuis),
+                ...(identite ? identite.avant : {}) };
+  ctx.apres = { date: dateVoulue, reporteDepuis: emission, ...(identite ? identite.apres : {}) };
   return { success: true, date: dateVoulue, reporteDepuis: emission };
 }
 
