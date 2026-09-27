@@ -3,9 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#1d4ed8">
+<!-- Barre d'état OPAQUE (« default ») et non « black-translucent » : en mode
+     transparent l'app s'affiche SOUS l'heure, et iOS floute cette zone — un voile
+     restait au-dessus de l'en-tête quelle que soit la marge ajoutée. Opaque, iOS
+     dessine sa barre sur fond plein et l'app commence juste en dessous.
+     theme-color blanc (comme l'en-tête) : sinon iOS/Android teintent cette barre
+     du bleu d'origine. Un iPhone qui a déjà l'app sur l'écran d'accueil peut
+     devoir la relancer, voire la réinstaller, pour prendre le réglage. -->
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="CERAF BFS">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -490,14 +497,12 @@ select.sel-renvoye,select.sel-renvoye:focus{background:#e2e8f0;color:#475569;bor
 /* Hors ligne : la bannière fine POUSSE l'entête vers le bas au lieu de la
    recouvrir (rien n'est masqué). --offline-h ≈ hauteur de la bannière. */
 :root{--offline-h:calc(24px + var(--haut-sur));}
-/* Marge SOUS la barre d'état. iOS floute non seulement la zone réservée
-   (safe-area-inset-top) mais aussi une bande d'environ 28 points en dessous :
-   mesuré sur capture d'un iPhone à Dynamic Island, « CERAF » y était flou et
-   « Bafoussam », 20 points plus bas, net. 28px d'abord, jugés trop grands par
-   l'utilisateur, puis 16px, encore réduits à sa demande : 8px, le contenu de la barre étant centré dans ses 56px, ce
-   qui ajoute encore quelques points. min() ne donne cette marge QUE s'il y a
-   une zone réservée : 0 sur ordinateur, Android sans encoche, navigateur. */
-:root{--haut-sur:calc(env(safe-area-inset-top,0px) + min(8px, env(safe-area-inset-top,0px)));}
+/* Hauteur réservée en haut = zone de sécurité, SANS marge supplémentaire
+   (demande du 27/09 : 0px). Des marges de 28, 16 puis 8px avaient été essayées
+   contre le flou d'iOS sous l'heure ; la vraie cause était le mode de barre
+   d'état transparent, retiré (voir les meta en tête). En barre opaque, iOS
+   renvoie 0 ici et la barre commence juste sous l'heure. */
+:root{--haut-sur:env(safe-area-inset-top,0px);}
 body.offline #app{padding-top:var(--offline-h);}
 body.offline .topbar{top:var(--offline-h);}
 .flex{display:flex;}.gap-2{gap:8px;}.mt-3{margin-top:14px;}
@@ -5584,11 +5589,11 @@ function displayRemarque(r){
 // sont lues par les techniciens sur le terrain, pas par des développeurs.
 // Décrire ce qui change à l'écran, jamais le code qui a changé. Et CHANGER
 // `MAJ_ID` : sans ça, personne ne verra les nouvelles notes.
-const MAJ_ID='2026-09-27-entete-net';
+const MAJ_ID='2026-09-27-barre-etat';
 const NOTES_MAJ=[
   { pour:['tous'],
-    fr:'Sur iPhone, il n’y a plus de flou au-dessus du nom CERAF Bafoussam, et le bandeau du haut remonte un peu.',
-    en:'On iPhone, there is no more blur above the CERAF Bafoussam name, and the top bar sits a little higher.' },
+    fr:'Sur iPhone, la barre de l’heure en haut de l’écran a maintenant un fond blanc plein : plus de flou au-dessus du bandeau CERAF Bafoussam, qui remonte juste sous l’heure. Si le flou est toujours là, fermez complètement l’application et rouvrez-la.',
+    en:'On iPhone, the clock bar at the top of the screen now has a plain white background: no more blur above the CERAF Bafoussam bar, which now sits right under the clock. If the blur is still there, fully close the app and reopen it.' },
   { pour:['admin'],
     fr:'Onglet Édition, « Corriger une intervention » : en plus du statut, des dates et de la remarque, on corrige maintenant le nom du client, ses deux numéros de téléphone, la ville, la localité et le quartier. Pour un client FTTH, Cuivre ou LS, la correction est faite sur sa fiche : toutes ses interventions en tiennent compte.',
     en:'Edit tab, "Correct a job": besides the status, dates and remark, you can now correct the client name, both phone numbers, the town, the locality and the neighbourhood. For an FTTH, Copper or LS client, the correction is made on their record: all of their jobs follow.' },
